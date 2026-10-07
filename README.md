@@ -56,6 +56,14 @@ Set production values in `server/.env`, including `MONGO_URI`, `JWT_SECRET`, `EN
 - Business admin: `admin@demo.local`
 - Agents: `agent1@demo.local`, `agent2@demo.local`
 
+### Two separate services (e.g. Render: one for `server/`, one for `web/`)
+
+The backend only serves the frontend when `web/` is installed and built next to it. When the frontend runs as its own service, the backend starts as **API only** (log: `running as API only`). Set `SERVE_FRONTEND=false` to force this.
+
+- **Backend service:** root `server`, build `npm install`, start `npm start`. Env: `NODE_ENV=production`, `MONGO_URI` (e.g. MongoDB Atlas, never `127.0.0.1`), `JWT_SECRET`, the **same** `ENCRYPTION_KEY` as before (otherwise saved WhatsApp tokens can not be decrypted), `WA_APP_SECRET`, `WA_WEBHOOK_VERIFY_TOKEN`, `CLIENT_URL=https://<frontend-url>`. Create the first logins once with `npm run seed` (Render Shell).
+- **Frontend service:** root `web`, build `npm install && npm run build`, start `npm start`, env `NEXT_PUBLIC_API_URL=https://<backend-url>`.
+- **Meta webhook:** `https://<backend-url>/api/webhook/whatsapp`.
+
 ## Sandbox mode vs live WhatsApp
 
 Each business starts in **sandbox mode**. Messages are simulated, and the delivered and read ticks are faked, so you can test the whole CRM without Meta credentials. Go to **Settings → Sandbox** to pretend a customer sent you a message.

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -92,15 +93,35 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({ error: message, details: err.details });
 });
 
-async function start() {
-  if (env.isProd) {
-    const webDir = fileURLToPath(new URL('../../web/', import.meta.url));
+/**
+ * In production this service can also serve the built Next.js app (one URL for app + API).
+ * That needs web/ installed and built next to server/. When the frontend is deployed as its own
+ * service (e.g. two Render services) it is not there, so the server runs as API only instead of crashing.
+ * SERVE_FRONTEND=false forces API-only mode.
+ */
+async function loadFrontend() {
+  if (!env.isProd || process.env.SERVE_FRONTEND === 'false') return null;
+  const webDir = fileURLToPath(new URL('../../web/', import.meta.url));
+  let next;
+  try {
     const requireWeb = createRequire(new URL('../../web/package.json', import.meta.url));
-    const next = requireWeb('next');
-    const frontend = next({ dev: false, dir: webDir });
-    await frontend.prepare();
-    frontendHandler = frontend.getRequestHandler();
+    next = requireWeb('next');
+  } catch {
+    console.log('[server] Frontend packages (web/) are not installed with this service: running as API only.');
+    return null;
   }
+  if (!fs.existsSync(path.join(webDir, '.next'))) {
+    console.log('[server] Frontend build (web/.next) not found: running as API only. Build the web app to serve it from here.');
+    return null;
+  }
+  const frontend = next({ dev: false, dir: webDir });
+  await frontend.prepare();
+  console.log('[server] Serving the frontend from this service');
+  return frontend.getRequestHandler();
+}
+
+async function start() {
+  frontendHandler = await loadFrontend();
 
   await connectDB();
   if (!(await User.exists({ role: 'super_admin' }))) {
