@@ -5,6 +5,7 @@ import { authorize } from '../middleware/auth.js';
 import { validate, forbidden, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { chatbotAllowed, isWithinBusinessHours } from '../services/chatbot.js';
+import { registerContactFields } from '../services/contactFields.js';
 
 const router = Router();
 router.use(authorize('admin'));
@@ -40,6 +41,12 @@ const botSchema = z.object({
   enabled: z.boolean(),
   welcomeText: z.string().trim().min(1, 'Welcome message is required').max(1024),
   menuButtonLabel: z.string().trim().min(1).max(20),
+  menuAfterReplyText: z.string().trim().min(1).max(1024).default('Aur kisi cheez me madad chahiye? 👇'),
+  showNumberedOptions: z.boolean().default(true),
+  afterReplyStyle: z.enum(['button', 'full']).default('button'),
+  mainMenuButtonLabel: z.string().trim().min(1).max(20, 'Main Menu button text can be max 20 characters').default('📋 Main Menu'),
+  afterReplyHint: z.string().trim().max(300).default('👉 Kuch aur jaanna hai? Neeche *Main Menu* dabaiye ya *menu* likhiye'),
+  menuHintText: z.string().trim().max(300).default('👉 Neeche *{button}* dabaiye, ya option ka number likhiye (jaise *2*)'),
   menu: z
     .array(
       z.object({
@@ -64,7 +71,15 @@ const botSchema = z.object({
     )
     .max(50),
   leadQuestions: z
-    .array(z.object({ _id: z.string().optional(), field: fieldName, question: z.string().trim().min(1).max(1024) }))
+    .array(
+      z.object({
+        _id: z.string().optional(),
+        field: fieldName,
+        question: z.string().trim().min(1).max(1024),
+        answerType: z.enum(['any', 'time', 'number', 'phone', 'email', 'date']).default('any'),
+        errorText: z.string().trim().max(300).default(''),
+      })
+    )
     .max(10),
   leadCompleteText: z.string().trim().max(1024),
   leadTag: z.string().trim().max(40),
@@ -74,6 +89,7 @@ const botSchema = z.object({
   handoffKeywords: z.array(z.string().trim().min(1)).max(20),
   menuKeywords: z.array(z.string().trim().min(1)).max(20),
   restartOnResolved: z.boolean(),
+  restartAfterHours: z.coerce.number().int().min(0).max(720).default(24),
   businessHours: z.object({
     enabled: z.boolean(),
     timezone: z.string().refine((tz) => {
@@ -109,6 +125,11 @@ router.put('/', async (req, res) => {
   const wasEnabled = bot.enabled;
   bot.set(data);
   await bot.save();
+  // Lead questions that save to a custom field: add it to Settings → Contact fields
+  await registerContactFields(
+    req.tenantId,
+    Object.fromEntries((data.leadQuestions || []).filter((q) => q.field?.startsWith('custom.')).map((q) => [q.field.slice(7), null]))
+  );
   if (wasEnabled && !data.enabled) {
     // Bot turned off: chats it was handling go back to the team's unassigned queue
     await Conversation.updateMany(

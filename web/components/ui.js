@@ -115,7 +115,7 @@ const statusTones = {
   active: "green", approved: "green", completed: "green", read: "green", converted: "green", open: "green",
   trial: "blue", running: "blue", sent: "blue", delivered: "blue", qualified: "blue", scheduled: "blue", contacted: "blue",
   pending: "yellow", paused: "yellow", draft: "gray", new: "purple", sending: "yellow",
-  suspended: "red", rejected: "red", failed: "red", expired: "red", cancelled: "gray", lost: "red", skipped: "gray", resolved: "gray",
+  stopped: "gray", suspended: "red", rejected: "red", failed: "red", expired: "red", cancelled: "gray", lost: "red", skipped: "gray", resolved: "gray",
 };
 export const StatusBadge = ({ status }) => <Badge tone={statusTones[status] || "gray"}>{status}</Badge>;
 

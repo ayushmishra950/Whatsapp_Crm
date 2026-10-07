@@ -1,5 +1,7 @@
 import http from 'node:http';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -10,6 +12,7 @@ import { connectDB, disconnectDB } from './config/db.js';
 import { authenticate, requireTenant } from './middleware/auth.js';
 import { initSocket } from './services/socket.js';
 import { startCampaignWorker } from './services/campaigns.js';
+import { startDripWorker } from './services/drips.js';
 import { HttpError } from './utils/http.js';
 import { User } from './models/index.js';
 
@@ -25,11 +28,15 @@ import dashboardRoutes from './routes/dashboard.js';
 import webhookRoutes from './routes/webhook.js';
 import miscRoutes from './routes/misc.js';
 import chatbotRoutes from './routes/chatbot.js';
+import dripRoutes from './routes/drips.js';
+import segmentRoutes from './routes/segments.js';
+import adRoutes from './routes/ads.js';
+import referralRoutes from './routes/referrals.js';
 
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: env.clientUrl, credentials: true }));
+app.use(cors({ origin: env.clientUrl, credentials: true, exposedHeaders: ['Content-Disposition'] }));
 // Keep raw body for WhatsApp webhook signature verification
 app.use(express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
@@ -52,10 +59,21 @@ tenantRouter.use('/templates', templateRoutes);
 tenantRouter.use('/campaigns', campaignRoutes);
 tenantRouter.use('/settings', settingsRoutes);
 tenantRouter.use('/chatbot', chatbotRoutes);
+tenantRouter.use('/drips', dripRoutes);
+tenantRouter.use('/segments', segmentRoutes);
+tenantRouter.use('/ads', adRoutes);
+tenantRouter.use('/referrals', referralRoutes);
 tenantRouter.use('/', miscRoutes);
 app.use('/api', tenantRouter);
 
-app.use((_req, _res, next) => next(new HttpError(404, 'Route not found')));
+let frontendHandler;
+app.use((req, res, next) => {
+  if (req.path === '/api' || req.path.startsWith('/api/')) {
+    return next(new HttpError(404, 'Route not found'));
+  }
+  if (frontendHandler) return frontendHandler(req, res);
+  return next(new HttpError(404, 'Route not found'));
+});
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
@@ -75,6 +93,15 @@ app.use((err, _req, res, _next) => {
 });
 
 async function start() {
+  if (env.isProd) {
+    const webDir = fileURLToPath(new URL('../../web/', import.meta.url));
+    const requireWeb = createRequire(new URL('../../web/package.json', import.meta.url));
+    const next = requireWeb('next');
+    const frontend = next({ dev: false, dir: webDir });
+    await frontend.prepare();
+    frontendHandler = frontend.getRequestHandler();
+  }
+
   await connectDB();
   if (!(await User.exists({ role: 'super_admin' }))) {
     console.warn('[setup] No super admin found. Run "npm run seed" to create one.');
@@ -82,7 +109,8 @@ async function start() {
   const server = http.createServer(app);
   initSocket(server);
   startCampaignWorker();
-  server.listen(env.port, () => console.log(`[server] API running on http://localhost:${env.port}`));
+  startDripWorker();
+  server.listen(env.port, () => console.log(`[server] App running on http://localhost:${env.port}`));
 
   const shutdown = async () => {
     server.close();

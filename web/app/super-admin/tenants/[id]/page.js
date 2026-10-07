@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, LogIn, RefreshCw, Ban, CheckCircle2, KeyRound, Trash2 } from "lucide-react";
+import { ArrowLeft, LogIn, RefreshCw, Ban, CheckCircle2, KeyRound, Trash2, Pencil } from "lucide-react";
+import { useSocketEvent } from "@/lib/socket";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDate, fmtDateTime, fmtNum, fmtPhone } from "@/lib/format";
@@ -20,7 +21,8 @@ export default function TenantDetailPage() {
   const { impersonate } = useAuth();
   const [data, setData] = useState(null);
   const [plans, setPlans] = useState([]);
-  const [modal, setModal] = useState(null); // renew | password | delete | suspend
+  const [modal, setModal] = useState(null); // renew | password | delete | suspend | edit
+  const [edit, setEdit] = useState(null); // { name, email, phone, adminName, adminEmail }
   const [months, setMonths] = useState(1);
   const [password, setPassword] = useState("");
   const [confirmName, setConfirmName] = useState("");
@@ -32,6 +34,8 @@ export default function TenantDetailPage() {
     load();
     api("/superadmin/plans").then(setPlans);
   }, [load]);
+  // The business admin (or another Super Admin screen) changed this business: show the new details
+  useSocketEvent("tenant:updated", (u) => u.tenantId === id && load());
 
   if (!data) return <PageLoader />;
   const { tenant, users, counts } = data;
@@ -49,6 +53,20 @@ export default function TenantDetailPage() {
       setBusy(false);
     }
   };
+
+  const openEdit = () => {
+    const admin = data.users.find((u) => u.role === "admin");
+    setEdit({ name: tenant.name, email: tenant.email || "", phone: tenant.phone || "", adminName: admin?.name || "", adminEmail: admin?.email || "", hasAdmin: !!admin });
+    setModal("edit");
+  };
+  const saveEdit = () =>
+    run(async () => {
+      const admin = data.users.find((u) => u.role === "admin");
+      await api(`/superadmin/tenants/${id}`, { method: "PATCH", body: { name: edit.name.trim(), email: edit.email.trim(), phone: edit.phone.trim() } });
+      if (admin && (edit.adminName.trim() !== admin.name || edit.adminEmail.trim().toLowerCase() !== admin.email)) {
+        await api(`/superadmin/tenants/${id}/admin`, { method: "PATCH", body: { name: edit.adminName.trim(), email: edit.adminEmail.trim() } });
+      }
+    }, "Business details saved");
 
   const changePlan = (planId) =>
     run(() => api(`/superadmin/tenants/${id}`, { method: "PATCH", body: { planId } }), "Plan updated");
@@ -86,6 +104,7 @@ export default function TenantDetailPage() {
         description={`Created ${fmtDate(tenant.createdAt)} · ${tenant.email || ""}`}
         actions={
           <>
+            <Button variant="secondary" onClick={openEdit}><Pencil className="h-4 w-4" /> Edit</Button>
             <Button variant="secondary" onClick={() => impersonate(id).catch(toast.error)}><LogIn className="h-4 w-4" /> Login as admin</Button>
             <Button variant={tenant.status === "active" ? "secondary" : "primary"} onClick={() => setModal("suspend")}>
               {tenant.status === "active" ? <><Ban className="h-4 w-4" /> Suspend</> : <><CheckCircle2 className="h-4 w-4" /> Activate</>}
@@ -153,6 +172,30 @@ export default function TenantDetailPage() {
           rows={users}
         />
       </Card>
+
+      <Modal open={modal === "edit"} onClose={() => setModal(null)} title="Edit business" size="md"
+        footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button onClick={saveEdit} loading={busy} disabled={!edit || edit.name.trim().length < 2 || (edit.hasAdmin && edit.adminName.trim().length < 2)}>Save</Button></>}>
+        {edit && (
+          <div className="space-y-4">
+            <Field label="Business name"><Input value={edit.name} maxLength={100} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Business email"><Input type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
+              <Field label="Phone"><Input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></Field>
+            </div>
+            {edit.hasAdmin && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-3 text-sm font-medium text-slate-800">Business admin</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Admin name"><Input value={edit.adminName} maxLength={80} onChange={(e) => setEdit({ ...edit, adminName: e.target.value })} /></Field>
+                  <Field label="Admin email (login)" hint="The admin logs in with this email; password stays the same.">
+                    <Input type="email" value={edit.adminEmail} onChange={(e) => setEdit({ ...edit, adminEmail: e.target.value })} />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <Modal open={modal === "renew"} onClose={() => setModal(null)} title="Renew subscription" size="sm"
         footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button onClick={renew} loading={busy}>Renew</Button></>}>

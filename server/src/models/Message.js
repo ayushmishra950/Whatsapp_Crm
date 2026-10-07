@@ -32,6 +32,19 @@ const messageSchema = new mongoose.Schema(
     campaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
     // Sent automatically by the chatbot
     isBot: { type: Boolean, default: false },
+    // Sent by an automation (drip / birthday / scheduled follow-up), shown with its name in the chat
+    automation: { kind: { type: String, enum: ['drip', 'followup'] }, name: String, dripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Drip' } },
+    // Customer came from a "Click to WhatsApp" ad / post (shown as a card in the chat)
+    referral: {
+      sourceType: String,
+      sourceId: String,
+      headline: String,
+      body: String,
+      sourceUrl: String,
+      mediaType: String,
+      imageUrl: String,
+      ctwaClid: String,
+    },
     // Outbound: buttons / list menu we sent. Inbound: replyId = which option the customer tapped
     interactive: {
       kind: { type: String, enum: ['buttons', 'list'] },

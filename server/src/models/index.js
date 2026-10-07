@@ -9,3 +9,7 @@ export { default as Campaign } from './Campaign.js';
 export { default as CampaignRecipient } from './CampaignRecipient.js';
 export { default as AuditLog } from './AuditLog.js';
 export { default as Chatbot } from './Chatbot.js';
+export { default as AdSource } from './AdSource.js';
+export { default as Segment } from './Segment.js';
+export { default as Drip } from './Drip.js';
+export { default as DripEnrollment } from './DripEnrollment.js';

@@ -12,10 +12,12 @@
 import { Chatbot, Contact, Conversation, Message, Tenant } from '../models/index.js';
 import { sendOutbound, autoAssign, CONVERSATION_POPULATE } from './messaging.js';
 import { emitConversationEvent } from './socket.js';
+import { getLeadStatuses } from './leadStatuses.js';
+import { isDateField } from './contactFields.js';
+import { checkAnswer } from './answerTypes.js';
 
 const LOOP_WINDOW_MS = 10 * 60 * 1000;
-const LOOP_MAX_REPLIES = 15; // bot replies per chat per 10 minutes, then hand off (protects against bot-to-bot loops)
-const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LOOP_MAX_REPLIES = 15; // bot turns (answers to customer messages) per chat per 10 minutes, then hand off (bot-to-bot loop guard)
 
 export const chatbotAllowed = (tenant) => tenant.plan?.modules?.chatbot !== false;
 
@@ -49,19 +51,44 @@ export function isWithinBusinessHours(hours, now = new Date()) {
   return current >= (day.start || '00:00') && current < (day.end || '23:59');
 }
 
+// Id of the "Main Menu" button sent under answers
+export const MAIN_MENU_ID = 'nav_main_menu';
+
+const NUMBER_EMOJI = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+const WA_BODY_LIMIT = 1024; // WhatsApp max length of an interactive message body
+
+export const DEFAULT_MENU_HINT = '👉 Neeche *{button}* dabaiye, ya option ka number likhiye (jaise *2*)';
+
+/**
+ * Message text that goes with the menu. Unless turned off, it also lists every option with its number,
+ * so a customer who doesn't open the list still knows what "1", "2"... mean.
+ */
+export function menuBody(bot, intro, { fitsButtons } = {}) {
+  if (bot.showNumberedOptions === false) return intro.slice(0, WA_BODY_LIMIT);
+  const lines = bot.menu.slice(0, 10).map((o, i) => `${NUMBER_EMOJI[i]} ${o.title}`);
+  const rawHint = bot.menuHintText?.trim() || DEFAULT_MENU_HINT;
+  const hint = fitsButtons
+    ? rawHint.replaceAll('*{button}*', 'diye button').replaceAll('{button}', 'diye button')
+    : rawHint.replaceAll('{button}', bot.menuButtonLabel || 'View options');
+  const full = `${intro.trim()}\n\n${lines.join('\n')}\n\n${hint}`;
+  // Never break the message: drop the list if a very long intro would exceed WhatsApp's limit
+  return full.length <= WA_BODY_LIMIT ? full : intro.slice(0, WA_BODY_LIMIT);
+}
+
 // Buttons when it fits WhatsApp's limits (<= 3 options, titles <= 20 chars), otherwise a list (<= 10 rows)
-export function buildMenu(bot) {
+export function buildMenu(bot, intro = bot.welcomeText) {
   const options = bot.menu.slice(0, 10).map((o) => ({ id: optionId(o), title: o.title, description: o.description || '' }));
   if (!options.length) return null;
   const fitsButtons = options.length <= 3 && options.every((o) => o.title.length <= 20);
   return {
     kind: fitsButtons ? 'buttons' : 'list',
-    body: bot.welcomeText,
+    body: menuBody(bot, intro, { fitsButtons }),
     buttonLabel: bot.menuButtonLabel || 'View options',
     options: fitsButtons ? options.map(({ id, title }) => ({ id, title })) : options,
   };
 }
 
+// Exact pick: tapped button/list row, typed number, or full option name
 function findOption(bot, parsed) {
   if (parsed.interactiveReplyId) {
     const byId = bot.menu.find((o) => optionId(o) === parsed.interactiveReplyId);
@@ -72,6 +99,24 @@ function findOption(bot, parsed) {
   const index = /^\d{1,2}$/.test(text) ? Number(text) - 1 : -1; // customer typed "2"
   if (index >= 0 && bot.menu[index]) return bot.menu[index];
   return bot.menu.find((o) => norm(o.title) === text) || null;
+}
+
+// Guess from part of an option name. Used only after the admin's own keyword rules found nothing.
+function findOptionByPartialName(bot, parsed) {
+  const text = norm(parsed.text);
+  if (!text) return null;
+  // Part of an option name, e.g. "admission" -> "Admission / Counselling", "demo" -> "Free Demo Class".
+  // Only when exactly one option matches, so we never guess between two options.
+  const words = (s) => norm(s).split(/[^a-z0-9\u0900-\u097f]+/).filter((w) => w.length >= 4);
+  const textWords = words(text);
+  // "course" ~ "courses", "class" ~ "classes"
+  const sameWord = (a, b) => a === b || a.startsWith(b) || b.startsWith(a);
+  const matches = bot.menu.filter((o) => {
+    const title = norm(o.title);
+    if (text.length >= 4 && title.includes(text)) return true;
+    return words(o.title).some((w) => textWords.some((t) => sameWord(w, t)));
+  });
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function findKeywordRule(bot, text) {
@@ -85,10 +130,21 @@ function findKeywordRule(bot, text) {
   );
 }
 
-const matchesAny = (list, text) => list.some((k) => norm(k) && norm(k) === norm(text));
+// "Hiii" == "hi", "hellooo" == "hello", "Menu!" == "menu": ignore stretched letters and trailing punctuation
+const loose = (s = '') => norm(s).replace(/[!?.,\s]+$/g, '').replace(/(.)\1+/g, '$1');
+const matchesAny = (list, text) => list.some((k) => loose(k) && loose(k) === loose(text));
 
-function saveAnswer(contact, field, answer) {
-  const value = answer.trim().slice(0, 500);
+// What kind of answer a lead question needs: the admin's choice, else email for the email field,
+// date for date fields (birthday, anniversary), otherwise anything
+function answerTypeOf(tenant, q) {
+  if (q.answerType && q.answerType !== 'any') return q.answerType;
+  if (q.field === 'email') return 'email';
+  if (q.field.startsWith('custom.') && isDateField(tenant, q.field.slice(7))) return 'date';
+  return 'any';
+}
+
+function saveAnswer(contact, field, answer, dateValue) {
+  const value = dateValue || answer.trim().slice(0, 500);
   if (field === 'name') contact.name = value;
   else if (field === 'email') contact.email = value.toLowerCase();
   else if (field.startsWith('custom.')) contact.customFields.set(field.slice(7), value);
@@ -99,7 +155,7 @@ async function emitConversation(conversationId, extra) {
   if (populated) emitConversationEvent(populated, 'conversation:updated', populated, extra);
 }
 
-export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved }) {
+export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt }) {
   return withLock(String(conversation._id), async () => {
     // Reload everything inside the lock: an earlier run for this chat may have just changed it
     const conv = await Conversation.findById(conversation._id);
@@ -120,10 +176,11 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
     }
 
     // ---- helpers ----
+    let answeredThisTurn = false;
     const send = async (payload) => {
       const message = await sendOutbound({ tenant: fullTenant, contact, conversation: conv, isBot: true, ...payload });
       if (message.status === 'failed') throw new Error(message.error || 'Bot message failed');
-      state.repliesInWindow = (state.repliesInWindow || 0) + 1;
+      answeredThisTurn = true;
       return message;
     };
     const sendText = (text) => (text?.trim() ? send({ kind: 'text', text: text.trim() }) : null);
@@ -132,6 +189,29 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       if (prefix) await sendText(prefix);
       if (menu) return send({ kind: 'interactive', interactive: menu });
       return sendText(bot.welcomeText);
+    };
+    // Send an answer (fees, timing...) and what comes after it:
+    //   'button' style -> the answer itself carries one "Main Menu" button (one compact message)
+    //   'full' style   -> the answer, then the whole numbered menu again
+    const sendAnswer = async (text) => {
+      const answer = (text || bot.welcomeText || '').trim();
+      if (!bot.menu.length) return sendText(answer);
+      if (bot.afterReplyStyle === 'full') {
+        await sendText(answer);
+        const menu = buildMenu(bot, bot.menuAfterReplyText?.trim() || 'Aur kisi cheez me madad chahiye? 👇');
+        if (menu) await send({ kind: 'interactive', interactive: menu });
+        return;
+      }
+      const hint = bot.afterReplyHint?.trim();
+      const body = hint ? `${answer}\n\n${hint}` : answer;
+      const button = { id: MAIN_MENU_ID, title: (bot.mainMenuButtonLabel || '📋 Main Menu').slice(0, 20) };
+      if (body.length <= WA_BODY_LIMIT) {
+        await send({ kind: 'interactive', interactive: { kind: 'buttons', body, options: [button] } });
+      } else {
+        // Answer too long for a button message: send it as text, then a short line with the button
+        await sendText(answer);
+        await send({ kind: 'interactive', interactive: { kind: 'buttons', body: hint || '👇', options: [button] } });
+      }
     };
     const addTag = (tag) => {
       if (tag && !contact.tags.includes(tag)) contact.tags.push(tag);
@@ -163,7 +243,23 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       });
       const freshChat = !hadPreviousInbound && !conv.assignedTo && !humanStarted;
       const returning = wasResolved && bot.restartOnResolved;
-      if (!freshChat && !returning) return false;
+
+      // The bot handed this chat to the team but nobody has replied yet, and the customer asks for the menu ("hi", "menu"):
+      // answer instead of leaving them waiting. Once a person has replied, the chat is theirs and the bot stays out.
+      const waitingAfterHandoff =
+        ['handoff', 'lead_complete'].includes(state.endReason) &&
+        (parsed.interactiveReplyId === MAIN_MENU_ID || matchesAny(bot.menuKeywords, parsed.text)) &&
+        !(await Message.exists({
+          conversationId: conv._id, direction: 'outbound', isBot: { $ne: true }, campaignId: { $exists: false },
+          createdAt: { $gt: state.endedAt || new Date(0) },
+        }));
+
+      // Customer comes back after a long silence (chat never resolved): greet them like a returning customer
+      const quietHours = Number(bot.restartAfterHours ?? 24);
+      const backAfterSilence =
+        quietHours > 0 && previousActivityAt && now - new Date(previousActivityAt) >= quietHours * 3600 * 1000;
+
+      if (!freshChat && !returning && !waitingAfterHandoff && !backAfterSilence) return false;
       Object.assign(state, {
         active: true, step: 'menu', questionIndex: 0, fallbackCount: 0,
         repliesInWindow: 0, windowStartedAt: now, startedAt: now, endedAt: undefined, endReason: undefined,
@@ -178,12 +274,13 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
     }
 
     let outcome;
+    let answer; // checked answer to a lead question
     try {
       if (state.repliesInWindow >= LOOP_MAX_REPLIES) {
         outcome = await finish('loop_guard', bot.handoffText);
       } else if (matchesAny(bot.handoffKeywords, parsed.text)) {
         outcome = await finish('handoff', bot.handoffText);
-      } else if (!state.justStarted && matchesAny(bot.menuKeywords, parsed.text)) {
+      } else if (!state.justStarted && (parsed.interactiveReplyId === MAIN_MENU_ID || matchesAny(bot.menuKeywords, parsed.text))) {
         // "menu" at any point (also in the middle of lead questions) shows the menu again
         state.step = 'menu';
         state.questionIndex = 0;
@@ -194,12 +291,16 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
         const q = bot.leadQuestions[state.questionIndex];
         if (!q) {
           outcome = await finish('lead_complete', bot.leadCompleteText);
-        } else if (!parsed.text.trim() || (q.field === 'email' && !EMAIL_RX.test(parsed.text.trim()))) {
+        } else if (!(answer = checkAnswer(answerTypeOf(fullTenant, q), parsed.text)).ok) {
+          // Wrong kind of answer (e.g. "shaam ko" for a time question): explain and ask the same question again
           state.fallbackCount += 1;
           if (state.fallbackCount > bot.maxFallbacks) outcome = await finish('handoff', bot.handoffText);
-          else await sendText(q.field === 'email' ? `Please send a valid email address.\n\n${q.question}` : q.question);
+          else {
+            const hint = q.errorText?.trim() || answer.hint;
+            await sendText(hint ? `${hint}\n\n${q.question}` : q.question);
+          }
         } else {
-          saveAnswer(contact, q.field, parsed.text);
+          saveAnswer(contact, q.field, parsed.text, answer.value !== parsed.text.trim() ? answer.value : undefined);
           state.questionIndex += 1;
           state.fallbackCount = 0;
           const nextQ = bot.leadQuestions[state.questionIndex];
@@ -207,7 +308,10 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
             await sendText(nextQ.question);
           } else {
             addTag(bot.leadTag);
-            if (contact.leadStatus === 'new') contact.leadStatus = 'contacted';
+            if (contact.leadStatus === 'new' && getLeadStatuses(fullTenant).some((s) => s.key === 'contacted')) {
+              contact.leadStatus = 'contacted';
+              contact.statusUpdatedAt = now;
+            }
             outcome = await finish('lead_complete', bot.leadCompleteText);
           }
         }
@@ -220,8 +324,10 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
         state.fallbackCount = 0;
       } else {
         // ---- in the menu ----
-        const option = findOption(bot, parsed);
-        const rule = option ? null : findKeywordRule(bot, parsed.text);
+        // Exact pick first, then the admin's keyword rules, then a guess from part of an option name
+        const exactOption = findOption(bot, parsed);
+        const rule = exactOption ? null : findKeywordRule(bot, parsed.text);
+        const option = exactOption || (rule ? null : findOptionByPartialName(bot, parsed));
         if (option) {
           state.fallbackCount = 0;
           addTag(option.tag);
@@ -237,12 +343,12 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
               await sendText(bot.leadQuestions[0].question);
             }
           } else {
-            await sendText(option.replyText || bot.welcomeText);
+            await sendAnswer(option.replyText);
           }
         } else if (rule) {
           state.fallbackCount = 0;
           if (rule.handoff) outcome = await finish('handoff', rule.replyText || bot.handoffText);
-          else await sendText(rule.replyText);
+          else await sendAnswer(rule.replyText);
         } else {
           state.fallbackCount += 1;
           if (state.fallbackCount > bot.maxFallbacks) outcome = await finish('handoff', bot.handoffText);
@@ -258,6 +364,7 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       outcome = 'handoff';
     }
 
+    if (answeredThisTurn) state.repliesInWindow = (state.repliesInWindow || 0) + 1;
     delete state.justStarted;
     conv.set('bot', state);
     await conv.save();

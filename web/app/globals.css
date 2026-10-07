@@ -5,9 +5,11 @@
   --font-mono: var(--font-geist-mono);
   --color-brand-50: #ecfdf3;
   --color-brand-100: #d1fadf;
+  --color-brand-200: #a6f4c5;
   --color-brand-500: #22c55e;
   --color-brand-600: #16a34a;
   --color-brand-700: #15803d;
+  --color-brand-800: #166534;
   --color-chat: #efeae2;
 }
 

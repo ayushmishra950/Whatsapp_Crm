@@ -2,20 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Clock, Inbox, UserPlus, ArrowDownLeft, ArrowUpRight, Contact } from "lucide-react";
+import { MessageCircle, Clock, Inbox, UserPlus, ArrowDownLeft, ArrowUpRight, Contact, BellRing, Megaphone, Users, Cake } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { fmtNum } from "@/lib/format";
+import { fmtDateTime, fmtNum, fmtPhone } from "@/lib/format";
+import { useLeadStatuses } from "@/lib/lead-statuses";
+import { useContactFields } from "@/lib/contact-fields";
+import { LeadStatusBadge } from "@/components/shared";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
-import { Card, PageHeader, PageLoader, Stat, StatusBadge } from "@/components/ui";
+import { Card, PageHeader, PageLoader, Stat, StatusBadge, cx } from "@/components/ui";
 
-const FUNNEL = ["new", "contacted", "qualified", "converted", "lost"];
+const BAR = { gray: "bg-slate-400", blue: "bg-sky-500", green: "bg-brand-500", yellow: "bg-amber-400", red: "bg-red-500", purple: "bg-violet-500" };
 
 export default function Dashboard() {
   const { session } = useAuth();
   const toast = useToast();
   const [d, setD] = useState(null);
+  const { list: statuses } = useLeadStatuses();
 
   useEffect(() => {
     api("/dashboard", { query: { tz: Intl.DateTimeFormat().resolvedOptions().timeZone } }).then(setD).catch(toast.error);
@@ -67,16 +71,72 @@ export default function Dashboard() {
         <Card className="p-5">
           <h2 className="mb-4 font-medium text-slate-900">Lead pipeline</h2>
           <div className="space-y-3">
-            {FUNNEL.map((s) => (
-              <div key={s}>
-                <div className="mb-1 flex justify-between text-sm"><span className="text-slate-600 capitalize">{s}</span><span className="font-medium tabular-nums">{d.leadFunnel[s] || 0}</span></div>
-                <div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-brand-500" style={{ width: `${((d.leadFunnel[s] || 0) / totalLeads) * 100}%` }} /></div>
-              </div>
+            {statuses.map((s) => (
+              <Link key={s.key} href={`/app/contacts?leadStatus=${s.key}`} className="block rounded hover:bg-slate-50">
+                <div className="mb-1 flex justify-between text-sm"><span className="text-slate-600">{s.label}</span><span className="font-medium tabular-nums">{d.leadFunnel[s.key] || 0}</span></div>
+                <div className="h-2 rounded-full bg-slate-100"><div className={cx("h-2 rounded-full", BAR[s.color] || "bg-brand-500")} style={{ width: `${((d.leadFunnel[s.key] || 0) / totalLeads) * 100}%` }} /></div>
+              </Link>
             ))}
           </div>
           <Link href="/app/contacts" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"><Contact className="h-4 w-4" /> View contacts</Link>
         </Card>
       </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+            <h2 className="flex items-center gap-2 font-medium text-slate-900"><BellRing className="h-4 w-4 text-amber-500" /> Follow-ups due today {d.followUpsDue > 0 && <span className="rounded-full bg-amber-100 px-2 text-xs text-amber-800">{d.followUpsDue}</span>}</h2>
+            <Link href="/app/contacts?followUp=due" className="text-sm text-brand-700 hover:underline">View all</Link>
+          </div>
+          {d.followUps.length ? (
+            <ul className="divide-y divide-slate-100">
+              {d.followUps.map((f) => {
+                const overdue = new Date(f.followUpAt) < new Date();
+                return (
+                  <li key={f._id} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-800">{f.name || fmtPhone(f.phone)} <LeadStatusBadge status={f.leadStatus} /></p>
+                      <p className="truncate text-xs text-slate-500">
+                        {f.followUpAction === "message" && <span className="mr-1 font-medium text-amber-700">{f.followUpSentAt ? "⏰ WhatsApp sent ·" : "⏰ WhatsApp at this time ·"}</span>}
+                        {f.followUpNote || "No note"}{!isAdmin ? "" : f.followUpBy?.name ? ` · by ${f.followUpBy.name}` : ""}
+                      </p>
+                    </div>
+                    <span className={cx("shrink-0 text-xs font-medium", overdue ? "text-red-600" : "text-amber-700")}>{overdue ? "Overdue · " : ""}{fmtDateTime(f.followUpAt)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">No follow-ups due. Set one from a contact (Inbox → contact info, or Contacts → edit).</p>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+            <h2 className="flex items-center gap-2 font-medium text-slate-900"><Megaphone className="h-4 w-4 text-violet-500" /> Leads from ads (30 days)</h2>
+            <Link href="/app/contacts?source=ad" className="text-sm text-brand-700 hover:underline">View leads</Link>
+          </div>
+          {d.adLeads.length ? (
+            <table className="w-full text-sm">
+              <thead className="text-xs text-slate-500"><tr><th className="px-5 py-2 text-left font-medium">Ad</th><th className="px-3 py-2 text-right font-medium">Leads</th><th className="px-5 py-2 text-right font-medium">Converted</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {d.adLeads.map((a) => (
+                  <tr key={a.adId}>
+                    <td className="max-w-0 truncate px-5 py-2.5 text-slate-800" title={a.headline}>{a.name || a.headline || a.adId}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{a.leads}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums">{a.converted} <span className="text-xs text-slate-400">({Math.round((a.converted / a.leads) * 100)}%)</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">No leads from Click-to-WhatsApp ads yet. When someone messages you from a Facebook / Instagram ad, it shows here.</p>
+          )}
+        </Card>
+      </div>
+
+      <Celebrations isAdmin={isAdmin} />
+      {isAdmin && <TeamPerformance />}
 
       {isAdmin && (
         <div className="mt-6 grid gap-4 lg:grid-cols-3">
@@ -112,5 +172,104 @@ export default function Dashboard() {
         </div>
       )}
     </PageContainer>
+  );
+}
+
+// Per team member: chats, messages, conversions and how fast they reply
+/** Birthdays / anniversaries today and in the next 7 days (date contact fields) */
+function Celebrations({ isAdmin }) {
+  const { dateFields } = useContactFields();
+  const [counts, setCounts] = useState(null);
+  const key = dateFields.map((f) => f.key).join(",");
+  useEffect(() => {
+    if (!key) return;
+    let alive = true;
+    const fields = key.split(",");
+    Promise.all(
+      fields.flatMap((k) => ["today", "this_week"].map((when) => api("/segments/count", { method: "POST", body: { filter: { dateMatch: { field: `custom.${k}`, when } } } }).then((r) => [k, when, r.reachable])))
+    )
+      .then((rows) => alive && setCounts(rows))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  if (!dateFields.length || !counts) return null;
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-medium text-slate-900"><Cake className="h-4 w-4 text-pink-500" /> Birthdays &amp; anniversaries</h2>
+        {isAdmin && <Link href="/app/drips" className="text-sm text-brand-700 hover:underline">Automate wishes</Link>}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {dateFields.map((f) => (
+          <div key={f.key} className="rounded-md bg-pink-50/60 px-3 py-2 text-sm">
+            <p className="font-medium text-slate-800">{f.label}</p>
+            <p className="text-slate-600"><b>{counts.find(([k, w]) => k === f.key && w === "today")?.[2] ?? 0}</b> today · <b>{counts.find(([k, w]) => k === f.key && w === "this_week")?.[2] ?? 0}</b> in next 7 days</p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function TeamPerformance() {
+  const [days, setDays] = useState(7);
+  const [t, setT] = useState(null);
+  useEffect(() => {
+    let active = true;
+    api("/dashboard/team", { query: { days } }).then((r) => active && setT(r)).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [days]);
+
+  const fmtMins = (m) => (m == null ? "—" : m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
+  const ended = t?.bot?.ended || {};
+
+  return (
+    <Card className="mt-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-5 py-3">
+        <h2 className="flex items-center gap-2 font-medium text-slate-900"><Users className="h-4 w-4 text-sky-500" /> Team performance</h2>
+        <div className="flex gap-1">
+          {[7, 30].map((n) => (
+            <button key={n} onClick={() => setDays(n)} className={cx("rounded-md px-3 py-1 text-xs font-medium", days === n ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100")}>Last {n} days</button>
+          ))}
+        </div>
+      </div>
+      {!t ? (
+        <p className="px-5 py-8 text-center text-sm text-slate-500">Loading…</p>
+      ) : (
+        <div className="scroll-thin overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-slate-500">
+              <tr>
+                <th className="px-5 py-2 text-left font-medium">Member</th>
+                <th className="px-3 py-2 text-right font-medium">Chats handled</th>
+                <th className="px-3 py-2 text-right font-medium">Open now</th>
+                <th className="px-3 py-2 text-right font-medium">Messages sent</th>
+                <th className="px-3 py-2 text-right font-medium">Converted</th>
+                <th className="px-5 py-2 text-right font-medium" title="Typical time from a customer message to this person's reply">Reply time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {t.members.map((m) => (
+                <tr key={m._id} className={cx(!m.isActive && "text-slate-400")}>
+                  <td className="px-5 py-2.5"><span className="font-medium">{m.name}</span> <span className="text-xs text-slate-400">{m.role}</span></td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{m.chatsHandled}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{m.openChats}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{m.messagesSent}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{m.converted}</td>
+                  <td className="px-5 py-2.5 text-right tabular-nums">{fmtMins(m.medianReplyMinutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
+            🤖 Chatbot: {t.bot.chatsStarted} chats started · {ended.lead_complete || 0} leads collected · {(ended.handoff || 0) + (ended.loop_guard || 0)} handed to the team
+          </p>
+        </div>
+      )}
+    </Card>
   );
 }

@@ -1,10 +1,13 @@
-import { Tenant, Contact, Conversation, Message, CampaignRecipient, Campaign, Template } from '../models/index.js';
+import { Tenant, Contact, Conversation, Message, CampaignRecipient, Campaign, Template, AdSource } from '../models/index.js';
 import { normalizePhone } from '../utils/http.js';
 import {
   autoAssign, emitMessage, emitMessageUpdate, previewOf, getOrCreateConversation, MESSAGE_POPULATE, CONVERSATION_POPULATE,
 } from './messaging.js';
 import { emitConversationEvent, emitToTenantAdmins } from './socket.js';
 import { runChatbot } from './chatbot.js';
+import { autoLeadStatus, getLeadStatuses } from './leadStatuses.js';
+import { triggerDrips, stopDripsOnReply } from './drips.js';
+import { detectReferral } from './referrals.js';
 
 const STATUS_RANK = { queued: 0, sending: 0, pending: 0, sent: 1, delivered: 2, read: 3 };
 const STAT_FOR_RANK = { 1: 'sent', 2: 'delivered', 3: 'read' };
@@ -81,15 +84,49 @@ export async function processInbound(tenant, msg, profileName) {
   if (msg.id && (await Message.exists({ tenantId: tenant._id, waMessageId: msg.id }))) return null; // duplicate delivery
 
   const phone = normalizePhone(msg.from);
+  // "Click to WhatsApp" ad / post that started this conversation
+  const referral = msg.referral?.source_id || msg.referral?.source_url
+    ? {
+        sourceType: msg.referral.source_type,
+        sourceId: msg.referral.source_id,
+        headline: msg.referral.headline,
+        body: msg.referral.body,
+        sourceUrl: msg.referral.source_url,
+        mediaType: msg.referral.media_type,
+        imageUrl: msg.referral.image_url || msg.referral.thumbnail_url,
+        ctwaClid: msg.referral.ctwa_clid,
+      }
+    : null;
+  const isNewContact = !(await Contact.exists({ tenantId: tenant._id, phone }));
   let contact = await Contact.findOneAndUpdate(
     { tenantId: tenant._id, phone },
     { $setOnInsert: { tenantId: tenant._id, phone, name: profileName || '', source: 'whatsapp' } },
     { upsert: true, returnDocument: 'after' }
   );
-  if (!contact.name && profileName) {
-    contact.name = profileName;
-    await contact.save();
+  // Snapshot for drips: which tags / status did this message (and the bot) add or change?
+  const tagsBefore = isNewContact ? [] : [...contact.tags];
+  const statusBefore = isNewContact ? 'new' : contact.leadStatus;
+  if (!contact.name && profileName) contact.name = profileName;
+  // Remember the first ad that brought this lead (first-touch attribution)
+  if (referral && !contact.adSource?.sourceId) {
+    const { imageUrl, ...adSource } = referral;
+    contact.adSource = { ...adSource, at: new Date() };
+    if (isNewContact) contact.source = 'ad';
+    if (!contact.tags.includes('facebook-ad')) contact.tags.push('facebook-ad');
   }
+  // Every ad gets a row on the Ads page; the admin's tag for that ad goes on the lead
+  if (referral?.sourceId) {
+    const ad = await AdSource.findOneAndUpdate(
+      { tenantId: tenant._id, sourceId: referral.sourceId },
+      {
+        $setOnInsert: { tenantId: tenant._id, sourceId: referral.sourceId, sourceType: referral.sourceType, headline: referral.headline, sourceUrl: referral.sourceUrl, firstSeenAt: new Date() },
+        $set: { lastLeadAt: new Date() },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+    if (ad.tag && contact.adSource?.sourceId === referral.sourceId && !contact.tags.includes(ad.tag)) contact.tags.push(ad.tag);
+  }
+  if (contact.isModified()) await contact.save();
 
   const parsed = parseInbound(msg);
 
@@ -109,6 +146,7 @@ export async function processInbound(tenant, msg, profileName) {
   // For the chatbot: is this the customer's first message in this chat / are they coming back to a closed chat?
   const hadPreviousInbound = !!(await Message.exists({ conversationId: conversation._id, direction: 'inbound' }));
   const wasResolved = conversation.status === 'resolved';
+  const previousActivityAt = conversation.lastMessageAt; // before this message: how long was the chat quiet?
   const receivedAt = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date();
 
   // Customer swiped-to-reply on a message: link it if we know that message
@@ -128,6 +166,7 @@ export async function processInbound(tenant, msg, profileName) {
     waMessageId: msg.id,
     replyTo: quoted?._id,
     interactive: parsed.interactiveReplyId ? { replyId: parsed.interactiveReplyId } : undefined,
+    referral: referral || undefined,
   });
   await message.populate(MESSAGE_POPULATE);
 
@@ -139,16 +178,63 @@ export async function processInbound(tenant, msg, profileName) {
   await conversation.save();
 
   contact.lastMessageAt = receivedAt;
+  contact.lastInboundAt = receivedAt;
+  // Refer & earn: a referral code in the message links this lead to the person who referred them
+  const referrer = await detectReferral(tenant, contact, parsed.text).catch(() => null);
+  // Customer wrote "interested" / "not interested" -> update the lead status (Settings → Automation)
+  const statusChange = autoLeadStatus(tenant, contact, parsed.text);
   await contact.save();
 
   // Show the customer's message first, then let the bot answer
   await emitMessage(conversation._id, message);
+  // A reply ends drips that stop on reply
+  if (!isNewContact) await stopDripsOnReply(tenant._id, contact._id);
+
+  if (referrer) {
+    const note = await Message.create({
+      tenantId: tenant._id,
+      conversationId: conversation._id,
+      contactId: contact._id,
+      direction: 'internal',
+      type: 'note',
+      status: 'sent',
+      isBot: true,
+      text: `🎁 Referred by ${referrer.name || referrer.phone} (code ${referrer.referralCode}). Tag "referred" added.`,
+    });
+    await note.populate(MESSAGE_POPULATE);
+    await emitMessage(conversation._id, note);
+  }
+
+  if (statusChange) {
+    const label = (key) => getLeadStatuses(tenant).find((s) => s.key === key)?.label || key;
+    const note = await Message.create({
+      tenantId: tenant._id,
+      conversationId: conversation._id,
+      contactId: contact._id,
+      direction: 'internal',
+      type: 'note',
+      status: 'sent',
+      isBot: true,
+      text: `Lead status changed automatically: ${label(statusChange.from)} → ${label(statusChange.to)} (customer wrote "${parsed.text.trim().slice(0, 80)}")`,
+    });
+    await note.populate(MESSAGE_POPULATE);
+    await emitMessage(conversation._id, note);
+  }
 
   let botHandling = false;
   try {
-    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved });
+    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt });
   } catch (err) {
     console.error('[chatbot] error', err);
+  }
+
+  // Drips: new lead, tags added and status changes (by this message, the ad, a referral or the chatbot)
+  const after = await Contact.findById(contact._id).select('tags leadStatus').lean();
+  if (after) {
+    if (isNewContact) triggerDrips(tenant._id, { type: 'new_lead', contactIds: [contact._id], source: contact.source === 'ad' ? 'ad' : 'whatsapp', adId: contact.adSource?.sourceId });
+    const added = after.tags.filter((t) => !tagsBefore.includes(t));
+    if (added.length) triggerDrips(tenant._id, { type: 'tag_added', contactIds: [contact._id], tags: added });
+    if (after.leadStatus !== statusBefore) triggerDrips(tenant._id, { type: 'status_changed', contactIds: [contact._id], status: after.leadStatus });
   }
 
   // Bot is not (or no longer) handling it -> normal round-robin assignment

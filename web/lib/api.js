@@ -1,4 +1,5 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" && typeof window !== "undefined" ? window.location.origin : "http://localhost:4000");
 
 const TOKEN_KEY = "crm_token";
 const SUPER_TOKEN_KEY = "crm_super_token"; // kept while super admin impersonates a business
@@ -59,4 +60,24 @@ export async function fetchBlobUrl(path) {
   const res = await fetch(new URL(`/api${path}`, API_URL), { headers: { Authorization: `Bearer ${tokens.get()}` } });
   if (!res.ok) throw new Error("Media not available");
   return URL.createObjectURL(await res.blob());
+}
+
+// Authenticated file download (e.g. Excel export) -> saves it in the browser
+export async function downloadFile(path, query, fallbackName = "download") {
+  const url = new URL(`/api${path}`, API_URL);
+  for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${tokens.get()}` } });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, data.error || "Download failed");
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1] || fallbackName;
+  const href = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
 }

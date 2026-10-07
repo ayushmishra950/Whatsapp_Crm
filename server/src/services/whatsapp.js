@@ -156,19 +156,20 @@ export async function downloadMedia(tenantId, waMediaId) {
 
 // ---------- Templates ----------
 
-export async function submitTemplate(tenantId, template) {
-  const creds = await loadTenantCredentials(tenantId);
-
-  if (creds.mode === 'mock') {
-    const id = `MOCK_TPL_${crypto.randomBytes(6).toString('hex')}`;
-    // Fake Meta review: approve after a few seconds
-    setTimeout(async () => {
-      const { processTemplateStatus } = await import('./webhookProcessor.js');
-      processTemplateStatus({ message_template_id: id, event: 'APPROVED' }).catch(() => {});
-    }, 3000);
-    return { id, status: 'PENDING' };
+// Realistic sample values help Meta approve the template ("sample1" looks like a test)
+const FIELD_EXAMPLES = { name: 'Rahul', phone: '919876543210', email: 'rahul@example.com' };
+function exampleFor(def, i) {
+  if (def?.example) return def.example;
+  if (def?.source === 'static' && def.value) return def.value;
+  if (def?.source === 'field' && def.value?.startsWith('custom.')) {
+    const words = def.value.slice(7).replace(/_/g, ' ');
+    return words.charAt(0).toUpperCase() + words.slice(1); // "custom.course_name" -> "Course name"
   }
+  if (def?.source === 'field') return FIELD_EXAMPLES[def.value] || `sample${i + 1}`;
+  return `sample${i + 1}`;
+}
 
+function templateComponents(template) {
   const variableCount = new Set(template.body.match(/\{\{(\d+)\}\}/g) || []).size;
   const components = [];
   if (template.header) components.push({ type: 'HEADER', format: 'TEXT', text: template.header });
@@ -176,10 +177,31 @@ export async function submitTemplate(tenantId, template) {
     type: 'BODY',
     text: template.body,
     ...(variableCount && {
-      example: { body_text: [Array.from({ length: variableCount }, (_, i) => `sample${i + 1}`)] },
+      example: { body_text: [Array.from({ length: variableCount }, (_, i) => exampleFor(template.variableDefaults?.[i], i))] },
     }),
   });
   if (template.footer) components.push({ type: 'FOOTER', text: template.footer });
+  return components;
+}
+
+// Fake Meta review in sandbox mode: approve a few seconds later
+function mockReview(id) {
+  setTimeout(async () => {
+    const { processTemplateStatus } = await import('./webhookProcessor.js');
+    processTemplateStatus({ message_template_id: id, event: 'APPROVED' }).catch(() => {});
+  }, 3000);
+}
+
+export async function submitTemplate(tenantId, template) {
+  const creds = await loadTenantCredentials(tenantId);
+
+  if (creds.mode === 'mock') {
+    const id = `MOCK_TPL_${crypto.randomBytes(6).toString('hex')}`;
+    mockReview(id);
+    return { id, status: 'PENDING' };
+  }
+
+  const components = templateComponents(template);
 
   const data = await graph(creds, 'post', `${creds.wabaId}/message_templates`, {
     name: template.name,
@@ -188,6 +210,23 @@ export async function submitTemplate(tenantId, template) {
     components,
   });
   return { id: data.id, status: data.status };
+}
+
+/**
+ * Edit a template that already exists on Meta (approved or rejected). Name and language can never change;
+ * category only while the template is rejected. Meta puts the template back into review.
+ * Meta limits for approved templates: 1 edit per 24 hours, 10 per 30 days.
+ */
+export async function editTemplateRemote(tenantId, template, { includeCategory = false } = {}) {
+  const creds = await loadTenantCredentials(tenantId);
+  if (creds.mode === 'mock') {
+    mockReview(template.metaTemplateId);
+    return { success: true };
+  }
+  return graph(creds, 'post', template.metaTemplateId, {
+    ...(includeCategory && { category: template.category }),
+    components: templateComponents(template),
+  });
 }
 
 export async function deleteTemplateRemote(tenantId, name) {

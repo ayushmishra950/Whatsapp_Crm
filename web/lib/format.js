@@ -26,3 +26,10 @@ export const fmtPhone = (p = "") => (p ? `+${p}` : "");
 
 export const initials = (name = "") =>
   name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+
+// Date -> value for <input type="datetime-local"> in the viewer's own time zone
+export const toLocalInput = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};

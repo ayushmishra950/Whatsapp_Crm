@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { fmtDate } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
+import { useSocketEvent } from "@/lib/socket";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, PageLoader, Pagination, PasswordInput, Select, StatusBadge, Table,
 } from "@/components/ui";
@@ -40,6 +41,8 @@ export default function TenantsPage() {
   useEffect(() => {
     api("/superadmin/plans").then((p) => setPlans(p.filter((x) => x.isActive)));
   }, []);
+  // A business was renamed / edited (by its admin or another Super Admin screen): refresh the list
+  useSocketEvent("tenant:updated", () => load());
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setAdmin = (k, v) => setForm((f) => ({ ...f, admin: { ...f.admin, [k]: v } }));

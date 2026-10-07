@@ -1,19 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Bot, Check, Clock, Paperclip, Send, FileText, Search, StickyNote, Info, X, Lock, MessagesSquare, Reply, Hand } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtPhone, fmtRelative } from "@/lib/format";
+import { fmtPhone, fmtRelative, toLocalInput } from "@/lib/format";
 import { useToast } from "@/components/toast";
-import { LEAD_STATUSES, TagInput, TemplatePreview } from "@/components/shared";
+import { CustomFieldInputs, FollowUpChip, FollowUpMessage, LeadStatusBadge, LeadStatusSelect, ReferralBox, TagInput, TemplatePreview, paramsForContact } from "@/components/shared";
 import { Avatar, Badge, Button, ConfirmModal, EmptyState, Field, Input, Modal, Select, Spinner, Textarea, cx } from "@/components/ui";
 import { MessageList, QuoteBlock } from "@/components/inbox/message-list";
+import { NotificationToggle } from "@/components/notifications";
 
 const STATUS_TABS = [["open", "Open"], ["pending", "Pending"], ["resolved", "Resolved"], ["all", "All"]];
 
+// useSearchParams needs a Suspense boundary
 export default function InboxPage() {
+  return (
+    <Suspense fallback={null}>
+      <Inbox />
+    </Suspense>
+  );
+}
+
+function Inbox() {
   const toast = useToast();
   const { session } = useAuth();
   const me = session.user;
@@ -21,10 +32,13 @@ export default function InboxPage() {
 
   const [status, setStatus] = useState("open");
   const [assigned, setAssigned] = useState("all");
+  const [leadStatus, setLeadStatus] = useState(""); // filter chats by the contact's lead status
+  const [source, setSource] = useState(""); // "ad" = only leads from Facebook / Instagram ads
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState(null);
-  // Inbox mounts after hydration (Shell waits for session), so reading the URL here is safe
-  const [activeId, setActiveId] = useState(() => new URLSearchParams(window.location.search).get("c"));
+  // ?c=<conversation id> opens that chat (links from notifications, dashboard, contacts)
+  const urlChat = useSearchParams().get("c");
+  const [activeId, setActiveId] = useState(urlChat);
   const [active, setActive] = useState(null); // populated conversation
   const [contact, setContact] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -40,12 +54,29 @@ export default function InboxPage() {
   // Pre-filled composer text (e.g. "Send correction"); a new nonce remounts the composer with it
   const [draftSeed, setDraftSeed] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  // A link to another chat while the inbox is already open (e.g. clicking a notification): open it.
+  // Our own selectConversation() also updates the URL, but then urlChat === activeId and nothing happens.
+  const [seenUrlChat, setSeenUrlChat] = useState(urlChat);
+  if (urlChat !== seenUrlChat) {
+    setSeenUrlChat(urlChat);
+    if (urlChat && urlChat !== activeId) {
+      setActiveId(urlChat);
+      setActive(null);
+      setMessages([]);
+      setReplyTo(null);
+      setDraftSeed(null);
+      setLoadingChat(true);
+    }
+  }
   const activeIdRef = useRef(activeId);
   useEffect(() => {
     activeIdRef.current = activeId;
   });
 
   const selectConversation = (id) => {
+    // Clicking the chat that is already open must not reset it (the load effect would not re-run)
+    if (id === activeId) return;
     setActiveId(id);
     setActive(null);
     setMessages([]);
@@ -57,8 +88,8 @@ export default function InboxPage() {
 
   // ----- data loading -----
   const loadList = useCallback(() => {
-    api("/conversations", { query: { status, assigned, search } }).then(setConversations).catch(toast.error);
-  }, [status, assigned, search]); // eslint-disable-line react-hooks/exhaustive-deps
+    api("/conversations", { query: { status, assigned, search, leadStatus, source } }).then(setConversations).catch(toast.error);
+  }, [status, assigned, search, leadStatus, source]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const t = setTimeout(loadList, search ? 300 : 0);
@@ -111,6 +142,8 @@ export default function InboxPage() {
     if (assigned === "unassigned" && (assignee || c.bot?.active)) return false;
     if (assigned === "bot" && !c.bot?.active) return false;
     if (!isAdmin && assignee && assignee !== me._id) return false;
+    if (leadStatus && c.contactId?.leadStatus !== leadStatus) return false;
+    if (source === "ad" && !c.contactId?.adSource?.sourceId) return false;
     return true;
   };
 
@@ -139,10 +172,9 @@ export default function InboxPage() {
       setMessages((m) => (m.some((x) => x._id === message._id) ? m : [...m, message]));
       setActive(conversation);
       syncActiveContact(conversation);
-      if (message.direction === "inbound") {
-        api(`/conversations/${conversation._id}/read`, { method: "POST" }).catch(() => {});
-        conversation = { ...conversation, unreadCount: 0 };
-      }
+      if (message.direction === "inbound") api(`/conversations/${conversation._id}/read`, { method: "POST" }).catch(() => {});
+      // Chat is on screen: never show an unread badge for it (also for events that follow, e.g. an auto note)
+      conversation = { ...conversation, unreadCount: 0 };
     }
     upsertConversation(conversation);
   });
@@ -202,6 +234,10 @@ export default function InboxPage() {
     try {
       const updated = await api(`/contacts/${contact._id}`, { method: "PATCH", body: patch });
       setContact(updated);
+      // Keep the chat list badge in sync (status / name / tags shown there)
+      setConversations((list) =>
+        list?.map((c) => (c.contactId?._id === updated._id ? { ...c, contactId: { ...c.contactId, name: updated.name, tags: updated.tags, leadStatus: updated.leadStatus } } : c))
+      );
       if (patch.tags) api("/contacts/tags").then(setTags);
     } catch (err) {
       toast.error(err);
@@ -269,6 +305,7 @@ export default function InboxPage() {
       {/* Conversation list */}
       <aside className={cx("flex w-full flex-col border-r border-slate-200 md:w-80 md:shrink-0", activeId && "hidden md:flex")}>
         <div className="space-y-2 border-b border-slate-200 p-3">
+          <NotificationToggle />
           <div className="relative">
             <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
             <Input className="pl-9" placeholder="Search name or number" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -287,6 +324,13 @@ export default function InboxPage() {
             <option value="bot">🤖 Bot handling</option>
             {isAdmin && team.filter((t) => t.role === "agent").map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
           </Select>
+          <div className="flex gap-2">
+            <LeadStatusSelect value={leadStatus} onChange={setLeadStatus} includeAll allLabel="All lead statuses" className="flex-1" />
+            <Select value={source} onChange={(e) => setSource(e.target.value)} className="h-8 w-28 text-xs" aria-label="Lead source">
+              <option value="">All sources</option>
+              <option value="ad">📣 From ads</option>
+            </Select>
+          </div>
         </div>
         <div className="scroll-thin flex-1 overflow-y-auto">
           {!conversations ? (
@@ -310,9 +354,14 @@ export default function InboxPage() {
                     <p className="truncate text-xs text-slate-500">{c.lastMessagePreview || "No messages yet"}</p>
                     {c.unreadCount > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1.5 text-[10px] font-semibold text-white">{c.unreadCount}</span>}
                   </div>
-                  <p className="mt-1 truncate text-[11px] text-slate-400">
-                    {c.bot?.active ? <span className="font-medium text-violet-600">🤖 Bot handling</span> : c.assignedTo ? `👤 ${c.assignedTo.name}` : "Unassigned"}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+                    <LeadStatusBadge status={c.contactId?.leadStatus} />
+                    {c.contactId?.adSource?.sourceId && <span title={c.contactId.adSource.headline} className="text-violet-600">📣 Ad</span>}
+                    {c.contactId?.followUpAt && new Date(c.contactId.followUpAt) - new Date() < 864e5 && (
+                      <span className={new Date(c.contactId.followUpAt) < new Date() ? "font-medium text-red-600" : "text-amber-700"} title="Follow-up">🔔</span>
+                    )}
+                    <span className="truncate">{c.bot?.active ? <span className="font-medium text-violet-600">🤖 Bot handling</span> : c.assignedTo ? `👤 ${c.assignedTo.name}` : "Unassigned"}</span>
+                  </div>
                 </div>
               </button>
             ))
@@ -330,13 +379,21 @@ export default function InboxPage() {
           <div className="flex flex-1 items-center justify-center"><Spinner className="h-6 w-6" /></div>
         ) : (
           <>
-            <header className="flex items-center gap-3 border-b border-slate-200 px-3 py-2.5">
+            <header className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5 sm:gap-3">
               <button className="rounded p-1 text-slate-500 hover:bg-slate-100 md:hidden" onClick={() => selectConversation(null)} aria-label="Back to chats"><ArrowLeft className="h-5 w-5" /></button>
               <Avatar name={contact?.name || contact?.phone} />
-              <div className="min-w-24 flex-1">
+              <div className="min-w-16 flex-1">
                 <p className="truncate text-sm font-semibold text-slate-900">{contact?.name || "Unknown"}</p>
                 <p className="truncate text-xs text-slate-500">{fmtPhone(contact?.phone)} {contact?.optedOut && <Badge tone="red" className="ml-1">opted out</Badge>}</p>
               </div>
+              {contact && (
+                <LeadStatusSelect
+                  value={contact.leadStatus}
+                  onChange={(v) => v !== contact.leadStatus && updateContact({ leadStatus: v })}
+                  className="h-8 w-24 shrink-0 text-xs sm:w-36"
+                  title="Lead status of this customer"
+                />
+              )}
               <Select className="hidden h-8 w-40 text-xs xl:block" value={active.assignedTo?._id || ""} onChange={(e) => updateConversation({ assignedTo: e.target.value || null })} aria-label="Assign to">
                 <option value="">Unassigned</option>
                 {team.filter((t) => t.isActive).map((t) => <option key={t._id} value={t._id}>{t._id === me._id ? `${t.name} (me)` : t.name}</option>)}
@@ -346,7 +403,16 @@ export default function InboxPage() {
               ) : (
                 <Button size="sm" variant="secondary" onClick={() => updateConversation({ status: "open" })}>Reopen</Button>
               )}
-              <Button size="icon" variant="ghost" onClick={() => setShowInfo((v) => !v)} aria-label="Contact info"><Info className="h-4.5 w-4.5" /></Button>
+              <Button
+                size="sm"
+                variant={showInfo ? "primary" : "secondary"}
+                className="px-2 sm:px-3"
+                onClick={() => setShowInfo((v) => !v)}
+                aria-label="Contact details"
+                title="Contact details: lead status, follow-up, tags, notes"
+              >
+                <Info className="h-4 w-4" /> <span className="hidden lg:inline">Details</span>
+              </Button>
             </header>
 
             <MessageList
@@ -596,7 +662,7 @@ function TemplateModal({ open, onClose, templates, contact, conversationId, repl
   const chooseTemplate = (id) => {
     setTemplateId(id);
     const t = templates.find((x) => x._id === id);
-    setParams(t ? Array.from({ length: t.variableCount }, (_, i) => (i === 0 ? contact?.name || "" : "")) : []);
+    setParams(t ? paramsForContact(t, contact) : []); // template defaults: contact fields + fixed text
   };
 
   const send = async () => {
@@ -639,10 +705,13 @@ function TemplateModal({ open, onClose, templates, contact, conversationId, repl
 
 // ---------------- Contact panel ----------------
 
+// <input type="datetime-local"> value in the user's own time zone
 function ContactPanel({ contact, conversation, team, me, tags, onClose, onUpdateContact, onUpdateConversation, onBotAction, botBusy }) {
   // Parent remounts this panel per contact (key), so initial state is enough
   const [notes, setNotes] = useState(contact.notes || "");
   const [name, setName] = useState(contact.name || "");
+  const [customFields, setCustomFields] = useState(contact.customFields || {});
+  const [fuAction, setFuAction] = useState(null); // "message" picked, template not chosen yet
 
   return (
     <div className="p-4">
@@ -653,30 +722,62 @@ function ContactPanel({ contact, conversation, team, me, tags, onClose, onUpdate
       <div className="mb-5 flex flex-col items-center text-center">
         <Avatar name={contact.name || contact.phone} className="mb-2 h-14 w-14 text-base" />
         <p className="text-sm text-slate-500">{fmtPhone(contact.phone)}</p>
-        <p className="text-xs text-slate-400">Source: {contact.source}</p>
+        <p className="text-xs text-slate-400">Source: {contact.source === "ad" ? "Facebook / Instagram ad" : contact.source}</p>
       </div>
+      {contact.adSource?.sourceId && (
+        <div className="mb-4 rounded-md bg-violet-50 p-3 text-sm text-violet-900">
+          <p className="text-xs font-medium text-violet-700">📣 Came from an ad</p>
+          <p className="font-medium">{contact.adSource.headline || "Ad"}</p>
+          <p className="text-xs break-all">Ad ID: {contact.adSource.sourceId}{contact.adSource.sourceUrl && <> · <a href={contact.adSource.sourceUrl} target="_blank" rel="noreferrer" className="underline">open ad</a></>}</p>
+        </div>
+      )}
       <div className="space-y-4">
         <Field label="Name">
           <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== contact.name && onUpdateContact({ name })} />
         </Field>
-        {contact.customFields && Object.keys(contact.customFields).length > 0 && (
-          <div className="rounded-md bg-slate-50 p-3 text-sm">
-            <p className="mb-1 text-xs font-medium text-slate-500">Details</p>
-            <dl className="space-y-1">
-              {Object.entries(contact.customFields).map(([k, v]) => (
-                <div key={k} className="flex gap-2"><dt className="shrink-0 text-slate-500 capitalize">{k.replace(/_/g, " ")}:</dt><dd className="break-words text-slate-800">{v}</dd></div>
-              ))}
-            </dl>
-          </div>
-        )}
+        <CustomFieldInputs
+          compact
+          value={customFields}
+          onChange={setCustomFields}
+          onBlurField={(k) => {
+            // Save one field when leaving its box (empty = delete the value)
+            const before = contact.customFields?.[k] || "";
+            const now = (customFields[k] || "").trim();
+            if (now === before) return;
+            const next = Object.fromEntries(Object.entries({ ...contact.customFields, [k]: now }).filter(([, v]) => v));
+            onUpdateContact({ customFields: next });
+          }}
+        />
         <Field label="Lead status">
-          <Select value={contact.leadStatus} onChange={(e) => onUpdateContact({ leadStatus: e.target.value })}>
-            {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </Select>
+          <LeadStatusSelect value={contact.leadStatus} onChange={(v) => onUpdateContact({ leadStatus: v })} className="h-9 w-full text-sm" />
+        </Field>
+        <Field label="Follow-up" hint="Reminder shows on the dashboard when it is due">
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Input type="datetime-local" value={toLocalInput(contact.followUpAt)} onChange={(e) => onUpdateContact({ followUpAt: e.target.value ? new Date(e.target.value).toISOString() : null })} />
+              {contact.followUpAt && <Button size="icon" variant="ghost" onClick={() => onUpdateContact({ followUpAt: null })} aria-label="Clear follow-up"><X className="h-4 w-4" /></Button>}
+            </div>
+            {contact.followUpAt && (
+              <>
+                <FollowUpMessage
+                  value={{ ...contact, followUpAction: fuAction ?? contact.followUpAction }}
+                  onChange={(patch) => {
+                    // Turning "send message" on waits for a template before saving
+                    if (patch.followUpAction === "message" && !contact.followUpTemplateId) return setFuAction("message");
+                    setFuAction(null);
+                    onUpdateContact(patch.followUpTemplateId ? { followUpAction: "message", followUpTemplateId: patch.followUpTemplateId } : patch);
+                  }}
+                />
+                <FollowUpChip at={contact.followUpAt} />
+                <Input placeholder="What to do? e.g. call about fees" defaultValue={contact.followUpNote || ""} onBlur={(e) => e.target.value !== (contact.followUpNote || "") && onUpdateContact({ followUpNote: e.target.value })} />
+              </>
+            )}
+          </div>
         </Field>
         <Field label="Tags">
           <TagInput value={contact.tags} onChange={(t) => onUpdateContact({ tags: t })} suggestions={tags} />
         </Field>
+        <ReferralBox contactId={contact._id} compact />
         <Field label="Notes" hint="Saved when you click outside">
           <Textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== contact.notes && onUpdateContact({ notes })} />
         </Field>

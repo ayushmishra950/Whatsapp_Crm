@@ -8,6 +8,7 @@ const rooms = {
   tenantAdmins: (tenantId) => `tenant:${tenantId}:admins`,
   tenantAgents: (tenantId) => `tenant:${tenantId}:agents`,
   user: (userId) => `user:${userId}`,
+  superAdmins: () => 'superadmins',
 };
 
 export function initSocket(httpServer) {
@@ -27,6 +28,7 @@ export function initSocket(httpServer) {
   io.on('connection', (socket) => {
     const { user, tenantId } = socket.data;
     socket.join(rooms.user(user._id));
+    if (user.role === 'super_admin') socket.join(rooms.superAdmins());
     if (tenantId) {
       socket.join(user.role === 'admin' ? rooms.tenantAdmins(tenantId) : rooms.tenantAgents(tenantId));
     }
@@ -54,4 +56,14 @@ export function emitConversationEvent(conversation, event, payload, { previousAs
 
 export function emitToTenantAdmins(tenantId, event, payload) {
   io?.to(rooms.tenantAdmins(String(tenantId))).emit(event, payload);
+}
+
+// Platform owner screens (Super Admin panel)
+export function emitToSuperAdmins(event, payload) {
+  io?.to(rooms.superAdmins()).emit(event, payload);
+}
+
+// Everyone logged in to a business (admins + agents), e.g. the business was renamed
+export function emitToTenant(tenantId, event, payload) {
+  io?.to(rooms.tenantAdmins(String(tenantId))).to(rooms.tenantAgents(String(tenantId))).emit(event, payload);
 }

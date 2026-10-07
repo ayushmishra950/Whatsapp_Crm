@@ -1,34 +1,12 @@
 import { Router } from 'express';
-import { Contact, Conversation, Message, Campaign } from '../models/index.js';
+import { z } from 'zod';
+import { AdSource, Contact, Conversation, Message, Campaign, User } from '../models/index.js';
+import { authorize } from '../middleware/auth.js';
+import { validate } from '../utils/http.js';
 import { messagesUsedThisMonth } from '../services/subscription.js';
+import { DEFAULT_TZ, safeTimeZone, dayKey, startOfDayIn } from '../utils/time.js';
 
 const router = Router();
-
-const DEFAULT_TZ = 'Asia/Kolkata';
-
-function safeTimeZone(tz) {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz });
-    return tz;
-  } catch {
-    return DEFAULT_TZ;
-  }
-}
-
-// "YYYY-MM-DD" of a date as seen in the given time zone
-const dayKey = (date, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(date);
-
-// Midnight today in the given time zone, as a UTC Date
-function startOfDayIn(tz) {
-  const now = new Date();
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
-      .formatToParts(now)
-      .map((p) => [p.type, Number(p.value)])
-  );
-  const elapsedMs = ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000 + now.getMilliseconds();
-  return new Date(now.getTime() - elapsedMs);
-}
 
 router.get('/', async (req, res) => {
   const tenantId = req.tenantId;
@@ -68,6 +46,25 @@ router.get('/', async (req, res) => {
   });
 
   const botActive = await Conversation.countDocuments({ tenantId, 'bot.active': true, status: { $ne: 'resolved' } });
+
+  // Follow-ups due by end of today (incl. overdue). Agents see the ones they set.
+  const endOfToday = new Date(startOfDay.getTime() + 864e5);
+  const followUpFilter = { tenantId, followUpAt: { $lt: endOfToday }, ...(isAgent && { followUpBy: req.user._id }) };
+  const [followUpsDue, followUps] = await Promise.all([
+    Contact.countDocuments(followUpFilter),
+    Contact.find(followUpFilter).select('name phone followUpAt followUpNote followUpAction followUpSentAt leadStatus followUpBy').populate('followUpBy', 'name').sort({ followUpAt: 1 }).limit(8).lean(),
+  ]);
+
+  // Leads from Facebook/Instagram ads in the last 30 days
+  const adLeads = await Contact.aggregate([
+    { $match: { tenantId, 'adSource.sourceId': { $exists: true, $ne: null }, 'adSource.at': { $gte: new Date(Date.now() - 30 * 864e5) } } },
+    { $group: { _id: '$adSource.sourceId', headline: { $last: '$adSource.headline' }, leads: { $sum: 1 }, converted: { $sum: { $cond: [{ $eq: ['$leadStatus', 'converted'] }, 1, 0] } } } },
+    { $sort: { leads: -1 } },
+    { $limit: 5 },
+  ]);
+  const adNames = Object.fromEntries(
+    (await AdSource.find({ tenantId, sourceId: { $in: adLeads.map((a) => a._id) } }).select('sourceId name').lean()).map((a) => [a.sourceId, a.name])
+  );
   res.json({
     botActive,
     contacts,
@@ -82,6 +79,69 @@ router.get('/', async (req, res) => {
     daily: days,
     leadFunnel: Object.fromEntries(leadFunnel.map((l) => [l._id, l.count])),
     recentCampaigns,
+    followUpsDue,
+    followUps,
+    adLeads: adLeads.map(({ _id, ...a }) => ({ adId: _id, ...a, name: adNames[_id] || '' })),
+  });
+});
+
+/**
+ * Team performance (admin): per team member for the last N days
+ * chats handled, messages sent, leads marked converted, average time to reply to a customer.
+ */
+router.get('/team', authorize('admin'), async (req, res) => {
+  const { days } = validate(z.object({ days: z.coerce.number().int().min(1).max(90).default(7) }), req.query);
+  const tenantId = req.tenantId;
+  const since = new Date(Date.now() - days * 864e5);
+
+  const users = await User.find({ tenantId }).select('name role isActive').sort({ role: 1, name: 1 }).lean();
+  const [handled, openNow, sent, converted, msgs, botStarted, botEnded] = await Promise.all([
+    Conversation.aggregate([{ $match: { tenantId, assignedTo: { $ne: null }, lastMessageAt: { $gte: since } } }, { $group: { _id: '$assignedTo', n: { $sum: 1 } } }]),
+    Conversation.aggregate([{ $match: { tenantId, assignedTo: { $ne: null }, status: { $ne: 'resolved' } } }, { $group: { _id: '$assignedTo', n: { $sum: 1 } } }]),
+    Message.aggregate([{ $match: { tenantId, direction: 'outbound', isBot: { $ne: true }, campaignId: { $exists: false }, createdAt: { $gte: since } } }, { $group: { _id: '$sentBy', n: { $sum: 1 } } }]),
+    Contact.aggregate([{ $match: { tenantId, leadStatus: 'converted', statusUpdatedAt: { $gte: since } } }, { $group: { _id: '$statusUpdatedBy', n: { $sum: 1 } } }]),
+    // For reply time: customer messages and the team's replies in the period, per chat in time order
+    Message.find({ tenantId, createdAt: { $gte: since }, $or: [{ direction: 'inbound' }, { direction: 'outbound', isBot: { $ne: true }, campaignId: { $exists: false } }] })
+      .select('conversationId direction sentBy createdAt').sort({ conversationId: 1, createdAt: 1 }).limit(100000).lean(),
+    Conversation.countDocuments({ tenantId, 'bot.startedAt': { $gte: since } }),
+    Conversation.aggregate([{ $match: { tenantId, 'bot.endedAt': { $gte: since } } }, { $group: { _id: '$bot.endReason', n: { $sum: 1 } } }]),
+  ]);
+
+  // Time from the first unanswered customer message to the team member's reply
+  const replyTimes = {};
+  let currentConv = null;
+  let waitingSince = null;
+  for (const m of msgs) {
+    if (String(m.conversationId) !== currentConv) {
+      currentConv = String(m.conversationId);
+      waitingSince = null;
+    }
+    if (m.direction === 'inbound') waitingSince ||= m.createdAt;
+    else if (waitingSince && m.sentBy) {
+      (replyTimes[m.sentBy] ||= []).push(m.createdAt - waitingSince);
+      waitingSince = null;
+    }
+  }
+  const byId = (rows) => Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+  const [h, o, s, c] = [byId(handled), byId(openNow), byId(sent), byId(converted)];
+  const median = (arr) => {
+    if (!arr?.length) return null;
+    const sorted = [...arr].sort((a, b) => a - b);
+    return Math.round(sorted[Math.floor(sorted.length / 2)] / 60000);
+  };
+
+  res.json({
+    days,
+    members: users.map((u) => {
+      const id = String(u._id);
+      return {
+        _id: u._id, name: u.name, role: u.role, isActive: u.isActive,
+        chatsHandled: h[id] || 0, openChats: o[id] || 0, messagesSent: s[id] || 0, converted: c[id] || 0,
+        replies: replyTimes[id]?.length || 0,
+        medianReplyMinutes: median(replyTimes[id]),
+      };
+    }),
+    bot: { chatsStarted: botStarted, ended: Object.fromEntries(botEnded.map((b) => [b._id || 'other', b.n])) },
   });
 });
 

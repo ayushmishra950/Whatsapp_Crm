@@ -28,11 +28,13 @@ const sandboxSchema = z.object({
   reaction: z.object({ messageId: z.string().refine(mongoose.isValidObjectId), emoji: z.string().max(16) }).optional(),
   // Customer tapped a chatbot button / list row
   interactiveReply: z.object({ id: z.string().min(1), title: z.string().min(1) }).optional(),
+  // Pretend the customer came from a Click-to-WhatsApp ad
+  referral: z.object({ adId: z.string().min(1), headline: z.string().optional(), body: z.string().optional() }).optional(),
 });
 
 router.post('/sandbox/inbound', async (req, res) => {
   if (req.tenant.whatsapp?.mode === 'live') throw badRequest('Sandbox is disabled when a live WhatsApp number is connected');
-  const { phone, name, text, replyToMessageId, reaction, interactiveReply } = validate(sandboxSchema, req.body);
+  const { phone, name, text, replyToMessageId, reaction, interactiveReply, referral } = validate(sandboxSchema, req.body);
   const waId = `wamid.MOCK.IN.${Date.now()}${Math.random().toString(16).slice(2, 8)}`;
   const base = { from: phone, id: waId, timestamp: String(Math.floor(Date.now() / 1000)) };
 
@@ -51,6 +53,12 @@ router.post('/sandbox/inbound', async (req, res) => {
     if (!text) throw badRequest('text is required');
     payload = { ...base, type: 'text', text: { body: text } };
     if (replyToMessageId) payload.context = { from: phone, id: await waIdOf(replyToMessageId) };
+  }
+  if (referral) {
+    payload.referral = {
+      source_type: 'ad', source_id: referral.adId, headline: referral.headline || 'Sandbox ad', body: referral.body || '',
+      source_url: `https://fb.me/${referral.adId}`, media_type: 'image', ctwa_clid: `MOCK_${Date.now()}`,
+    };
   }
   const message = await processInbound(req.tenant, payload, name);
   res.status(201).json(message);

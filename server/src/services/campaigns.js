@@ -5,12 +5,18 @@
 import { Campaign, CampaignRecipient, Contact, Template, Tenant } from '../models/index.js';
 import { env } from '../config/env.js';
 import { sendOutbound, renderTemplate } from './messaging.js';
+import { resolveVariables } from './variables.js';
+import { segmentQuery } from './segments.js';
 import { emitToTenantAdmins } from './socket.js';
 import { isSubscriptionActive, messagesUsedThisMonth } from './subscription.js';
 
-export function audienceFilter(tenantId, audience) {
+export function audienceFilter(tenantId, audience, tz) {
+  // Smart filter: date ranges + status + tags + ads + fields together (services/segments.js)
+  if (audience.type === 'filter') return { $and: [segmentQuery(tenantId, audience.filter || {}, tz), { optedOut: false }] };
   const filter = { tenantId, optedOut: false };
   if (audience.type === 'tags') filter.tags = { $in: audience.tags || [] };
+  if (audience.type === 'status') filter.leadStatus = { $in: audience.leadStatuses || [] };
+  if (audience.type === 'ads') filter['adSource.sourceId'] = { $in: audience.adIds || [] };
   if (audience.type === 'contacts') filter._id = { $in: audience.contactIds || [] };
   return filter;
 }
@@ -36,16 +42,6 @@ export async function buildRecipients(campaign) {
   return total;
 }
 
-function resolveVariable(variable, contact) {
-  if (variable.source === 'static') return variable.value;
-  const field = variable.value || '';
-  if (field.startsWith('custom.')) return contact.customFields?.get(field.slice(7)) || '';
-  return contact[field] || '';
-}
-
-export function resolveParams(campaign, contact) {
-  return (campaign.variables || []).map((v) => resolveVariable(v, contact) || ' ');
-}
 
 function emitCampaign(campaign) {
   emitToTenantAdmins(campaign.tenantId, 'campaign:update', {
@@ -106,7 +102,7 @@ async function processCampaign(campaign, batchSize) {
       recipient.error = contact ? 'Contact opted out' : 'Contact deleted';
       inc['stats.skipped'] = 1;
     } else {
-      const params = resolveParams(campaign, contact);
+      const params = await resolveVariables(campaign.variables, contact, tenant);
       try {
         const message = await sendOutbound({
           tenant,

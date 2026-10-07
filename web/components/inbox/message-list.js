@@ -67,6 +67,7 @@ export function authorOf(m, contactName) {
   if (!m) return "";
   if (m.direction === "inbound") return contactName || "Customer";
   if (m.isBot) return "🤖 Bot";
+  if (m.automation?.kind) return m.automation.kind === "followup" ? "⏰ Follow-up" : `⚡ ${m.automation.name || "Drip"}`;
   return m.sentBy?.name || "You";
 }
 
@@ -288,7 +289,7 @@ export function MessageList({ messages, hasOlder, onLoadOlder, me, isAdmin, cont
               <div className="group mx-auto my-2 flex max-w-md items-start gap-1">
                 <div className={cx("min-w-0 flex-1 rounded-md border px-3 py-2 text-sm transition-shadow", hidden ? "border-slate-200 bg-white/60 text-slate-400" : "border-amber-200 bg-amber-50 text-amber-900", highlighted && "ring-2 ring-brand-500")}>
                   <p className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-amber-700">
-                    <StickyNote className="h-3 w-3" /> Internal note · {m.sentBy?.name} · {fmtTime(m.createdAt)}
+                    <StickyNote className="h-3 w-3" /> {m.isBot ? "🤖 Auto update" : `Internal note · ${m.sentBy?.name || ""}`} · {fmtTime(m.createdAt)}
                     {m.editedAt && !hidden && <span className="font-normal text-amber-600/80" title={`Edited ${fmtDateTime(m.editedAt)}`}>· edited</span>}
                   </p>
                   {hidden ? (
@@ -323,6 +324,17 @@ export function MessageList({ messages, hasOlder, onLoadOlder, me, isAdmin, cont
                       )}
                       {m.type === "template" && <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-slate-500"><FileText className="h-3 w-3" /> {m.template?.name}</p>}
                       {["image", "video", "audio", "document"].includes(m.type) && <MediaContent message={m} />}
+                      {m.referral?.sourceId && (
+                        <a
+                          href={m.referral.sourceUrl || undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mb-1.5 block rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs text-violet-900"
+                        >
+                          <span className="block font-semibold">📣 From ad: {m.referral.headline || m.referral.sourceId}</span>
+                          {m.referral.body && <span className="line-clamp-2 block text-violet-800/80">{m.referral.body}</span>}
+                        </a>
+                      )}
                       {m.direction === "inbound" && m.interactive?.replyId && (
                         <p className="mb-0.5 flex items-center gap-1 text-[11px] font-medium text-slate-500"><MousePointerClick className="h-3 w-3" /> Tapped option</p>
                       )}
@@ -332,7 +344,8 @@ export function MessageList({ messages, hasOlder, onLoadOlder, me, isAdmin, cont
                   )}
                   <div className="mt-1 flex items-center justify-end gap-1 text-[11px] text-slate-400">
                     {out && m.isBot && <span className="mr-1 inline-flex items-center gap-0.5 font-medium text-violet-600"><Bot className="h-3 w-3" /> Bot ·</span>}
-                    {out && !m.isBot && m.sentBy?.name && <span className="mr-1">{m.sentBy.name} ·</span>}
+                    {out && m.automation?.kind && <span className="mr-1 font-medium text-amber-700">{m.automation.kind === "followup" ? "⏰ Follow-up" : `⚡ Drip: ${m.automation.name}`} ·</span>}
+                    {out && !m.isBot && !m.automation?.kind && m.sentBy?.name && <span className="mr-1">{m.sentBy.name} ·</span>}
                     <span title={fmtDateTime(m.createdAt)}>{fmtTime(m.createdAt)}</span>
                     {out && !hidden && <StatusIcon status={m.status} />}
                   </div>

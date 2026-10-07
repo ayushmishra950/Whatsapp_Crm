@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Megaphone } from "lucide-react";
+import { Plus, Megaphone, Pencil } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSocketEvent } from "@/lib/socket";
 import { fmtDateTime } from "@/lib/format";
@@ -47,7 +47,20 @@ export default function CampaignsPage() {
                     </Link>
                   ),
                 },
-                { key: "status", label: "Status", render: (c) => <StatusBadge status={c.status} /> },
+                {
+                  key: "status",
+                  label: "Status",
+                  render: (c) => (
+                    <div className="flex flex-col items-start gap-1.5">
+                      <StatusBadge status={c.status} />
+                      {["draft", "scheduled"].includes(c.status) && (
+                        <Link href={`/app/campaigns/new?edit=${c._id}`} className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline">
+                          <Pencil className="h-3 w-3" /> Edit
+                        </Link>
+                      )}
+                    </div>
+                  ),
+                },
                 {
                   key: "progress",
                   label: "Progress",
@@ -61,7 +74,26 @@ export default function CampaignsPage() {
                 { key: "delivered", label: "Delivered", render: (c) => `${pct(c.stats.delivered, c.stats.sent)}%` },
                 { key: "read", label: "Read", render: (c) => `${pct(c.stats.read, c.stats.sent)}%` },
                 { key: "failed", label: "Failed", render: (c) => c.stats.failed },
-                { key: "date", label: "Created", className: "whitespace-nowrap", render: (c) => fmtDateTime(c.scheduledAt || c.createdAt) },
+                {
+                  key: "date",
+                  label: "Date",
+                  className: "whitespace-nowrap",
+                  render: (c) =>
+                    c.status === "scheduled" ? (
+                      <div>
+                        <p className="font-medium text-amber-700">📅 Sends {fmtDateTime(c.scheduledAt)}</p>
+                        <p className="text-xs text-slate-500">Created {fmtDateTime(c.createdAt)}</p>
+                      </div>
+                    ) : c.startedAt ? (
+                      <div>
+                        <p>Sent {fmtDateTime(c.startedAt)}</p>
+                        <p className="text-xs text-slate-500">Created {fmtDateTime(c.createdAt)}</p>
+                      </div>
+                    ) : (
+                      <p>Created {fmtDateTime(c.createdAt)}</p>
+                    ),
+                },
+
               ]}
               rows={data.items}
               empty={<EmptyState icon={Megaphone} title="No campaigns yet" description="Create your first bulk WhatsApp campaign." action={<Link href="/app/campaigns/new"><Button>New campaign</Button></Link>} />}

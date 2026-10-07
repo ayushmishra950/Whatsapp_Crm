@@ -6,9 +6,15 @@ const campaignSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
     audience: {
-      type: { type: String, enum: ['all', 'tags', 'contacts'], required: true },
+      // all | tags | status (lead status) | ads (leads from Facebook/Instagram ads) | contacts (picked)
+      type: { type: String, enum: ['all', 'tags', 'status', 'ads', 'contacts', 'filter'], required: true },
       tags: [String],
+      leadStatuses: [String],
+      adIds: [String],
       contactIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Contact' }],
+      // type 'filter': smart filter (see services/segments.js); segmentName = saved segment it came from
+      filter: { type: mongoose.Schema.Types.Mixed },
+      segmentName: String,
     },
     // One entry per {{n}}: either a contact field ("name", "phone", "email", "custom.<key>") or static text
     variables: [

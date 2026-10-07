@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp CRM – Product Documentation</title>
+<style>
+  :root {
+    --brand: #16a34a; --brand-dark: #166534; --brand-soft: #dcfce7;
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --soft: #f8fafc;
+    --amber: #b45309; --amber-soft: #fef3c7; --violet: #6d28d9; --violet-soft: #ede9fe; --red: #b91c1c;
+  }
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--ink); font-size: 10pt; line-height: 1.5; background: #fff; }
+  h1, h2, h3, h4 { line-height: 1.25; margin: 0; }
+  h2 { font-size: 18pt; color: var(--brand-dark); padding-bottom: 6px; border-bottom: 2px solid var(--brand); margin: 0 0 14px; }
+  h3 { font-size: 12pt; margin: 14px 0 5px; color: var(--ink); }
+  h4 { font-size: 10.5pt; margin: 12px 0 4px; }
+  p { margin: 0 0 8px; }
+  ul, ol { margin: 0 0 8px; padding-left: 20px; }
+  li { margin: 2px 0; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9pt; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.1pt; background: #0f172a; color: #e2e8f0; padding: 10px 12px; border-radius: 6px; white-space: pre-wrap; margin: 6px 0 10px; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 9pt; }
+  th, td { border: 1px solid var(--line); padding: 4px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); font-weight: 600; }
+  tr { break-inside: avoid; }
+  .section { break-before: page; }
+  .avoid { break-inside: avoid; }
+  .muted { color: var(--muted); }
+  .small { font-size: 9pt; }
+  .yes { color: var(--brand-dark); font-weight: 700; text-align: center; }
+  .no { color: #94a3b8; text-align: center; }
+  .part { color: var(--amber); text-align: center; font-weight: 600; }
+  .note { border-left: 4px solid var(--brand); background: var(--brand-soft); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; }
+  .warn { border-left: 4px solid var(--amber); background: var(--amber-soft); padding: 8px 12px; border-radius: 4px; margin: 8px 0 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 8px 0 12px; }
+  .card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; break-inside: avoid; }
+  .card h4 { margin-top: 0; color: var(--brand-dark); }
+  .pill { display: inline-block; font-size: 8pt; padding: 1px 7px; border-radius: 99px; background: var(--violet-soft); color: var(--violet); font-weight: 600; margin-right: 4px; }
+  .kpi { font-size: 16pt; font-weight: 700; color: var(--brand-dark); }
+
+  /* Cover */
+  .cover { height: 255mm; display: flex; flex-direction: column; justify-content: space-between; padding: 10mm 4mm; }
+  .cover .logo { width: 64px; height: 64px; border-radius: 16px; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+  .cover h1 { font-size: 34pt; margin-top: 26mm; color: var(--ink); letter-spacing: -0.5px; }
+  .cover .tag { font-size: 14pt; color: var(--muted); margin-top: 8px; max-width: 150mm; }
+  .cover .meta { font-size: 10pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+  .cover .badges span { display: inline-block; margin: 4px 6px 0 0; padding: 4px 10px; border-radius: 99px; background: var(--brand-soft); color: var(--brand-dark); font-size: 9.5pt; font-weight: 600; }
+
+  /* TOC */
+  .toc ol { padding-left: 18px; columns: 2; column-gap: 24px; }
+  .toc li { margin: 3px 0; break-inside: avoid; }
+
+  /* Flow diagrams */
+  .flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; }
+  .flow .step { flex: 1 1 0; min-width: 80px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-size: 8.8pt; background: var(--soft); break-inside: avoid; }
+  .flow .step b { display: block; color: var(--brand-dark); font-size: 9pt; }
+  .flow .arrow { align-self: center; color: var(--brand); font-weight: 700; }
+  .arch { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+  .arch .box { border: 1.5px solid var(--brand); border-radius: 8px; padding: 8px; font-size: 9pt; background: #fff; break-inside: avoid; }
+  .arch .box b { color: var(--brand-dark); }
+  .arch .wide { grid-column: span 3; text-align: center; background: var(--brand-soft); }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <div>
+    <div class="logo">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+    </div>
+    <h1>WhatsApp CRM</h1>
+    <p class="tag">A multi-business WhatsApp sales &amp; support platform: one team inbox, lead management, bulk campaigns, chatbot and Facebook-ad lead tracking, all on the official WhatsApp Cloud API.</p>
+    <div class="badges">
+      <span>Team Inbox</span><span>Leads &amp; Pipeline</span><span>Bulk Campaigns</span><span>Chatbot</span><span>Facebook Ads</span><span>Multi-business SaaS</span>
+    </div>
+  </div>
+  <div class="meta">
+    <b>Product documentation</b> · Version 1.0 · October 2026<br>
+    Covers: purpose, problems solved, business model, roles &amp; permissions, every feature, technology, architecture, security, setup and roadmap.
+  </div>
+</div>
+
+<!-- ============ TOC ============ -->
+<div class="section toc">
+  <h2>Contents</h2>
+  <ol>
+    <li>Product overview</li>
+    <li>Problems it solves</li>
+    <li>Who it is for</li>
+    <li>Roles &amp; permissions</li>
+    <li>Features in detail</li>
+    <li>Everyday workflows</li>
+    <li>Business model &amp; how to earn from it</li>
+    <li>How businesses profit from using it</li>
+    <li>Plans, limits &amp; billing</li>
+    <li>Technology stack</li>
+    <li>Architecture</li>
+    <li>Security &amp; data protection</li>
+    <li>WhatsApp rules the product follows</li>
+    <li>Setup, going live &amp; deployment</li>
+    <li>Current limitations &amp; roadmap</li>
+    <li>Glossary</li>
+  </ol>
+
+  <div class="note" style="margin-top:18px">
+    <b>In one sentence:</b> WhatsApp CRM lets you (the platform owner) sell a monthly WhatsApp business tool to many companies. Each company connects its own WhatsApp number, and its team uses it to reply to customers, sort leads, run bulk campaigns and automate replies, with every company's data kept separate.
+  </div>
+
+  <h3>At a glance</h3>
+  <div class="grid3">
+    <div class="card"><h4>3 login roles</h4>Super Admin (platform owner), Admin (business owner), Agent (business staff). Customers/leads are contacts, not logins.</div>
+    <div class="card"><h4>1 number per business</h4>Each business connects one official WhatsApp number (Meta Cloud API). Unlimited team members can share it, within the plan limit.</div>
+    <div class="card"><h4>Monthly plans</h4>Plans set limits on agents, contacts and messages per month. The Super Admin renews subscriptions and can suspend a business.</div>
+  </div>
+</div>
+
+<!-- ============ 1. OVERVIEW ============ -->
+<div class="section">
+  <h2>1. Product overview</h2>
+  <p>WhatsApp is where Indian customers reply fastest, but most businesses manage it from one phone. Messages get missed, nobody knows which lead is interested, and sending offers to hundreds of people means forwarding one by one or risking a ban with unofficial tools.</p>
+  <p><b>WhatsApp CRM</b> turns one official WhatsApp Business number into a shared, organised system for the whole team:</p>
+  <ul>
+    <li><b>Team Inbox:</b> every chat in one screen, on any number of computers at once, with chats auto-assigned to agents.</li>
+    <li><b>Leads &amp; pipeline:</b> every person who messages becomes a lead with a status (New, Interested, Converted, Not interested…), tags, notes, follow-up reminders and custom details.</li>
+    <li><b>Bulk campaigns:</b> send approved WhatsApp templates to a list, a status group, a tag or an Excel sheet, now or at a scheduled time, with delivery and read reports.</li>
+    <li><b>Chatbot:</b> answers common questions 24×7 with a menu, collects lead details, and hands the chat to a person when needed.</li>
+    <li><b>Facebook / Instagram ads:</b> leads from Click-to-WhatsApp ads are tagged with the ad they came from, so you can see which ad brings leads and conversions.</li>
+    <li><b>Multi-business SaaS:</b> the platform owner (Super Admin) hosts many businesses, each with its own number, team, data and monthly plan.</li>
+  </ul>
+
+  <h3>Main modules</h3>
+  <table>
+    <tr><th style="width:24%">Module</th><th>What it does</th></tr>
+    <tr><td>Dashboard</td><td>Today's chats, new leads, 7-day message chart, lead pipeline, follow-ups due, leads from ads, plan usage, team performance (admin).</td></tr>
+    <tr><td>Inbox</td><td>Real-time chat with customers: text, media, templates, quoted replies, reactions, internal notes, assignment, resolve, lead status and follow-ups.</td></tr>
+    <tr><td>Contacts / Leads</td><td>Lead list with status tabs, filters, bulk actions, Excel/CSV import &amp; export, follow-ups, custom fields.</td></tr>
+    <tr><td>Bulk campaigns</td><td>Template broadcasts to chosen audiences, scheduling, editing before start, pause/resume/cancel, per-recipient report.</td></tr>
+    <tr><td>Templates</td><td>Create WhatsApp message templates, submit to Meta, track approval, edit approved templates, set variable defaults.</td></tr>
+    <tr><td>Chatbot</td><td>Welcome menu, keyword replies, lead questions, business hours, hand-off to the team.</td></tr>
+    <tr><td>Team</td><td>Add agents, disable them, reset passwords; see each member's open chats.</td></tr>
+    <tr><td>Settings</td><td>WhatsApp connection, automation, opt-out words, lead statuses, contact fields, plan usage, sandbox tester.</td></tr>
+    <tr><td>Super Admin panel</td><td>Businesses, plans, subscriptions, suspend/activate, "login as admin", platform stats and audit logs.</td></tr>
+  </table>
+</div>
+
+<!-- ============ 2. PROBLEMS ============ -->
+<div class="section">
+  <h2>2. Problems it solves</h2>
+  <table>
+    <tr><th style="width:34%">Problem today</th><th>How WhatsApp CRM solves it</th></tr>
+    <tr><td>One phone, many staff: only one person can reply, and chats are lost when they are busy or on leave.</td><td>Shared team inbox on any number of computers at once. Chats are auto-assigned round-robin and can be transferred. Sound + desktop alerts for new messages.</td></tr>
+    <tr><td>No idea which leads are interested, converted or lost.</td><td>Lead statuses (fully customisable), status tabs and counts, dashboard pipeline. Status also changes automatically when a customer writes "interested" / "not interested".</td></tr>
+    <tr><td>Leads are forgotten after the first chat.</td><td>Follow-up date + note on each lead; "Follow-ups due" on the dashboard and badges in the inbox.</td></tr>
+    <tr><td>Sending offers to hundreds of customers means manual forwarding, or a ban risk with unofficial tools.</td><td>Bulk campaigns on the official Cloud API using Meta-approved templates, from a list, tag, status, ad or uploaded Excel sheet, with delivery/read reports.</td></tr>
+    <tr><td>Same questions (fees, timing, address) answered again and again.</td><td>Chatbot with a menu and keyword replies, available 24×7; hands over to a person when needed.</td></tr>
+    <tr><td>Money spent on Facebook/Instagram ads but no idea which ad works.</td><td>Click-to-WhatsApp ad leads are tagged with the ad; dashboard shows leads and conversions per ad.</td></tr>
+    <tr><td>No visibility into staff performance.</td><td>Team report: chats handled, messages sent, leads converted, median reply time (7 / 30 days).</td></tr>
+    <tr><td>Customer data scattered across phones and sheets.</td><td>One database per business with custom fields, import from Excel, export to Excel/CSV.</td></tr>
+    <tr><td>Customers who don't want messages keep getting them.</td><td>Opt-out keywords (STOP, UNSUBSCRIBE…) automatically exclude them from campaigns; START opts them back in.</td></tr>
+    <tr><td>For the platform owner: building a separate tool for each client.</td><td>One multi-business platform: add a business in minutes, set its plan, and every business's data stays isolated.</td></tr>
+  </table>
+</div>
+
+<!-- ============ 3. WHO ============ -->
+<div class="section">
+  <h2>3. Who it is for</h2>
+  <p>Any business that gets enquiries on WhatsApp and has more than one person handling them. Examples:</p>
+  <div class="grid2">
+    <div class="card"><h4>Coaching &amp; training institutes</h4>Course enquiries from ads, fee/timing questions answered by the chatbot, counsellor follow-ups, batch announcements by bulk campaign.</div>
+    <div class="card"><h4>Real estate</h4>Property enquiries from ads, site-visit follow-ups, new project launches to "Interested" leads.</div>
+    <div class="card"><h4>Clinics &amp; diagnostics</h4>Appointment questions, reminders (utility templates), health-camp campaigns.</div>
+    <div class="card"><h4>Retail &amp; D2C brands</h4>Order questions, offers to tagged customers, festive campaigns.</div>
+    <div class="card"><h4>Travel &amp; events</h4>Package enquiries, itinerary updates, last-minute offers.</div>
+    <div class="card"><h4>Agencies &amp; resellers</h4>Run the platform for many client businesses from one Super Admin panel.</div>
+  </div>
+</div>
+
+<!-- ============ 4. ROLES ============ -->
+<div class="section">
+  <h2>4. Roles &amp; permissions</h2>
+  <div class="grid3">
+    <div class="card"><h4>Super Admin</h4><span class="pill">Platform owner</span><p class="small" style="margin-top:6px">Runs the platform. Creates businesses, plans and subscriptions, suspends/activates businesses, logs in as a business admin for support, sees all audit logs. Does not chat with customers.</p></div>
+    <div class="card"><h4>Admin</h4><span class="pill">Business owner</span><p class="small" style="margin-top:6px">Full control of one business: WhatsApp number, team, templates, campaigns, chatbot, settings, all chats and reports.</p></div>
+    <div class="card"><h4>Agent</h4><span class="pill">Business staff</span><p class="small" style="margin-top:6px">Handles customer chats: sees chats assigned to them plus unassigned ones, replies, updates leads. Cannot change business settings.</p></div>
+  </div>
+  <div class="note"><b>Customers / leads ("User")</b> are not logins. They are contacts stored inside one business. Every business sees only its own contacts, chats and campaigns.</div>
+
+  <h3>Permission matrix</h3>
+  <table>
+    <tr><th style="width:46%">Action</th><th style="width:18%">Super Admin</th><th style="width:18%">Admin</th><th style="width:18%">Agent</th></tr>
+    <tr><th colspan="4">Platform</th></tr>
+    <tr><td>Create / edit / delete businesses</td><td class="yes">✔</td><td class="no">—</td><td class="no">—</td></tr>
+    <tr><td>Create and edit plans, renew subscriptions</td><td class="yes">✔</td><td class="no">—</td><td class="no">—</td></tr>
+    <tr><td>Suspend / activate a business</td><td class="yes">✔</td><td class="no">—</td><td class="no">—</td></tr>
+    <tr><td>Log in as a business admin (support), reset admin password</td><td class="yes">✔</td><td class="no">—</td><td class="no">—</td></tr>
+    <tr><td>Platform stats and audit logs of all businesses</td><td class="yes">✔</td><td class="no">—</td><td class="no">—</td></tr>
+    <tr><th colspan="4">Chats (Inbox)</th></tr>
+    <tr><td>See chats</td><td class="part">via login-as</td><td class="yes">All</td><td class="part">Assigned to them + unassigned</td></tr>
+    <tr><td>Reply, send media and templates, start a new chat</td><td class="part">via login-as</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>Assign / transfer chats, resolve, take over from the bot</td><td class="part">via login-as</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>Internal notes (edit/delete own notes)</td><td class="part">via login-as</td><td class="yes">✔ (any note)</td><td class="yes">✔ (own)</td></tr>
+    <tr><td>Delete own sent message (within 48 h)</td><td class="part">via login-as</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>Hide any message from the CRM</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><th colspan="4">Contacts / Leads</th></tr>
+    <tr><td>View, add and edit contacts, change lead status, tags, follow-ups, custom fields</td><td class="part">via login-as</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>Bulk change status / add tags</td><td class="part">via login-as</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+    <tr><td>Delete contacts (single or bulk)</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><td>Import Excel/CSV, export Excel/CSV</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><th colspan="4">Campaigns, templates, chatbot</th></tr>
+    <tr><td>Bulk campaigns (create, schedule, edit, pause, cancel)</td><td class="part">via login-as</td><td class="yes">✔</td><td class="part">Only if Admin allows</td></tr>
+    <tr><td>Create / submit / edit / delete templates, set variable defaults</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">View only</td></tr>
+    <tr><td>Configure chatbot</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><th colspan="4">Team &amp; settings</th></tr>
+    <tr><td>Add / disable agents, reset their passwords</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><td>Connect WhatsApp number, automation, opt-out words, lead statuses, contact fields</td><td class="part">via login-as</td><td class="yes">✔</td><td class="no">—</td></tr>
+    <tr><td>Dashboard</td><td class="part">Platform dashboard</td><td class="yes">Whole business + team report</td><td class="part">Own chats &amp; follow-ups</td></tr>
+    <tr><td>Change own password, sound/desktop alerts</td><td class="yes">✔</td><td class="yes">✔</td><td class="yes">✔</td></tr>
+  </table>
+  <p class="small muted">"via login-as": the Super Admin can open a business as its admin for support. Every action taken this way is shown in a banner and recorded in the audit log as "via Super Admin". The session lasts 2 hours.</p>
+</div>
+
+<!-- ============ 5. FEATURES ============ -->
+<div class="section">
+  <h2>5. Features in detail</h2>
+
+  <h3>5.1 Dashboard</h3>
+  <ul>
+    <li>Open, pending and unassigned chats; new leads today; total contacts.</li>
+    <li>Messages received and sent in the last 7 days (chart).</li>
+    <li>Lead pipeline with counts per status, linking to the filtered contact list.</li>
+    <li>Follow-ups due today (agents see their own), leads from ads in the last 30 days with conversions.</li>
+    <li>Plan usage this month (messages used / limit) and recent campaigns.</li>
+    <li><b>Team performance</b> (admin, 7 or 30 days): chats handled, open chats, messages sent, leads converted, median reply time per member, plus chatbot stats.</li>
+  </ul>
+
+  <h3>5.2 Team Inbox</h3>
+  <ul>
+    <li>Real-time chat list with filters: Open / Pending / Resolved / All, assigned to me, unassigned, bot handling, by agent, by lead status, leads from ads, and search.</li>
+    <li>Send text, images, documents, video, audio and approved templates. The <b>24-hour window</b> is shown; outside it only templates can be sent (a WhatsApp rule).</li>
+    <li>Quoted replies (both directions), customer reactions, internal notes visible only to the team.</li>
+    <li>Delete own message within 48 hours (removed from the CRM; WhatsApp has no "delete for everyone" in the API), "Send correction" to resend a fixed text, admin can hide any message. All deletes are soft and audited.</li>
+    <li>Header tools: <b>lead status dropdown</b>, assign to agent, resolve/reopen, <b>Details</b> panel.</li>
+    <li>Details panel: name, ad source, lead status, follow-up with note, tags, custom fields, notes, assignment, chat status, chatbot control.</li>
+    <li>"📣 From ad" card on messages that came from a Click-to-WhatsApp ad.</li>
+    <li>Sound + desktop notification for new customer messages (per browser on/off).</li>
+  </ul>
+
+  <h3>5.3 Contacts / Leads</h3>
+  <ul>
+    <li>Status tabs with counts; filters for search, tag, source (ads), ad, follow-up (due / overdue / upcoming).</li>
+    <li>Inline status change; edit modal with name, phone, email, status, follow-up, tags, notes, custom fields, opt-out.</li>
+    <li>Select rows or "all N matching" → change status, add tags, delete, or <b>send a bulk message</b> to them.</li>
+    <li><b>Import</b> Excel (.xlsx) or CSV up to 10 MB / 50,000 rows: automatic column matching, preview, country code added (default 91), every import gets a batch tag, and a "Send bulk WhatsApp message" button for that batch.</li>
+    <li><b>Export</b> to Excel or CSV with the current filters (admin).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3 style="margin-top:0">5.4 Lead statuses &amp; automation</h3>
+  <ul>
+    <li>Default statuses: New, Contacted, Interested, Converted, Not interested. The admin can rename, recolour, reorder, add (e.g. "Call back") or remove them (Settings → Lead statuses).</li>
+    <li><b>Auto lead status:</b> if the customer writes "interested", "haan interested hu", "interest hai" → Interested; "not interested", "interest nahi hai", "no thanks", "nahi chahiye" → Not interested. Questions and long messages are ignored, Converted leads are never changed, and a "🤖 Auto update" note is added in the chat. Can be turned off in Settings.</li>
+    <li>Who changed the status and when is stored; this feeds the team report.</li>
+  </ul>
+
+  <h3>5.5 Bulk campaigns</h3>
+  <ul>
+    <li>Audience: all contacts, by lead status, by tags, from a specific ad, hand-picked contacts, or the batch from an uploaded sheet. The number of recipients is shown before sending; opted-out contacts are always excluded.</li>
+    <li>Template + variables: each <code>{{1}}</code>, <code>{{2}}</code> is filled from a contact field (name, phone, email or any custom field) or fixed text. Defaults come from the template and can be changed per campaign. A live preview is shown.</li>
+    <li>Send now or <b>schedule</b> for a date/time; save as draft.</li>
+    <li><b>Edit</b> draft and scheduled campaigns (name, template, audience, variables, time) until 1 minute before start; "Unschedule" turns it back into a draft.</li>
+    <li>Pause, resume and cancel; report per recipient: sent, delivered, read, failed, skipped. The worker sends at a controlled speed, survives restarts, and pauses automatically when the plan's monthly limit or the subscription runs out.</li>
+  </ul>
+
+  <h3>5.6 Templates</h3>
+  <ul>
+    <li>Create a template (name, category: Marketing / Utility / Authentication, language, header, body, footer) and submit it to Meta. Status updates (pending, approved, rejected with reason) arrive live.</li>
+    <li><b>Variables section:</b> for each <code>{{n}}</code> choose what fills it and an example for Meta's review. Stored only in the CRM, so it can be changed any time without re-approval.</li>
+    <li><b>Edit approved templates:</b> header, body and footer only (name, category and language are locked by WhatsApp). The edit goes back to review, with Meta's limits enforced (1 edit per 24 hours, 10 per 30 days); blocked while a running or scheduled campaign uses the template.</li>
+  </ul>
+
+  <h3>5.7 Chatbot (rule-based)</h3>
+  <ul>
+    <li>Welcome message with a menu: up to 3 options as reply buttons, up to 10 as a list. Customers can tap, type the number, or type part of the option name.</li>
+    <li>Each option can reply with a message, ask lead questions, or hand the chat to the team; options can add a tag.</li>
+    <li><b>Keyword replies</b> (contains / exact) for free-typed questions like "fees", "address".</li>
+    <li><b>Lead questions</b> save answers into the contact (name, email or custom fields) and mark the lead.</li>
+    <li>Business hours with an offline message; "Main Menu" button after answers; restart after silence or after a resolved chat; loop protection.</li>
+    <li>The bot stops as soon as a team member replies or takes over. Numbered markers on the settings page match the live WhatsApp-style preview.</li>
+    <li>Super Admin can switch the chatbot module on or off per plan.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3 style="margin-top:0">5.8 Facebook / Instagram Click-to-WhatsApp ads</h3>
+  <ul>
+    <li>When a customer starts a chat from an ad, WhatsApp sends the ad details. The contact gets source "ad", the ad headline and ID (first touch) and the tag <code>facebook-ad</code>.</li>
+    <li>Filter leads by ad, send campaigns to leads of one ad, and see leads and conversions per ad on the dashboard.</li>
+  </ul>
+
+  <h3>5.9 Contact fields</h3>
+  <ul>
+    <li>Settings → Contact fields: the admin adds, renames or deletes custom fields (Course, City, Fees…). Name, phone and email are built in.</li>
+    <li>Fields are used in template variables, campaigns and chatbot questions, and filled on each contact (Contacts → Edit, Inbox → Details).</li>
+    <li>Extra sheet columns and new chatbot fields are added automatically. A field used by a template, an active campaign or the chatbot cannot be deleted (the screen shows where it is used).</li>
+  </ul>
+
+  <h3>5.10 Team &amp; multi-computer use</h3>
+  <ul>
+    <li>Admin adds agents (within the plan limit), disables them (their chats return to the unassigned queue) and resets passwords.</li>
+    <li>Auto-assignment gives new chats to active agents one by one (round-robin).</li>
+    <li>Everyone can be logged in on many computers at once; all screens update live.</li>
+  </ul>
+
+  <h3>5.11 Settings</h3>
+  <ul>
+    <li>WhatsApp number: connect Phone number ID, WABA ID and access token (encrypted), test, disconnect. Sandbox mode until connected.</li>
+    <li>Automation &amp; permissions: auto-assign, allow agents to run campaigns, auto lead status, opt-out keywords.</li>
+    <li>Lead statuses, contact fields, plan &amp; usage, change password, sandbox message simulator for testing.</li>
+  </ul>
+
+  <h3>5.12 Super Admin panel</h3>
+  <ul>
+    <li>Dashboard: total and active businesses, suspended businesses, plans, monthly recurring revenue, usage.</li>
+    <li>Businesses: create (with admin login), edit, suspend/activate, renew subscription (+N months), change plan, login as admin, reset admin password, delete (with name confirmation).</li>
+    <li>Plans: price, limits (agents, contacts, messages per month), features, chatbot module, active/inactive.</li>
+    <li>Audit logs: who did what, in which business, from which IP.</li>
+  </ul>
+</div>
+
+<!-- ============ 6. WORKFLOWS ============ -->
+<div class="section">
+  <h2>6. Everyday workflows</h2>
+
+  <h3>A. Lead from a Facebook ad to a sale</h3>
+  <div class="flow">
+    <div class="step"><b>1. Ad click</b>Customer taps "Send WhatsApp message" on an ad.</div><span class="arrow">→</span>
+    <div class="step"><b>2. Lead created</b>Contact saved with ad name, tag facebook-ad.</div><span class="arrow">→</span>
+    <div class="step"><b>3. Chatbot</b>Sends menu, answers fees/timing, asks name &amp; course.</div><span class="arrow">→</span>
+    <div class="step"><b>4. Agent</b>Chat auto-assigned; agent replies, sets follow-up.</div><span class="arrow">→</span>
+    <div class="step"><b>5. Status</b>Interested → Converted; dashboard counts the sale for that ad and agent.</div>
+  </div>
+
+  <h3>B. Bulk offer from an Excel sheet</h3>
+  <div class="flow">
+    <div class="step"><b>1. Template</b>Create, set variables, get Meta approval.</div><span class="arrow">→</span>
+    <div class="step"><b>2. Import</b>Upload sheet; columns matched; batch tag added.</div><span class="arrow">→</span>
+    <div class="step"><b>3. Campaign</b>"Send bulk WhatsApp message" opens with that batch.</div><span class="arrow">→</span>
+    <div class="step"><b>4. Send / schedule</b>Preview, then send now or schedule.</div><span class="arrow">→</span>
+    <div class="step"><b>5. Replies</b>Replies land in the Inbox; "interested" replies update the status.</div>
+  </div>
+
+  <h3>C. Onboarding a new client business (Super Admin)</h3>
+  <ol>
+    <li>Super Admin → Businesses → New business: name, plan, months, admin name/email/password.</li>
+    <li>Admin logs in, opens Settings → WhatsApp number and enters Phone number ID, WABA ID and a permanent token (or Super Admin helps via "Login as admin").</li>
+    <li>Admin adds agents, lead statuses, contact fields, templates and the chatbot.</li>
+    <li>Super Admin records each month's payment with "Renew". If unpaid, sending stops at expiry, or the business can be suspended.</li>
+  </ol>
+
+  <h3>D. A normal day for an agent</h3>
+  <ol>
+    <li>Open Dashboard → see own open chats and follow-ups due today.</li>
+    <li>Inbox → reply to unread chats; the bot has already answered basic questions.</li>
+    <li>Update each lead's status from the chat header, add tags/notes, set the next follow-up.</li>
+    <li>Resolve finished chats; if the customer writes again, the chat reopens automatically.</li>
+  </ol>
+</div>
+
+<!-- ============ 7. BUSINESS MODEL ============ -->
+<div class="section">
+  <h2>7. Business model &amp; how to earn from it</h2>
+  <p>The product is built as <b>SaaS (software as a service)</b>: you host it once and charge each business a monthly subscription. Each business connects its own WhatsApp number and pays Meta directly for its WhatsApp message charges, so your income is mostly profit after hosting costs.</p>
+
+  <h3>Revenue streams</h3>
+  <table>
+    <tr><th style="width:28%">Stream</th><th>How it works</th></tr>
+    <tr><td><b>Monthly subscription</b></td><td>Main income. Plans with limits on agents, contacts and messages (Starter / Growth / Business, editable by the Super Admin). Renewed monthly from the Super Admin panel.</td></tr>
+    <tr><td><b>Setup / onboarding fee</b></td><td>One-time charge for Meta Business verification help, number connection, template writing, chatbot setup and importing old leads.</td></tr>
+    <tr><td><b>Annual plans</b></td><td>Offer 10 months' price for 12 months; renew with +12 months. Improves cash flow and retention.</td></tr>
+    <tr><td><b>Add-ons</b></td><td>Extra agents, more monthly messages, chatbot module (can be switched per plan), campaign management as a service.</td></tr>
+    <tr><td><b>Done-for-you services</b></td><td>Running campaigns, writing templates, managing Click-to-WhatsApp ads for clients, training their staff.</td></tr>
+    <tr><td><b>White-label / reseller</b></td><td>Agencies resell the platform to their own clients (a roadmap item for custom branding).</td></tr>
+  </table>
+
+  <h3>Example earnings (illustration)</h3>
+  <p class="small muted">Using the default plan prices from the seed data (₹999 Starter, ₹2,499 Growth, ₹5,999 Business per month). Your real prices are set in Super Admin → Plans.</p>
+  <table>
+    <tr><th>Client mix</th><th>Monthly revenue</th><th>Yearly revenue</th></tr>
+    <tr><td>10 Starter + 10 Growth</td><td>₹34,980</td><td>₹4,19,760</td></tr>
+    <tr><td>20 Growth + 5 Business</td><td>₹79,975</td><td>₹9,59,700</td></tr>
+    <tr><td>50 Growth + 10 Business</td><td>₹1,84,940</td><td>₹22,19,280</td></tr>
+  </table>
+
+  <h3>Main running costs</h3>
+  <ul>
+    <li>Server (VPS / cloud) and a managed MongoDB (e.g. MongoDB Atlas). A small setup can serve dozens of businesses; scale up as usage grows.</li>
+    <li>Domain and SSL, backups, file storage for media.</li>
+    <li>Support time for onboarding and Meta approvals.</li>
+    <li>WhatsApp message charges are billed by Meta to each business's own WhatsApp account, not to you, unless you choose to resell messages.</li>
+  </ul>
+
+  <div class="warn"><b>Tips to protect profit:</b> keep plan limits realistic (message limits protect your server and the client's Meta bill); collect payment before "Renew"; use "Suspend" for non-payment; charge a setup fee because Meta verification takes effort; offer annual plans.</div>
+
+  <p><b>How to sell it:</b> start with one niche (e.g. coaching institutes in your city), demo the chatbot and ad-lead tracking in sandbox mode, sell the outcome ("no missed enquiries, know which ad brings admissions"), and offer a 7–14 day trial with help on the first campaign.</p>
+</div>
+
+<!-- ============ 8. CLIENT PROFIT ============ -->
+<div class="section">
+  <h2>8. How businesses profit from using it</h2>
+  <table>
+    <tr><th style="width:30%">Benefit</th><th>Why it increases revenue or saves cost</th></tr>
+    <tr><td>Faster first reply</td><td>Chatbot answers instantly, 24×7; agents get alerts. Faster replies convert more enquiries.</td></tr>
+    <tr><td>No lost leads</td><td>Every enquiry is saved with a status and follow-up date; nothing depends on one phone.</td></tr>
+    <tr><td>Better ad spend</td><td>See which Facebook/Instagram ad brings leads and conversions; stop ads that don't work.</td></tr>
+    <tr><td>Repeat sales</td><td>Bulk campaigns to "Interested" or past customers for new batches, offers and festivals.</td></tr>
+    <tr><td>Less staff time</td><td>Bot handles repeated questions; bulk messaging replaces manual forwarding; shared inbox avoids duplicate work.</td></tr>
+    <tr><td>Accountability</td><td>Team report shows chats, reply time and conversions per agent.</td></tr>
+    <tr><td>No ban risk</td><td>Uses Meta's official API and approved templates, unlike unofficial bulk-sender tools.</td></tr>
+    <tr><td>Owns its data</td><td>All leads in one place, exportable to Excel any time.</td></tr>
+  </table>
+</div>
+
+<!-- ============ 9. PLANS ============ -->
+<div class="section">
+  <h2>9. Plans, limits &amp; billing</h2>
+  <p>Plans are created and edited by the Super Admin. Default plans (from the seed data):</p>
+  <table>
+    <tr><th>Plan</th><th>Price / month</th><th>Agents*</th><th>Contacts</th><th>Messages / month</th><th>Highlights</th></tr>
+    <tr><td>Starter</td><td>₹999</td><td>2</td><td>1,000</td><td>2,000</td><td>Team inbox, bulk campaigns, CSV import</td></tr>
+    <tr><td>Growth</td><td>₹2,499</td><td>5</td><td>10,000</td><td>20,000</td><td>+ Auto-assignment, campaign scheduling</td></tr>
+    <tr><td>Business</td><td>₹5,999</td><td>20</td><td>1,00,000</td><td>1,00,000</td><td>+ Priority support</td></tr>
+  </table>
+  <p class="small muted">* Agents exclude the business admin. The chatbot module can be enabled or disabled per plan.</p>
+
+  <h3>How billing works in the product</h3>
+  <ul>
+    <li>Each business has a subscription with a status (trial / active / cancelled) and an end date.</li>
+    <li>Super Admin records a payment with <b>Renew (+N months)</b>, or changes the plan.</li>
+    <li>When the subscription ends or the business is suspended, sending stops (chats can still be read), and running campaigns pause.</li>
+    <li>Limits are enforced: adding agents or contacts beyond the plan is blocked; outgoing messages are counted each calendar month and campaigns pause at the limit.</li>
+    <li>Online payment collection (Razorpay/Stripe) is on the roadmap; today payments are collected outside the app and recorded by the Super Admin.</li>
+  </ul>
+</div>
+
+<!-- ============ 10. TECH ============ -->
+<div class="section">
+  <h2>10. Technology stack</h2>
+  <table>
+    <tr><th style="width:22%">Layer</th><th style="width:30%">Technology</th><th>Used for</th></tr>
+    <tr><td>Frontend</td><td>Next.js 16 (App Router), React 19</td><td>All panels (business app and Super Admin) as a fast single-page web app.</td></tr>
+    <tr><td>Styling &amp; icons</td><td>Tailwind CSS 4, Lucide icons</td><td>Responsive UI that works on desktop, tablet and phone.</td></tr>
+    <tr><td>Backend</td><td>Node.js 20, Express 5</td><td>REST API, WhatsApp webhook, campaign worker, file uploads.</td></tr>
+    <tr><td>Database</td><td>MongoDB with Mongoose 9</td><td>Businesses, users, contacts, chats, messages, templates, campaigns, chatbot, audit logs.</td></tr>
+    <tr><td>Real-time</td><td>Socket.IO 4</td><td>Live inbox, new-message alerts, campaign progress, template status, on every open computer.</td></tr>
+    <tr><td>WhatsApp</td><td>Meta WhatsApp Cloud API (Graph API) via axios</td><td>Sending text, media, templates, interactive buttons/lists; receiving messages, statuses, ad referrals, template approvals by webhook.</td></tr>
+    <tr><td>Validation</td><td>Zod 4</td><td>Checks every request body, so bad data is rejected with clear messages.</td></tr>
+    <tr><td>Auth &amp; security</td><td>JWT, bcryptjs, helmet, express-rate-limit, Node crypto (AES-256-GCM)</td><td>Logins, password hashing, secure headers, brute-force protection, encrypted WhatsApp tokens.</td></tr>
+    <tr><td>Files &amp; sheets</td><td>multer, ExcelJS, csv-parse</td><td>Media uploads, Excel/CSV import and export.</td></tr>
+    <tr><td>Logging</td><td>morgan + audit log collection</td><td>Request logs and a permanent record of important actions.</td></tr>
+    <tr><td>Dev database</td><td>mongodb-memory-server (local only)</td><td>Runs a local MongoDB automatically in development when no MONGO_URI is set.</td></tr>
+  </table>
+
+  <h3>Code structure</h3>
+<pre>whatsapp-crm/
+├── server/                 Node.js + Express API
+│   └── src/
+│       ├── index.js        app setup, routes, production frontend serving
+│       ├── config/         environment settings
+│       ├── middleware/     login (JWT), roles, business scoping
+│       ├── models/         Tenant, User, Plan, Contact, Conversation, Message,
+│       │                   Template, Campaign, CampaignRecipient, Chatbot, AuditLog
+│       ├── routes/         auth, superadmin, dashboard, team, contacts, conversations,
+│       │                   templates, campaigns, chatbot, settings, webhook, misc
+│       ├── services/       whatsapp, messaging, webhookProcessor, campaigns (worker),
+│       │                   chatbot, leadStatuses, contactFields, sheets, socket, audit,
+│       │                   subscription
+│       └── seed.js         super admin, plans, demo business
+└── web/                    Next.js frontend
+    ├── app/login, app/super-admin/…, app/app/… (dashboard, inbox, contacts,
+    │   campaigns, templates, chatbot, team, settings)
+    ├── components/         UI kit, shell, inbox, contacts import wizard, shared parts
+    └── lib/                API client, auth, socket, formatting, lead statuses, fields</pre>
+</div>
+
+<!-- ============ 11. ARCHITECTURE ============ -->
+<div class="section">
+  <h2>11. Architecture</h2>
+  <div class="arch">
+    <div class="box wide"><b>Users' browsers</b> · Super Admin panel · Admin &amp; Agent app (any number of computers)</div>
+    <div class="box"><b>Next.js frontend</b><br>Pages, forms, live inbox. Talks to the API over HTTPS and Socket.IO.</div>
+    <div class="box"><b>Express API</b><br>Auth, roles, business scoping, validation, REST endpoints, Socket.IO rooms.</div>
+    <div class="box"><b>Campaign worker</b><br>Sends queued campaign messages at a safe speed; resumes after restarts.</div>
+    <div class="box"><b>MongoDB</b><br>All data, every record tagged with its business (tenantId).</div>
+    <div class="box"><b>Webhook processor</b><br>Incoming messages, delivery/read status, ad referrals, template approvals → chatbot → auto-assign.</div>
+    <div class="box"><b>Meta WhatsApp Cloud API</b><br>One number per business; sends and receives messages.</div>
+  </div>
+
+  <h3>Key design points</h3>
+  <ul>
+    <li><b>Multi-tenant isolation:</b> every business-scoped record has a <code>tenantId</code>; all business routes pass through a guard that filters by the logged-in user's business.</li>
+    <li><b>Real-time rooms:</b> admins of a business, each agent and each user have their own Socket.IO room, so agents only receive events for chats they may see.</li>
+    <li><b>Incoming message flow:</b> Meta webhook → signature check → find business by phone number ID → save contact/message (+ ad details, auto lead status, opt-out) → push to screens → chatbot → round-robin assignment.</li>
+    <li><b>Campaign flow:</b> audience snapshotted into recipient rows → worker claims each row atomically → sends template → Meta status webhooks update delivered/read counts.</li>
+    <li><b>Sandbox mode:</b> without Meta credentials the system simulates sending, delivery and read receipts so everything can be tested.</li>
+    <li><b>Production:</b> one Node process serves both the API (<code>/api</code>) and the built Next.js frontend on the same domain.</li>
+  </ul>
+</div>
+
+<!-- ============ 12. SECURITY ============ -->
+<div class="section">
+  <h2>12. Security &amp; data protection</h2>
+  <table>
+    <tr><th style="width:30%">Area</th><th>Protection</th></tr>
+    <tr><td>Passwords</td><td>Hashed with bcrypt; never stored in plain text. Minimum 8 characters.</td></tr>
+    <tr><td>Login</td><td>JWT tokens; login rate limit (20 attempts per 15 minutes per IP) against password guessing.</td></tr>
+    <tr><td>Roles</td><td>Every API route checks the role (Super Admin / Admin / Agent) and the business.</td></tr>
+    <tr><td>WhatsApp tokens</td><td>Stored encrypted with AES-256-GCM using a server key (<code>ENCRYPTION_KEY</code>).</td></tr>
+    <tr><td>Webhook</td><td>Meta's <code>X-Hub-Signature-256</code> is verified with the App Secret; the verify token protects setup.</td></tr>
+    <tr><td>Input</td><td>Every request validated with Zod; upload size limits (10 MB sheets).</td></tr>
+    <tr><td>HTTP</td><td>Secure headers (helmet), CORS restricted to the app's URL.</td></tr>
+    <tr><td>Support access</td><td>"Login as admin" is time-limited (2 h), shown in a banner and written to the audit log.</td></tr>
+    <tr><td>Deletes</td><td>Messages are soft-deleted (kept for audit); business deletion requires typing the business name.</td></tr>
+    <tr><td>Audit log</td><td>Logins-as, settings changes, campaign actions, template changes, deletions, with user, business and IP.</td></tr>
+    <tr><td>Customer consent</td><td>Opt-out keywords stop marketing messages automatically.</td></tr>
+  </table>
+</div>
+
+<!-- ============ 13. WHATSAPP RULES ============ -->
+<div class="section">
+  <h2>13. WhatsApp rules the product follows</h2>
+  <ul>
+    <li><b>Official API only:</b> uses Meta's WhatsApp Cloud API, so numbers are not banned for using the software (they can still be restricted for spam or poor quality, so send only to people who expect your messages).</li>
+    <li><b>24-hour customer service window:</b> after a customer's last message you can send any message for 24 hours. Outside it, only an approved template can be sent. The inbox shows whether the window is open.</li>
+    <li><b>Templates:</b> the first message to a new customer and all bulk messages must use Meta-approved templates. Categories: Marketing, Utility, Authentication. Variables like <code>{{1}}</code> are filled per customer.</li>
+    <li><b>Template edits:</b> an approved template can be edited up to once per 24 hours and 10 times in 30 days; name, language and category cannot change. Edited templates go back to review.</li>
+    <li><b>Charges:</b> Meta charges the business for template messages according to its current rate card (it varies by category and country). Replies within the 24-hour window are generally free. Check Meta's pricing page for current rates.</li>
+    <li><b>Messaging limits:</b> new numbers can message a limited number of unique customers per day; the limit rises as quality stays high and volume grows.</li>
+    <li><b>Opt-out:</b> customers who reply STOP are excluded from campaigns.</li>
+  </ul>
+</div>
+
+<!-- ============ 14. SETUP ============ -->
+<div class="section">
+  <h2>14. Setup, going live &amp; deployment</h2>
+  <h3>Run locally</h3>
+<pre># Backend
+cd server
+npm install
+cp .env.example .env        # set JWT_SECRET and ENCRYPTION_KEY
+npm run seed                # super admin, 3 plans, demo business
+npm run dev                 # http://localhost:4000
+
+# Frontend (new terminal)
+cd web
+npm install
+echo "NEXT_PUBLIC_API_URL=http://localhost:4000" > .env.local
+npm run dev                 # http://localhost:3000</pre>
+
+  <h3>Server environment variables</h3>
+  <table>
+    <tr><th style="width:34%">Variable</th><th>Purpose</th></tr>
+    <tr><td><code>NODE_ENV</code>, <code>PORT</code>, <code>CLIENT_URL</code></td><td>Mode, API port, the app's public URL (for CORS).</td></tr>
+    <tr><td><code>MONGO_URI</code></td><td>MongoDB connection (empty in development = automatic local database).</td></tr>
+    <tr><td><code>JWT_SECRET</code>, <code>JWT_EXPIRES_IN</code></td><td>Login token signing and lifetime.</td></tr>
+    <tr><td><code>ENCRYPTION_KEY</code></td><td>64 hex characters; encrypts WhatsApp access tokens.</td></tr>
+    <tr><td><code>WA_GRAPH_VERSION</code>, <code>WA_APP_SECRET</code>, <code>WA_WEBHOOK_VERIFY_TOKEN</code></td><td>Meta Graph API version, app secret (webhook signature) and webhook verify token.</td></tr>
+    <tr><td><code>CAMPAIGN_MPS</code>, <code>CAMPAIGN_WORKER_INTERVAL_MS</code></td><td>Bulk sending speed (messages per second) and worker tick.</td></tr>
+    <tr><td><code>SEED_SUPERADMIN_EMAIL</code>, <code>SEED_SUPERADMIN_PASSWORD</code>, <code>SEED_DEMO_PASSWORD</code></td><td>Logins created by <code>npm run seed</code>.</td></tr>
+  </table>
+
+  <h3>Connecting a real WhatsApp number</h3>
+  <ol>
+    <li>Meta Business account + Meta developer app with the WhatsApp product; add and verify the business phone number (not active on the WhatsApp app); add a payment method in WhatsApp Manager.</li>
+    <li>Meta app → WhatsApp → Configuration → Webhook: Callback URL <code>https://&lt;your-domain&gt;/api/webhook/whatsapp</code>, Verify token = <code>WA_WEBHOOK_VERIFY_TOKEN</code>; subscribe to <b>messages</b> and <b>message_template_status_update</b>.</li>
+    <li>Put the Meta App Secret in <code>WA_APP_SECRET</code>.</li>
+    <li>Create a System User with a permanent token (whatsapp_business_messaging, whatsapp_business_management).</li>
+    <li>In the CRM, Admin → Settings → WhatsApp number: enter Phone number ID, WABA ID and the token → the business switches to live mode.</li>
+  </ol>
+
+  <h3 class="section" style="margin-top:0">Production checklist</h3>
+  <ul>
+    <li>A server (VPS or cloud) with Node.js 20+, a domain and HTTPS (needed by Meta's webhook).</li>
+    <li>Managed MongoDB (e.g. Atlas) with backups; set <code>MONGO_URI</code>.</li>
+    <li>Strong unique <code>JWT_SECRET</code> and <code>ENCRYPTION_KEY</code>; keep <code>.env</code> secret.</li>
+    <li>Build the frontend, then start the backend in production mode (it serves both):</li>
+  </ul>
+<pre>cd web &amp;&amp; npm install &amp;&amp; NEXT_PUBLIC_API_URL= npm run build
+cd ../server &amp;&amp; npm install &amp;&amp; NODE_ENV=production npm start</pre>
+  <ul>
+    <li>Run with a process manager (e.g. PM2 or systemd) so it restarts automatically; point the Meta webhook to the domain (a permanent URL, unlike a temporary tunnel).</li>
+    <li>Change the seed passwords after the first login.</li>
+  </ul>
+</div>
+
+<!-- ============ 15. ROADMAP ============ -->
+<div class="section">
+  <h2>15. Current limitations &amp; roadmap</h2>
+  <table>
+    <tr><th style="width:38%">Item</th><th>Status / note</th></tr>
+    <tr><td>Online payments (Razorpay / Stripe) and auto-renewal</td><td>Planned. Today payments are recorded manually with "Renew".</td></tr>
+    <tr><td>Facebook Lead Ads forms sync</td><td>Planned. Needs extra Meta app permissions and app review. Click-to-WhatsApp ads are fully supported.</td></tr>
+    <tr><td>Meta Conversions API (send "Converted" back to Meta)</td><td>Planned. Needs Meta app review.</td></tr>
+    <tr><td>Media / button templates</td><td>Planned. Text templates with header, body, footer and variables are supported.</td></tr>
+    <tr><td>AI chatbot from the business's FAQ</td><td>Planned. The rule-based chatbot is available now.</td></tr>
+    <tr><td>Email notifications, password reset by email</td><td>Planned. Admins reset agent passwords; Super Admin resets admin passwords.</td></tr>
+    <tr><td>Object storage (S3) for media</td><td>Planned for scale. Media is stored on the server today.</td></tr>
+    <tr><td>Duplicate campaign, bulk remove tags, white-label branding</td><td>Planned.</td></tr>
+    <tr><td>Editing a running or completed campaign</td><td>By design not allowed (messages already sent); use pause/cancel or a new campaign.</td></tr>
+  </table>
+</div>
+
+<!-- ============ 16. GLOSSARY ============ -->
+<div class="section">
+  <h2>16. Glossary</h2>
+  <table>
+    <tr><th style="width:26%">Term</th><th>Meaning</th></tr>
+    <tr><td>Business / Tenant</td><td>One company using the platform, with its own number, team and data.</td></tr>
+    <tr><td>Contact / Lead</td><td>A customer or prospect who messaged the business or was imported.</td></tr>
+    <tr><td>Lead status</td><td>Where the lead is in the sales process (New, Interested, Converted…).</td></tr>
+    <tr><td>Template</td><td>A message format pre-approved by Meta, required for first messages and bulk sends.</td></tr>
+    <tr><td>Variable <code>{{1}}</code></td><td>A blank in a template filled per customer (e.g. their name) when sending.</td></tr>
+    <tr><td>24-hour window</td><td>Time after the customer's last message when any free-form reply is allowed.</td></tr>
+    <tr><td>Campaign</td><td>One bulk send of a template to an audience.</td></tr>
+    <tr><td>WABA</td><td>WhatsApp Business Account at Meta that holds the phone number and templates.</td></tr>
+    <tr><td>Phone number ID</td><td>Meta's ID for the business number, used by the API.</td></tr>
+    <tr><td>Webhook</td><td>The URL where Meta sends incoming messages and status updates to the CRM.</td></tr>
+    <tr><td>Click-to-WhatsApp ad</td><td>A Facebook/Instagram ad whose button opens a WhatsApp chat with the business.</td></tr>
+    <tr><td>Opt-out</td><td>A customer who asked not to receive bulk messages (e.g. by replying STOP).</td></tr>
+    <tr><td>Sandbox mode</td><td>Testing mode that simulates WhatsApp without sending real messages.</td></tr>
+    <tr><td>Impersonation (login as admin)</td><td>Super Admin opening a business as its admin for support, logged in the audit log.</td></tr>
+    <tr><td>Round-robin</td><td>Giving new chats to agents one by one in turn.</td></tr>
+  </table>
+  <p class="muted small" style="margin-top:16px">WhatsApp CRM · Product documentation v1.0 · October 2026. WhatsApp and Meta rules and prices change over time; check Meta's official documentation for the latest limits and rates.</p>
+</div>
+
+</body>
+</html>

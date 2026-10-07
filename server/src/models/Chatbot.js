@@ -32,6 +32,9 @@ const leadQuestionSchema = new mongoose.Schema(
     // name / email / custom.<key> (saved on the contact)
     field: { type: String, required: true, trim: true },
     question: { type: String, required: true },
+    // The answer must be this kind (else the question is asked again): any | time | number | phone | email | date
+    answerType: { type: String, enum: ['any', 'time', 'number', 'phone', 'email', 'date'], default: 'any' },
+    errorText: { type: String, default: '' }, // shown before asking again; empty = a default hint for the type
   },
   { _id: true }
 );
@@ -45,6 +48,16 @@ const chatbotSchema = new mongoose.Schema(
 
     welcomeText: { type: String, default: 'Hello! 👋 Welcome. How can we help you today?' },
     menuButtonLabel: { type: String, default: 'View options', maxlength: 20 },
+    // Short line sent with the options again after every answer
+    menuAfterReplyText: { type: String, default: 'Aur kisi cheez me madad chahiye? 👇' },
+    // What follows an answer: 'button' = one "Main Menu" button under the answer (compact),
+    // 'full' = the whole numbered menu again
+    afterReplyStyle: { type: String, enum: ['button', 'full'], default: 'button' },
+    mainMenuButtonLabel: { type: String, default: '📋 Main Menu', maxlength: 20 },
+    afterReplyHint: { type: String, default: '👉 Kuch aur jaanna hai? Neeche *Main Menu* dabaiye ya *menu* likhiye' },
+    // List the options with numbers inside the menu message (1️⃣ Courses, 2️⃣ Admission...) + a "how to choose" line
+    showNumberedOptions: { type: Boolean, default: true },
+    menuHintText: { type: String, default: '👉 Neeche *{button}* dabaiye, ya option ka number likhiye (jaise *2*)' },
     menu: { type: [menuOptionSchema], default: [] },
 
     keywordRules: { type: [keywordRuleSchema], default: [] },
@@ -63,6 +76,8 @@ const chatbotSchema = new mongoose.Schema(
 
     // Bot greets again when a resolved chat gets a new message
     restartOnResolved: { type: Boolean, default: true },
+    // ...or when the chat was quiet this many hours (0 = never). Covers chats nobody marked as resolved.
+    restartAfterHours: { type: Number, default: 24, min: 0, max: 720 },
 
     businessHours: {
       enabled: { type: Boolean, default: false },

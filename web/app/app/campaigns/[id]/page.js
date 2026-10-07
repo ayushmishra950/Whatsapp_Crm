@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Pause, Play, XCircle, Trash2, Rocket } from "lucide-react";
+import { ArrowLeft, Pause, Play, XCircle, Trash2, Rocket, Pencil } from "lucide-react";
 import { api } from "@/lib/api";
 import { useSocketEvent } from "@/lib/socket";
 import { fmtDateTime, fmtPhone } from "@/lib/format";
@@ -70,9 +70,12 @@ export default function CampaignDetailPage() {
       <Link href="/app/campaigns" className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Campaigns</Link>
       <PageHeader
         title={<span className="flex items-center gap-3">{c.name} <StatusBadge status={c.status} /></span>}
-        description={`Template ${c.templateId?.name} · created by ${c.createdBy?.name} · ${c.scheduledAt ? `scheduled ${fmtDateTime(c.scheduledAt)}` : fmtDateTime(c.createdAt)}`}
+        description={`Template ${c.templateId?.name} · created by ${c.createdBy?.name} on ${fmtDateTime(c.createdAt)}${c.status === "scheduled" ? ` · 📅 sends ${fmtDateTime(c.scheduledAt)}` : c.startedAt ? ` · sent ${fmtDateTime(c.startedAt)}` : ""}`}
         actions={
           <>
+            {["draft", "scheduled"].includes(c.status) && (
+              <Link href={`/app/campaigns/new?edit=${c._id}`}><Button variant="secondary"><Pencil className="h-4 w-4" /> Edit</Button></Link>
+            )}
             {c.status === "draft" && <Button onClick={() => act("launch")} loading={busy}><Rocket className="h-4 w-4" /> Launch now</Button>}
             {["running", "scheduled"].includes(c.status) && <Button variant="secondary" onClick={() => act("pause")} loading={busy}><Pause className="h-4 w-4" /> Pause</Button>}
             {c.status === "paused" && <Button onClick={() => act("resume")} loading={busy}><Play className="h-4 w-4" /> Resume</Button>}

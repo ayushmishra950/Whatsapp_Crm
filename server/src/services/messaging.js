@@ -5,7 +5,7 @@ import { assertCanSend, incrementUsage } from './subscription.js';
 import { emitConversationEvent } from './socket.js';
 
 export const CONVERSATION_POPULATE = [
-  { path: 'contactId', select: 'name phone tags leadStatus optedOut' },
+  { path: 'contactId', select: 'name phone tags leadStatus optedOut adSource.headline adSource.sourceId followUpAt' },
   { path: 'assignedTo', select: 'name email role' },
 ];
 
@@ -22,6 +22,7 @@ export const MESSAGE_POPULATE = [
 
 export function previewOf(message) {
   if (message.deletedAt) return '🚫 Message deleted';
+  if (message.automation?.kind) return `⚡ ${message.template?.name || 'Automation'}`;
   if (message.type === 'template') return `📋 ${message.template?.name || 'Template'}`;
   if (message.isBot) return `🤖 ${(message.text || '').slice(0, 110)}`;
   if (['image', 'video', 'audio', 'document'].includes(message.type)) {
@@ -90,7 +91,7 @@ export async function resolveReplyTarget(conversation, replyToId) {
  * kind 'interactive' = chatbot menu ({ kind: 'buttons'|'list', body, buttonLabel, options }).
  * isBot = sent by the chatbot. Any message sent by a person stops the bot for that chat (agent took over).
  */
-export async function sendOutbound({ tenant, contact, conversation, user, kind, text, template, media, interactive, campaignId, replyTo, isBot = false }) {
+export async function sendOutbound({ tenant, contact, conversation, user, kind, text, template, media, interactive, campaignId, replyTo, isBot = false, automation }) {
   assertCanSend(tenant);
   conversation ||= await getOrCreateConversation(tenant._id, contact._id);
 
@@ -118,6 +119,7 @@ export async function sendOutbound({ tenant, contact, conversation, user, kind, 
     status: 'queued',
     sentBy: user?._id,
     campaignId,
+    automation,
     replyTo: replyTo?._id,
   });
 

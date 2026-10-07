@@ -7,6 +7,7 @@ import {
 import { authenticate, authorize, signToken } from '../middleware/auth.js';
 import { validate, notFound, conflict, paginate, escapeRegex, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
+import { emitToSuperAdmins, emitToTenant } from '../services/socket.js';
 import { addMonths, currentMonth } from '../services/subscription.js';
 import { sessionPayload } from './auth.js';
 
@@ -206,12 +207,38 @@ router.patch('/tenants/:id', async (req, res) => {
     if (!(await Plan.exists({ _id: planId }))) throw badRequest('Plan not found');
     data.plan = planId;
   }
+  const prev = await Tenant.findById(req.params.id).select('name email phone').lean();
   const tenant = await Tenant.findByIdAndUpdate(req.params.id, data, { returnDocument: 'after' }).populate('plan');
   if (!tenant) throw notFound('Business not found');
+  const changes = Object.fromEntries(
+    ['name', 'email', 'phone'].filter((k) => data[k] !== undefined && String(data[k] || '') !== String(prev?.[k] || '')).map((k) => [k, { from: prev?.[k] || '', to: data[k] || '' }])
+  );
+  if (Object.keys(changes).length) {
+    const payload = { tenantId: String(tenant._id), name: tenant.name, email: tenant.email, phone: tenant.phone, changes, by: { name: req.user.name, role: 'super_admin' }, at: new Date() };
+    emitToSuperAdmins('tenant:updated', payload); // other Super Admin screens
+    emitToTenant(tenant._id, 'tenant:profile', payload); // the business's own screens show the new name
+  }
   await audit(req, data.status ? `tenant.${data.status === 'suspended' ? 'suspend' : 'activate'}` : 'tenant.update', {
     tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id, meta: { ...data, planId },
   });
   res.json(tenant);
+});
+
+/** Edit the business admin's name / login email (password: reset-admin-password) */
+router.patch('/tenants/:id/admin', async (req, res) => {
+  const data = validate(z.object({ name: z.string().trim().min(2).max(80).optional(), email: z.string().trim().toLowerCase().email().optional() }), req.body);
+  if (!mongoose.isValidObjectId(req.params.id)) throw notFound('Business not found');
+  const admin = await User.findOne({ tenantId: req.params.id, role: 'admin' });
+  if (!admin) throw notFound('This business has no admin');
+  if (data.email && data.email !== admin.email && (await User.exists({ email: data.email, _id: { $ne: admin._id } }))) {
+    throw conflict('This email is already used by another account');
+  }
+  const before = { name: admin.name, email: admin.email };
+  Object.assign(admin, data);
+  await admin.save();
+  await audit(req, 'tenant.admin_update', { tenantId: admin.tenantId, targetType: 'User', targetId: admin._id, meta: { before, after: data } });
+  emitToSuperAdmins('tenant:updated', { tenantId: String(admin.tenantId), admin: { name: admin.name, email: admin.email }, by: { name: req.user.name, role: 'super_admin' }, at: new Date() });
+  res.json({ _id: admin._id, name: admin.name, email: admin.email });
 });
 
 // Monthly billing: mark a payment received and extend the period

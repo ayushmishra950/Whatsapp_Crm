@@ -44,9 +44,17 @@ router.get('/', async (req, res) => {
   } else if (assigned === 'bot') filter['bot.active'] = true;
   else if (req.user.role === 'admin' && mongoose.isValidObjectId(assigned)) filter.assignedTo = assigned;
 
-  if (search) {
-    const rx = { $regex: escapeRegex(search), $options: 'i' };
-    const contacts = await Contact.find({ tenantId: req.tenantId, $or: [{ name: rx }, { phone: rx }] }).select('_id').limit(500);
+  // Filters on the contact: search, lead status (one or comma separated), "ad" = came from a Facebook/Instagram ad
+  const { leadStatus, source } = req.query;
+  if (search || leadStatus || source === 'ad') {
+    const cf = { tenantId: req.tenantId };
+    if (search) {
+      const rx = { $regex: escapeRegex(search), $options: 'i' };
+      cf.$or = [{ name: rx }, { phone: rx }];
+    }
+    if (leadStatus) cf.leadStatus = { $in: String(leadStatus).split(',').filter(Boolean) };
+    if (source === 'ad') cf['adSource.sourceId'] = { $exists: true, $ne: null };
+    const contacts = await Contact.find(cf).select('_id').limit(search ? 500 : 10000).lean();
     filter.contactId = { $in: contacts.map((c) => c._id) };
   }
 
