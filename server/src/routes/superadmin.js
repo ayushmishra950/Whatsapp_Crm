@@ -2,7 +2,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import {
-  Plan, Tenant, User, Contact, Conversation, Message, Template, Campaign, CampaignRecipient, AuditLog,
+  Account, Plan, Tenant, User, Contact, Conversation, Message, Template, Campaign, CampaignRecipient, AuditLog,
 } from '../models/index.js';
 import { authenticate, authorize, clearPlanCache, signToken } from '../middleware/auth.js';
 import { validate, notFound, conflict, paginate, escapeRegex, badRequest } from '../utils/http.js';
@@ -12,6 +12,7 @@ import { addMonths, currentMonth } from '../services/subscription.js';
 import { BUSINESS_TYPES, applyCoachingPreset, checkLogo, hasPlaybookStatuses } from '../services/coaching.js';
 import { loadCoachingContent } from '../services/coachingContent.js';
 import { sessionPayload } from './auth.js';
+import { addMember, normEmail, otherBusinessesOf, removeOrphanAccounts } from '../services/accounts.js';
 
 const router = Router();
 router.use(authenticate, authorize('super_admin'));
@@ -152,23 +153,34 @@ const createTenantSchema = z.object({
   months: z.coerce.number().int().min(1).max(36).default(1),
   businessType: z.enum(BUSINESS_TYPES).default('general'),
   sampleCourses: z.boolean().default(false), // coaching: also add the 51-course sample catalog
-  admin: z.object({
-    name: z.string().min(2),
-    email: z.string().email(),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
-  }),
+  // existingLogin: the admin already logs in for another business -> add this business to that login
+  admin: z
+    .object({
+      existingLogin: z.boolean().default(false),
+      name: z.string().trim().optional(),
+      email: z.string().email(),
+      password: z.string().optional(),
+    })
+    .superRefine((a, ctx) => {
+      if (a.existingLogin) return;
+      if (!a.name || a.name.length < 2) ctx.addIssue({ code: 'custom', path: ['name'], message: 'Enter the admin name' });
+      if (!a.password || a.password.length < 8) ctx.addIssue({ code: 'custom', path: ['password'], message: 'Password must be at least 8 characters' });
+    }),
 });
 
 router.post('/tenants', async (req, res) => {
   const data = validate(createTenantSchema, req.body);
   const plan = await Plan.findById(data.planId);
   if (!plan) throw badRequest('Plan not found');
-  if (await User.exists({ email: data.admin.email.toLowerCase() })) throw conflict('Admin email is already in use');
+  const adminEmail = normEmail(data.admin.email);
+  const loginExists = (await Account.exists({ email: adminEmail })) || (await User.exists({ email: adminEmail }));
+  if (loginExists && !data.admin.existingLogin) throw conflict('This email already has a login (for another business). Tick “Admin already has a login” to add this business to it.');
+  if (!loginExists && data.admin.existingLogin) throw badRequest('No login with this email yet. Untick “Admin already has a login” and set a password.');
 
   const now = new Date();
   const tenant = await Tenant.create({
     name: data.name,
-    email: data.email || data.admin.email,
+    email: data.email || adminEmail,
     phone: data.phone,
     plan: plan._id,
     subscription: { status: data.subscriptionStatus, currentPeriodStart: now, currentPeriodEnd: addMonths(now, data.months) },
@@ -176,7 +188,7 @@ router.post('/tenants', async (req, res) => {
     businessType: data.businessType,
   });
   try {
-    await User.create({ ...data.admin, tenantId: tenant._id, role: 'admin' });
+    await addMember({ tenantId: tenant._id, role: 'admin', name: data.admin.name, email: adminEmail, password: data.admin.password, allowExisting: data.admin.existingLogin });
   } catch (err) {
     await Tenant.deleteOne({ _id: tenant._id });
     throw err;
@@ -195,13 +207,15 @@ router.get('/tenants/:id', async (req, res) => {
   if (!tenant) throw notFound('Business not found');
   const tenantId = tenant._id;
   const [users, contacts, conversations, campaigns, templates] = await Promise.all([
-    User.find({ tenantId }).select('name email role isActive lastLoginAt createdAt').sort({ role: 1 }),
+    User.find({ tenantId }).select('name email role isActive lastLoginAt createdAt accountId').sort({ role: 1 }),
     Contact.countDocuments({ tenantId }),
     Conversation.countDocuments({ tenantId }),
     Campaign.countDocuments({ tenantId }),
     Template.countDocuments({ tenantId }),
   ]);
-  res.json({ tenant, users, counts: { contacts, conversations, campaigns, templates } });
+  // Logins that also open other businesses (shown so a password reset does not surprise anyone)
+  const withOthers = await Promise.all(users.map(async (u) => ({ ...u.toJSON(), otherBusinesses: await otherBusinessesOf(u.accountId, tenantId) })));
+  res.json({ tenant, users: withOthers, counts: { contacts, conversations, campaigns, templates } });
 });
 
 const updateTenantSchema = z.object({
@@ -263,12 +277,20 @@ router.patch('/tenants/:id/admin', async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw notFound('Business not found');
   const admin = await User.findOne({ tenantId: req.params.id, role: 'admin' });
   if (!admin) throw notFound('This business has no admin');
-  if (data.email && data.email !== admin.email && (await User.exists({ email: data.email, _id: { $ne: admin._id } }))) {
-    throw conflict('This email is already used by another account');
-  }
   const before = { name: admin.name, email: admin.email };
+  if (data.email && data.email !== admin.email) {
+    // The email is the login: it changes for every business this person opens
+    if ((await Account.exists({ email: data.email, _id: { $ne: admin.accountId } })) || (await User.exists({ email: data.email, accountId: { $ne: admin.accountId } }))) {
+      throw conflict('This email is already used by another login');
+    }
+    if (admin.accountId) {
+      await Account.updateOne({ _id: admin.accountId }, { $set: { email: data.email } });
+      await User.updateMany({ accountId: admin.accountId }, { $set: { email: data.email } });
+    }
+  }
   Object.assign(admin, data);
   await admin.save();
+  if (data.name && admin.accountId) await Account.updateOne({ _id: admin.accountId }, { $set: { name: data.name } });
   await audit(req, 'tenant.admin_update', { tenantId: admin.tenantId, targetType: 'User', targetId: admin._id, meta: { before, after: data } });
   emitToSuperAdmins('tenant:updated', { tenantId: String(admin.tenantId), admin: { name: admin.name, email: admin.email }, by: { name: req.user.name, role: 'super_admin' }, at: new Date() });
   res.json({ _id: admin._id, name: admin.name, email: admin.email });
@@ -315,10 +337,17 @@ router.post('/tenants/:id/reset-admin-password', async (req, res) => {
   const { password } = validate(z.object({ password: z.string().min(8) }), req.body);
   const admin = await User.findOne({ tenantId: req.params.id, role: 'admin' });
   if (!admin) throw notFound('Admin not found');
-  admin.password = password;
-  await admin.save();
-  await audit(req, 'tenant.reset_admin_password', { tenantId: req.params.id, targetType: 'User', targetId: admin._id });
-  res.json({ ok: true });
+  const account = admin.accountId ? await Account.findById(admin.accountId) : null;
+  if (account) {
+    account.password = password; // the login's password: same for all of this person's businesses
+    await account.save();
+  } else {
+    admin.password = password;
+    await admin.save();
+  }
+  const otherBusinesses = await otherBusinessesOf(admin.accountId, admin.tenantId);
+  await audit(req, 'tenant.reset_admin_password', { tenantId: req.params.id, targetType: 'User', targetId: admin._id, meta: { otherBusinesses } });
+  res.json({ ok: true, otherBusinesses });
 });
 
 // Permanently deletes the business and ALL its data
@@ -328,6 +357,7 @@ router.delete('/tenants/:id', async (req, res) => {
   if (!tenant) throw notFound('Business not found');
   if (confirmName !== tenant.name) throw badRequest('Business name does not match');
   const tenantId = tenant._id;
+  const accountIds = (await User.find({ tenantId }).select('accountId').lean()).map((u) => u.accountId);
   await Promise.all([
     User.deleteMany({ tenantId }),
     Contact.deleteMany({ tenantId }),
@@ -338,6 +368,7 @@ router.delete('/tenants/:id', async (req, res) => {
     CampaignRecipient.deleteMany({ tenantId }),
   ]);
   await tenant.deleteOne();
+  await removeOrphanAccounts(accountIds); // logins used only for this business
   await audit(req, 'tenant.delete', { tenantId, targetType: 'Tenant', targetId: tenantId, meta: { name: tenant.name } });
   res.json({ ok: true });
 });

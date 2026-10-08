@@ -41,6 +41,7 @@ export default function TenantDetailPage() {
 
   if (!data) return <PageLoader />;
   const { tenant, users, counts } = data;
+  const adminOthers = users.find((u) => u.role === "admin")?.otherBusinesses || [];
 
   const run = async (fn, success) => {
     setBusy(true);
@@ -205,7 +206,7 @@ export default function TenantDetailPage() {
         <Table
           columns={[
             { key: "name", label: "Name", render: (u) => <span className="font-medium text-slate-800">{u.name}</span> },
-            { key: "email", label: "Email" },
+            { key: "email", label: "Email (login)", render: (u) => <div><span>{u.email}</span>{u.otherBusinesses?.length > 0 && <p className="text-xs text-violet-700">Same login also opens: {u.otherBusinesses.join(", ")}</p>}</div> },
             { key: "role", label: "Role", render: (u) => <Badge tone={u.role === "admin" ? "purple" : "gray"}>{u.role}</Badge> },
             { key: "active", label: "Status", render: (u) => <StatusBadge status={u.isActive ? "active" : "suspended"} /> },
             { key: "login", label: "Last login", render: (u) => fmtDateTime(u.lastLoginAt) },
@@ -239,6 +240,7 @@ export default function TenantDetailPage() {
                   </Field>
                 </div>
                 {passwordHint && <p className={`mt-2 text-xs ${passwordHint.tone}`}>{passwordHint.text}</p>}
+                {adminOthers.length > 0 && <p className="mt-2 rounded bg-violet-50 px-2 py-1.5 text-xs text-violet-900">This admin uses the same login for: <b>{adminOthers.join(", ")}</b>. A new email or password changes their login for those businesses too.</p>}
               </div>
             )}
           </div>
@@ -254,6 +256,7 @@ export default function TenantDetailPage() {
       <Modal open={modal === "password"} onClose={() => setModal(null)} title="Reset admin password" size="sm"
         footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button onClick={resetPassword} loading={busy} disabled={password.length < 8}>Reset</Button></>}>
         <Field label="New password" hint="Min 8 characters"><PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        {adminOthers.length > 0 && <p className="mt-3 text-xs text-violet-900">Same login also opens <b>{adminOthers.join(", ")}</b>: the new password works there too.</p>}
       </Modal>
 
       <ConfirmModal

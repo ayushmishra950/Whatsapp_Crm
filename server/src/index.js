@@ -37,6 +37,7 @@ import referralRoutes from './routes/referrals.js';
 import courseRoutes from './routes/courses.js';
 import { requireCoaching } from './services/coaching.js';
 import { syncContactOwners } from './models/Conversation.js';
+import { migrateAccounts } from './services/accounts.js';
 import taskRoutes from './routes/tasks.js';
 import notificationRoutes from './routes/notifications.js';
 import viewRoutes from './routes/views.js';
@@ -137,6 +138,13 @@ async function start() {
   frontendHandler = await loadFrontend();
 
   await connectDB();
+  // One login for several businesses: every user gets a login (Account) once; safe to run on every start
+  try {
+    const m = await migrateAccounts();
+    if (m.usersLinked || m.indexDropped) console.log(`[db] logins: ${m.accountsCreated} created, ${m.usersLinked} users linked${m.indexDropped ? ', old unique email index dropped' : ''}`);
+  } catch (err) {
+    console.error('[db] login migration', err.message); // logins still work: each user gets one on first login
+  }
   if (!(await User.exists({ role: 'super_admin' }))) {
     console.warn('[setup] No super admin found. Run "npm run seed" to create one.');
   }

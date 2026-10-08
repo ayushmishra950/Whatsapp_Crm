@@ -17,7 +17,7 @@ import {
 
 const emptyForm = {
   name: "", email: "", phone: "", planId: "", subscriptionStatus: "trial", months: 1, businessType: "general", sampleCourses: false,
-  admin: { name: "", email: "", password: "" },
+  admin: { existingLogin: false, name: "", email: "", password: "" },
 };
 
 export default function TenantsPage() {
@@ -168,13 +168,24 @@ export default function TenantsPage() {
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <p className="mb-3 text-sm font-medium text-slate-800">Admin login for this business</p>
-            <div className="space-y-3">
-              <Field label="Admin name"><Input required value={form.admin.name} onChange={(e) => setAdmin("name", e.target.value)} /></Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Admin email"><Input required type="email" value={form.admin.email} onChange={(e) => setAdmin("email", e.target.value)} /></Field>
-                <Field label="Password" hint="Min 8 characters"><PasswordInput required minLength={8} value={form.admin.password} onChange={(e) => setAdmin("password", e.target.value)} /></Field>
+            <label className="mb-3 flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={form.admin.existingLogin} onChange={(e) => setAdmin("existingLogin", e.target.checked)} />
+              <span>
+                Admin already has a login (for another business)
+                <span className="block text-xs text-slate-500">The client opens both businesses with the same email and password, and switches between them from the sidebar.</span>
+              </span>
+            </label>
+            {form.admin.existingLogin ? (
+              <Field label="Their login email" hint="This business is added to that login. Their password does not change."><Input required type="email" value={form.admin.email} onChange={(e) => setAdmin("email", e.target.value)} /></Field>
+            ) : (
+              <div className="space-y-3">
+                <Field label="Admin name"><Input required value={form.admin.name} onChange={(e) => setAdmin("name", e.target.value)} /></Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Admin email"><Input required type="email" value={form.admin.email} onChange={(e) => setAdmin("email", e.target.value)} /></Field>
+                  <Field label="Password" hint="Min 8 characters"><PasswordInput required minLength={8} value={form.admin.password} onChange={(e) => setAdmin("password", e.target.value)} /></Field>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </form>
       </Modal>

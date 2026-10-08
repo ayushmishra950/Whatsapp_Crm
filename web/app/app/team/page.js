@@ -36,7 +36,13 @@ export default function TeamPage() {
         if (editing.password) body.password = editing.password;
         await api(`/team/${editing._id}`, { method: "PATCH", body });
       } else {
-        await api("/team", { method: "POST", body: { name: editing.name, email: editing.email, phone: editing.phone, password: editing.password } });
+        const added = await api("/team", { method: "POST", body: { name: editing.name, email: editing.email, phone: editing.phone, password: editing.password } });
+        if (added.existingLogin) {
+          toast.success(`${editing.name} added. They already had a login: this business now shows in their business switcher (same email & password).`);
+          setEditing(null);
+          load();
+          return;
+        }
       }
       toast.success(editing._id ? "Agent updated" : "Agent added");
       setEditing(null);
@@ -77,7 +83,10 @@ export default function TeamPage() {
               render: (m) => (
                 <div className="flex items-center gap-3">
                   <Avatar name={m.name} />
-                  <div><p className="font-medium text-slate-800">{m.name}</p><p className="text-xs text-slate-500">{m.email}</p></div>
+                  <div>
+                    <p className="font-medium text-slate-800">{m.name}</p>
+                    <p className="text-xs text-slate-500">{m.email}{m.sharedLogin && <Badge tone="purple" className="ml-1" title="This person uses the same login for another business">shared login</Badge>}</p>
+                  </div>
                 </div>
               ),
             },
@@ -114,9 +123,13 @@ export default function TeamPage() {
             <Field label="Name"><Input required value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></Field>
             <Field label="Email"><Input required type="email" disabled={!!editing._id} value={editing.email} onChange={(e) => setEditing({ ...editing, email: e.target.value })} /></Field>
             <Field label="Phone"><Input value={editing.phone || ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></Field>
-            <Field label={editing._id ? "New password" : "Password"} hint={editing._id ? "Leave empty to keep the current password" : "Min 8 characters"}>
-              <PasswordInput required={!editing._id} minLength={8} value={editing.password} onChange={(e) => setEditing({ ...editing, password: e.target.value })} />
-            </Field>
+            {editing.sharedLogin ? (
+              <p className="rounded-md bg-violet-50 px-3 py-2 text-xs text-violet-900">This person uses the same login for another business, so only they can change their password (Settings → Change password).</p>
+            ) : (
+              <Field label={editing._id ? "New password" : "Password"} hint={editing._id ? "Leave empty to keep the current password" : "Min 8 characters. Leave empty if this email already logs in for another business: they keep their own password."}>
+                <PasswordInput minLength={8} value={editing.password} onChange={(e) => setEditing({ ...editing, password: e.target.value })} />
+              </Field>
+            )}
             {editing._id && (
               <Toggle checked={editing.isActive} onChange={(v) => setEditing({ ...editing, isActive: v })} label="Active" description="Disabled agents can not log in; their chats go back to unassigned" />
             )}
@@ -125,7 +138,7 @@ export default function TeamPage() {
       </Modal>
 
       <ConfirmModal open={!!deleting} onClose={() => setDeleting(null)} onConfirm={remove} danger title="Delete agent?" confirmText="Delete"
-        message={`${deleting?.name} will lose access. Their chats will become unassigned.`} />
+        message={`${deleting?.name} will lose access to this business. Their chats will become unassigned.${deleting?.sharedLogin ? " Their login keeps working for their other business." : ""}`} />
     </PageContainer>
   );
 }

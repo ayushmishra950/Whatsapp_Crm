@@ -1,6 +1,7 @@
 export { default as Plan } from './Plan.js';
 export { default as Tenant } from './Tenant.js';
 export { default as User } from './User.js';
+export { default as Account } from './Account.js';
 export { default as Contact } from './Contact.js';
 export { default as Conversation } from './Conversation.js';
 export { default as Message } from './Message.js';

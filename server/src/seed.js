@@ -4,7 +4,8 @@
  * Credentials come from env (SEED_*) — see .env.example.
  */
 import { connectDB, disconnectDB } from './config/db.js';
-import { Plan, Tenant, User, Contact, Template } from './models/index.js';
+import { Account, Plan, Tenant, User, Contact, Template } from './models/index.js';
+import { addMember, migrateAccounts } from './services/accounts.js';
 import { addMonths, currentMonth } from './services/subscription.js';
 
 const SUPERADMIN_EMAIL = process.env.SEED_SUPERADMIN_EMAIL || 'superadmin@crm.local';
@@ -17,14 +18,20 @@ const PLANS = [
   { name: 'Business', priceMonthly: 5999, limits: { agents: 20, contacts: 100000, monthlyMessages: 100000 }, features: ['Everything in Growth', 'Priority support'] },
 ];
 
-async function upsertUser(data) {
-  const existing = await User.findOne({ email: data.email });
+// One login (Account) per email; a business member is added to it (existing logins are reused)
+async function upsertUser({ password, ...data }) {
+  const existing = await User.findOne({ email: data.email, tenantId: data.tenantId || null });
   if (existing) return existing;
-  return User.create(data);
+  if (data.role === 'super_admin') {
+    const account = (await Account.findOne({ email: data.email })) || (await Account.create({ email: data.email, name: data.name, password }));
+    return User.create({ ...data, accountId: account._id });
+  }
+  return (await addMember({ tenantId: data.tenantId, role: data.role, name: data.name, email: data.email, password, allowExisting: true })).user;
 }
 
 async function main() {
   await connectDB();
+  await migrateAccounts();
 
   await upsertUser({ name: 'Super Admin', email: SUPERADMIN_EMAIL, password: SUPERADMIN_PASSWORD, role: 'super_admin' });
 

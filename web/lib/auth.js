@@ -73,6 +73,13 @@ export function AuthProvider({ children }) {
     router.push("/app");
   };
 
+  // Open another business of the same login (no logout). Full reload so nothing of the old business stays on screen.
+  const switchBusiness = async (userId) => {
+    const data = await api("/auth/switch", { method: "POST", body: { userId } });
+    tokens.set(data.token);
+    window.location.assign(homeFor(data.user.role));
+  };
+
   const stopImpersonating = () => {
     tokens.set(tokens.getSuper());
     tokens.setSuper(null);
@@ -81,7 +88,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, loading, login, logout, refresh, impersonate, stopImpersonating }}>
+    <AuthContext.Provider value={{ session, loading, login, logout, refresh, impersonate, stopImpersonating, switchBusiness }}>
       {children}
     </AuthContext.Provider>
   );

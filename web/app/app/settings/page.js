@@ -620,6 +620,10 @@ export default function SettingsPage() {
               run("pw", () => api("/auth/change-password", { method: "POST", body: pw }), "Password changed").then(() => setPw({ currentPassword: "", newPassword: "" }));
             }}
           >
+            <p className="text-xs text-slate-500">
+              You log in as <b>{session.user.email}</b>.{" "}
+              {(session.businessCount || 1) > 1 ? `This login opens ${session.businessCount} businesses: the new password works for all of them.` : "Own another business on this CRM? Link it from the business name at the top of the sidebar."}
+            </p>
             <Field label="Current password"><PasswordInput required value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} /></Field>
             <Field label="New password" hint="Min 8 characters"><PasswordInput required minLength={8} value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} /></Field>
             <Button type="submit" variant="secondary" loading={busy === "pw"} disabled={session.impersonating}>Update password</Button>

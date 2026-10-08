@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, MessageCircle, X, ShieldAlert } from "lucide-react";
 import { useAuth, homeFor } from "@/lib/auth";
 import { Avatar, ConfirmModal, PageLoader, cx } from "./ui";
+import { BusinessSwitcher } from "./business-switcher";
 import { ROLE_LABELS, pageNameFor, useDocumentTitle } from "@/lib/page-title";
 
 /**
@@ -47,10 +48,17 @@ export function Shell({ roles, nav, children, fullHeight, headerExtra, sidebarAc
             <MessageCircle className="h-4.5 w-4.5" />
           </span>
         )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-900">{tenant?.name || "WhatsApp CRM"}</p>
-          <p className="text-xs text-slate-500">{roleLabel}</p>
-        </div>
+        {tenant && !impersonating ? (
+          <BusinessSwitcher>
+            <p className="truncate text-sm font-semibold text-slate-900">{tenant.name}</p>
+            <p className="text-xs text-slate-500">{roleLabel}</p>
+          </BusinessSwitcher>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-slate-900">{tenant?.name || "WhatsApp CRM"}</p>
+            <p className="text-xs text-slate-500">{roleLabel}</p>
+          </div>
+        )}
         <div className="hidden lg:block">{headerExtra}</div>
       </div>
       <nav className="scroll-thin flex-1 space-y-0.5 overflow-y-auto p-3">
