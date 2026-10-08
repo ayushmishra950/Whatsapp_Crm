@@ -85,6 +85,28 @@ async function sendPayload(tenantId, to, payload, contextId) {
   return { id: data.messages?.[0]?.id };
 }
 
+/**
+ * "typing…" on the customer's phone while the chatbot prepares its answer (also marks their message read).
+ * WhatsApp hides it when our reply arrives, or after 25 seconds. Never throws: it is only a nicety.
+ * Uses a recent Graph version for this call (typing indicators are not in older ones).
+ */
+export async function sendTypingIndicator(tenantId, waMessageId) {
+  if (!waMessageId || waMessageId.startsWith('wamid.MOCK')) return false;
+  try {
+    const creds = await loadTenantCredentials(tenantId);
+    if (creds.mode === 'mock') return false;
+    await axios.post(
+      `https://graph.facebook.com/${env.whatsapp.typingGraphVersion}/${creds.phoneNumberId}/messages`,
+      { messaging_product: 'whatsapp', status: 'read', message_id: waMessageId, typing_indicator: { type: 'text' } },
+      { headers: { Authorization: `Bearer ${creds.accessToken}` }, timeout: 2500 }
+    );
+    return true;
+  } catch (err) {
+    console.warn('[whatsapp] typing indicator not sent:', err.response?.data?.error?.message || err.message);
+    return false;
+  }
+}
+
 export const sendText = (tenantId, to, text, { contextId } = {}) =>
   sendPayload(tenantId, to, { type: 'text', text: { body: text, preview_url: true } }, contextId);
 

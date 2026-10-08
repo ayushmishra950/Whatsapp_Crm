@@ -113,6 +113,7 @@ const chatbotSchema = new mongoose.Schema(
 
     // Bot greets again when a resolved chat gets a new message
     restartOnResolved: { type: Boolean, default: true },
+    typingIndicator: { type: Boolean, default: true }, // "typing…" on the customer's phone while the bot answers
     // ...or when the chat was quiet this many hours (0 = never). Covers chats nobody marked as resolved.
     restartAfterHours: { type: Number, default: 24, min: 0, max: 720 },
 

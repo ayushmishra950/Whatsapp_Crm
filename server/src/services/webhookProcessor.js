@@ -239,7 +239,7 @@ export async function processInbound(tenant, msg, profileName) {
 
   let botHandling = false;
   try {
-    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt });
+    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt, waMessageId: msg.id });
   } catch (err) {
     console.error('[chatbot] error', err);
   }

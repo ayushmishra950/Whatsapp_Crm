@@ -29,6 +29,7 @@ export const env = {
 
   whatsapp: {
     graphVersion: process.env.WA_GRAPH_VERSION || 'v21.0',
+    typingGraphVersion: process.env.WA_TYPING_GRAPH_VERSION || 'v23.0', // "typing…" needs a recent version
     // Meta App level values (one Meta App serves all tenants)
     appSecret: process.env.WA_APP_SECRET || '',
     webhookVerifyToken: process.env.WA_WEBHOOK_VERIFY_TOKEN || 'dev-verify-token',

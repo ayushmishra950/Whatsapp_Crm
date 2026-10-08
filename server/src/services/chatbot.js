@@ -16,6 +16,7 @@ import { getLeadStatuses } from './leadStatuses.js';
 import { isDateField } from './contactFields.js';
 import { checkAnswer } from './answerTypes.js';
 import { handleCourseFlow, openCourseIfKnown } from './courseBot.js';
+import { sendTypingIndicator } from './whatsapp.js';
 import { automationNote, createTask, notify } from './alerts.js';
 import { statusLabel } from './leadStatuses.js';
 
@@ -164,7 +165,7 @@ async function emitConversation(conversationId, extra) {
   if (populated) emitConversationEvent(populated, 'conversation:updated', populated, extra);
 }
 
-export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt }) {
+export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt, waMessageId }) {
   return withLock(String(conversation._id), async () => {
     // Reload everything inside the lock: an earlier run for this chat may have just changed it
     const conv = await Conversation.findById(conversation._id);
@@ -275,6 +276,9 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       });
       state.justStarted = true;
     }
+
+    // The bot answers this message: show "typing…" on the customer's phone until the reply arrives
+    if (waMessageId && bot.typingIndicator !== false) await sendTypingIndicator(fullTenant._id, waMessageId);
 
     // ---- course flow (coaching institutes with a "Courses" menu option) ----
     const courseFlow = fullTenant.businessType === 'coaching' && bot.menu.some((o) => o.action === 'courses');

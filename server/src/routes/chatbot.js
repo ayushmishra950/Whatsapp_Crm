@@ -123,6 +123,7 @@ const botSchema = z.object({
   handoffKeywords: z.array(z.string().trim().min(1)).max(20),
   menuKeywords: z.array(z.string().trim().min(1)).max(20),
   restartOnResolved: z.boolean(),
+  typingIndicator: z.boolean().optional(),
   restartAfterHours: z.coerce.number().int().min(0).max(720).default(24),
   businessHours: z.object({
     enabled: z.boolean(),

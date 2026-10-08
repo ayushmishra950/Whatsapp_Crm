@@ -531,6 +531,7 @@ export default function ChatbotPage() {
                 </Select>
               </Field>
             </div>
+            <Toggle checked={bot.typingIndicator !== false} onChange={(v) => set({ typingIndicator: v })} label="Show “typing…” while the bot answers" description="The customer sees typing… on WhatsApp until the bot replies (their message is also marked as read)." />
             <Toggle checked={bot.restartOnResolved} onChange={(v) => set({ restartOnResolved: v })} label="Greet again when a resolved chat gets a new message" description="Off = returning customers go straight to their previous agent." />
             <Field
               label="Greet again when the customer returns after (hours of silence)"
