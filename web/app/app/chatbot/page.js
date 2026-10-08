@@ -9,6 +9,8 @@ import { PageContainer } from "@/components/shell";
 import { TagInput } from "@/components/shared";
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, PageLoader, Select, Textarea, Toggle, cx } from "@/components/ui";
 import { useContactFields } from "@/lib/contact-fields";
+import { useIsCoaching } from "@/lib/business";
+import { CourseQuestionsEditor, FaqEditor } from "@/components/chatbot-course";
 import { useAuth } from "@/lib/auth";
 
 const ACTIONS = [
@@ -223,6 +225,7 @@ export default function ChatbotPage() {
   const toast = useToast();
   const { refresh } = useAuth();
   const [data, setData] = useState(null); // { planAllows, openNow, whatsappMode }
+  const coaching = useIsCoaching();
   const [bot, setBot] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -375,9 +378,15 @@ export default function ChatbotPage() {
                   <Field label="When chosen">
                     <Select value={o.action} onChange={(e) => setItem("menu", i, { action: e.target.value })}>
                       {ACTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      {(coaching || o.action === "courses") && <option value="courses">📚 Show course list (Courses page → fees → admission questions → booking)</option>}
                     </Select>
                   </Field>
                 </div>
+                {o.action === "courses" && (
+                  <p className="mt-3 rounded-md bg-violet-50 px-3 py-2 text-xs text-violet-900">
+                    The bot shows your course areas and courses from the <b>Courses</b> page. A course opens with its greeting and Fees / Details / Free demo buttons; after the fees it asks “Are you interested?”, then the admission questions (what they do, goal, classroom or online, when to start, name, city, call time). Booking moves the lead to <b>New – Call pending</b> (or <b>Hot</b> if they start this month), creates a call task and alerts the counsellor. Leads from an ad or who write a course name go straight to that course.
+                  </p>
+                )}
                 <Field label={o.action === "reply" ? <Label n={5}>Reply message</Label> : "Message before that (optional)"} className="mt-3">
                   <Textarea rows={2} maxLength={4096} value={o.replyText} onChange={(e) => setItem("menu", i, { replyText: e.target.value })} />
                 </Field>
@@ -394,6 +403,31 @@ export default function ChatbotPage() {
               </div>
             ))}
           </Section>
+
+          {coaching && data.defaults && (
+            <>
+              <Section
+                title="Course flow: admission questions"
+                description="Asked one by one after a student taps “Yes, interested” or “Free demo” on a course (menu option set to “Show course list”). Answers are saved on the lead; then the booking moves the lead to New – Call pending (Hot if they start this month) and creates a call task."
+              >
+                <CourseQuestionsEditor
+                  value={bot.courseQuestions?.length ? bot.courseQuestions : data.defaults.courseQuestions}
+                  onChange={(courseQuestions) => setBot((b) => ({ ...b, courseQuestions }))}
+                  onReset={() => setBot((b) => ({ ...b, courseQuestions: data.defaults.courseQuestions }))}
+                />
+              </Section>
+              <Section
+                title="Answers to typed questions (FAQ)"
+                description="Students type short questions anytime — “fees kitni hai”, “emi hai?”, “online hai kya”, “address”, “placement milegi?”. The bot answers from here (with the course’s own details), then continues where the student was."
+              >
+                <FaqEditor
+                  value={bot.faqs?.length ? bot.faqs : data.defaults.faqs}
+                  onChange={(faqs) => setBot((b) => ({ ...b, faqs }))}
+                  onReset={() => setBot((b) => ({ ...b, faqs: data.defaults.faqs }))}
+                />
+              </Section>
+            </>
+          )}
 
           <Section
             title="2. Lead questions"

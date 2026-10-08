@@ -13,3 +13,7 @@ export { default as AdSource } from './AdSource.js';
 export { default as Segment } from './Segment.js';
 export { default as Drip } from './Drip.js';
 export { default as DripEnrollment } from './DripEnrollment.js';
+export { default as Course } from './Course.js';
+export { default as Task } from './Task.js';
+export { default as Notification } from './Notification.js';
+export { default as SavedView } from './SavedView.js';

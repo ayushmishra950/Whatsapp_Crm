@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, FlaskConical, Link2, Unplug, Send, Plus, Trash2, ArrowUp, ArrowDown, Lock } from "lucide-react";
-import { STATUS_COLORS } from "@/lib/lead-statuses";
+import { CheckCircle2, FlaskConical, Link2, Unplug, Send, Plus, Trash2, ArrowUp, ArrowDown, Lock, Timer, Sparkles } from "lucide-react";
+import { STAGES, STATUS_COLORS } from "@/lib/lead-statuses";
+import { KeywordRulesEditor, LeadFlowSettings, MessageInfoSettings, WaRatesSettings } from "@/components/lead-settings";
+import { LogoUpload } from "@/components/logo-upload";
 import { api, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDate, fmtNum, fmtPhone } from "@/lib/format";
@@ -29,7 +31,7 @@ function ContactFieldsEditor({ onSaved }) {
     api("/settings/contact-fields")
       .then((r) => {
         setInfo(r);
-        setRows(r.fields.map(({ key, label, type }) => ({ key, label, type: type || "text" })));
+        setRows(r.fields.map(({ key, label, type, options }) => ({ key, label, type: type || "text", optionsText: (options || []).join(", ") })));
       })
       .catch(toast.error);
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -41,7 +43,7 @@ function ContactFieldsEditor({ onSaved }) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await api("/settings/contact-fields", { method: "PUT", body: { fields: rows.map(({ key, label, type }) => ({ ...(key && { key }), label: label.trim(), type: type || "text" })) } });
+      const res = await api("/settings/contact-fields", { method: "PUT", body: { fields: rows.map(({ key, label, type, optionsText }) => ({ ...(key && { key }), label: label.trim(), type: type || "text", options: String(optionsText || "").split(",").map((o) => o.trim()).filter(Boolean) })) } });
       toast.success(res.removed.length ? `Fields saved. Deleted: ${res.removed.join(", ")} (values removed from ${res.contactsUpdated} contact(s)).` : "Contact fields saved");
       setConfirmRemove(null);
       await Promise.all([load(), onSaved()]);
@@ -68,11 +70,16 @@ function ContactFieldsEditor({ onSaved }) {
             <div className="min-w-0 flex-1">
               <div className="flex gap-2">
                 <Input className="h-9 min-w-0 flex-1" maxLength={40} value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} placeholder="Field name, e.g. Course" aria-label="Field name" />
-                <Select className="h-9 w-24 shrink-0 text-sm" value={r.type || "text"} onChange={(e) => setRow(i, { type: e.target.value })} aria-label="Field type" title="Date = birthday / anniversary (used by yearly drips)">
+                <Select className="h-9 w-32 shrink-0 text-sm" value={r.type || "text"} onChange={(e) => setRow(i, { type: e.target.value })} aria-label="Field type" title="Date = birthday / anniversary (used by yearly drips). Dropdown = fixed choices.">
                   <option value="text">Text</option>
                   <option value="date">Date</option>
+                  <option value="select">Dropdown</option>
+                  <option value="multiselect">Multi-select</option>
                 </Select>
               </div>
+              {(r.type === "select" || r.type === "multiselect") && (
+                <Input className="mt-1.5 h-8 text-sm" value={r.optionsText || ""} onChange={(e) => setRow(i, { optionsText: e.target.value })} placeholder="Options, comma separated: 10th, 12th, Graduate" aria-label="Options" />
+              )}
               <p className="mt-0.5 text-[11px] text-slate-400">{r.key ? `${stats?.contacts || 0} contact(s) have a value` : "New field"}</p>
               {stats?.usedIn?.length > 0 && (
                 <p className="mt-0.5 text-[11px] text-amber-700">Used in {stats.usedIn.join(", ")}. Remove it there first to delete this field.</p>
@@ -112,7 +119,7 @@ function ContactFieldsEditor({ onSaved }) {
       )}
       <div className="flex gap-2">
         <Button variant="secondary" size="sm" disabled={rows.length >= 50} onClick={() => setRows((r) => [...r, { label: "", type: "text" }])}><Plus className="h-4 w-4" /> Add field</Button>
-        <Button size="sm" loading={saving} disabled={rows.some((r) => !r.label.trim())} onClick={() => (removed.some((f) => f.contacts > 0) ? setConfirmRemove(removed) : save())}>Save fields</Button>
+        <Button size="sm" loading={saving} disabled={rows.some((r) => !r.label.trim() || ((r.type === "select" || r.type === "multiselect") && !String(r.optionsText || "").trim()))} onClick={() => (removed.some((f) => f.contacts > 0) ? setConfirmRemove(removed) : save())}>Save fields</Button>
       </div>
       <ConfirmModal
         open={!!confirmRemove}
@@ -220,10 +227,12 @@ function ReferralSettings({ settings, connectedNumber, onSave, busy }) {
 }
 
 /** Admin edits the business's lead statuses (Interested, Not interested, Call back...) */
-function LeadStatusEditor({ initial, onSaved }) {
+function LeadStatusEditor({ initial, onSaved, coaching }) {
   const toast = useToast();
   const [rows, setRows] = useState(initial.map((s) => ({ ...s })));
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(null); // row whose stage / time limit is being edited
+  const [presetAsk, setPresetAsk] = useState(false);
   const setRow = (i, patch) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const move = (i, d) =>
     setRows((r) => {
@@ -238,7 +247,16 @@ function LeadStatusEditor({ initial, onSaved }) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await api("/settings/lead-statuses", { method: "PUT", body: { statuses: rows.map(({ key, label, color }) => ({ ...(key && { key }), label, color })) } });
+      const res = await api("/settings/lead-statuses", {
+        method: "PUT",
+        body: {
+          statuses: rows.map(({ key, label, color, stage, timeLimit, onTimeout }) => ({
+            ...(key && { key }), label, color, stage: stage || "",
+            timeLimit: { amount: Number(timeLimit?.amount) || 0, unit: timeLimit?.unit || "days" },
+            onTimeout: { moveTo: onTimeout?.moveTo || "", task: onTimeout?.task || "", alert: !!onTimeout?.alert },
+          })),
+        },
+      });
       toast.success(res.movedToNew ? `Statuses saved. ${res.movedToNew} lead(s) of removed statuses moved to "${res.leadStatuses[0]?.key === "new" ? res.leadStatuses[0].label : "New"}".` : "Lead statuses saved");
       setRows(res.leadStatuses);
       await onSaved();
@@ -249,10 +267,34 @@ function LeadStatusEditor({ initial, onSaved }) {
     }
   };
 
+  const applyPreset = async () => {
+    setSaving(true);
+    try {
+      const res = await api("/settings/lead-statuses/preset", { method: "POST", body: {} });
+      toast.success(`19 statuses, keyword rules and "lead came back" rule added${res.movedToNew ? `. ${res.movedToNew} lead(s) moved to New.` : ""}`);
+      setRows(res.leadStatuses);
+      setPresetAsk(false);
+      await onSaved();
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+  const limitText = (r) => (r.timeLimit?.amount > 0 ? `${r.timeLimit.amount} ${r.timeLimit.unit}` : "");
+  const statusOptions = rows.filter((x) => x.label.trim());
+
   return (
     <div className="space-y-3">
+      {coaching && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-brand-50/60 px-3 py-2 text-xs text-slate-700">
+          <span>Coaching playbook: 19 statuses in 7 stages, with time limits and auto-moves.</span>
+          <Button size="sm" variant="secondary" onClick={() => setPresetAsk(true)}><Sparkles className="h-3.5 w-3.5" /> Reset to the 19 playbook statuses</Button>
+        </div>
+      )}
       {rows.map((r, i) => (
-        <div key={r.key || `new-${i}`} className="flex items-center gap-2">
+        <div key={r.key || `new-${i}`} className="space-y-2">
+        <div className="flex items-center gap-2">
           <label
             title={`Color: ${COLOR_NAMES[r.color] || "Gray"} (click to change)`}
             className={`relative h-5 w-5 shrink-0 cursor-pointer rounded-full ring-2 ring-white ring-offset-1 ring-offset-slate-200 ${{ gray: "bg-slate-400", blue: "bg-sky-500", green: "bg-brand-500", yellow: "bg-amber-400", red: "bg-red-500", purple: "bg-violet-500" }[r.color] || "bg-slate-400"}`}
@@ -262,11 +304,54 @@ function LeadStatusEditor({ initial, onSaved }) {
             </select>
           </label>
           <Input className="min-w-0 flex-1" maxLength={30} value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} aria-label="Status name" placeholder="e.g. Call back" />
+          <button type="button" onClick={() => setOpen(open === i ? null : i)} title="Stage and time limit"
+            className={`flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs ${open === i ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+            <Timer className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{[STAGES.find((st) => st.key === r.stage)?.label, limitText(r)].filter(Boolean).join(" · ") || "Stage / limit"}</span>
+          </button>
           <Button size="icon" variant="ghost" className="!w-6 shrink-0" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up"><ArrowUp className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="!w-6 shrink-0" disabled={i === rows.length - 1} onClick={() => move(i, 1)} aria-label="Move down"><ArrowDown className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="!w-7 shrink-0" disabled={r.key === "new"} title={r.key === "new" ? "New leads get this status, it can be renamed but not removed" : "Remove"} onClick={() => setRows((x) => x.filter((_, j) => j !== i))} aria-label="Remove status">
             <Trash2 className={`h-4 w-4 ${r.key === "new" ? "text-slate-300" : "text-red-500"}`} />
           </Button>
+        </div>
+        {open === i && (
+          <div className="ml-7 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+            <Field label="Stage">
+              <Select value={r.stage || ""} onChange={(e) => setRow(i, { stage: e.target.value })}>
+                <option value="">No stage</option>
+                {STAGES.map((st) => <option key={st.key} value={st.key}>{st.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Time limit in this status" hint="0 = no limit">
+              <div className="flex gap-2">
+                <Input type="number" min={0} className="w-24" value={r.timeLimit?.amount ?? 0} onChange={(e) => setRow(i, { timeLimit: { unit: r.timeLimit?.unit || "days", amount: Math.max(0, Number(e.target.value) || 0) } })} />
+                <Select value={r.timeLimit?.unit || "days"} onChange={(e) => setRow(i, { timeLimit: { amount: r.timeLimit?.amount || 0, unit: e.target.value } })}>
+                  <option value="minutes">minutes</option>
+                  <option value="hours">hours</option>
+                  <option value="days">days</option>
+                </Select>
+              </div>
+            </Field>
+            {r.timeLimit?.amount > 0 && (
+              <>
+                <Field label="When time runs out, move to">
+                  <Select value={r.onTimeout?.moveTo || ""} onChange={(e) => setRow(i, { onTimeout: { ...r.onTimeout, moveTo: e.target.value } })}>
+                    <option value="">Stay in this status</option>
+                    {statusOptions.filter((x) => x !== r).map((x) => <option key={x.key || x.label} value={x.key || x.label}>{x.label}</option>)}
+                  </Select>
+                </Field>
+                <Field label="…and create a task">
+                  <Input maxLength={120} value={r.onTimeout?.task || ""} placeholder="e.g. Call this lead" onChange={(e) => setRow(i, { onTimeout: { ...r.onTimeout, task: e.target.value } })} />
+                </Field>
+                <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+                  <input type="checkbox" checked={!!r.onTimeout?.alert} onChange={(e) => setRow(i, { onTimeout: { ...r.onTimeout, alert: e.target.checked } })} />
+                  🔔 Alert the counsellor and admins
+                </label>
+              </>
+            )}
+          </div>
+        )}
         </div>
       ))}
       {removed.length > 0 && (
@@ -278,13 +363,15 @@ function LeadStatusEditor({ initial, onSaved }) {
         <Button variant="secondary" size="sm" disabled={rows.length >= 20} onClick={() => setRows((r) => [...r, { label: "", color: "gray" }])}><Plus className="h-4 w-4" /> Add status</Button>
         <Button size="sm" onClick={save} loading={saving} disabled={rows.some((r) => !r.label.trim())}>Save statuses</Button>
       </div>
+      <ConfirmModal open={presetAsk} onClose={() => setPresetAsk(false)} onConfirm={applyPreset} loading={saving} title="Reset to the 19 playbook statuses?" confirmText="Replace statuses"
+        message="Your status list is replaced by the 19 playbook statuses (New – Bot chat … Opted out) with stages and time limits. Hot-word / objection keyword rules and the “lead came back → Hot” rule are added. Leads in a status that is not in the new list move to New." />
     </div>
   );
 }
 
-function Section({ title, description, children }) {
+function Section({ title, description, children, className }) {
   return (
-    <Card className="p-5">
+    <Card className={`p-5 ${className || ""}`}>
       <h2 className="font-medium text-slate-900">{title}</h2>
       {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
       <div className="mt-4">{children}</div>
@@ -336,6 +423,18 @@ export default function SettingsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {isAdmin && (
           <Section title="Business profile" description="Your business name and contact details, shown in the CRM and to your platform provider.">
+            <div className="mb-4">
+              <p className="mb-2 text-sm font-medium text-slate-700">Logo <span className="font-normal text-slate-500">(shown in the sidebar)</span></p>
+              <LogoUpload
+                value={session.tenant?.logo}
+                onError={toast.error}
+                onSave={async (logo) => {
+                  await api("/settings/logo", { method: "PUT", body: { logo } });
+                  await refresh();
+                  toast.success(logo ? "Logo saved" : "Logo removed");
+                }}
+              />
+            </div>
             <BusinessProfile key={`${s.name}|${s.email}|${s.phone}`} s={s} busy={busy === "profile"} onSave={(body) => run("profile", () => api("/settings", { method: "PATCH", body }), "Business profile saved")} />
           </Section>
         )}
@@ -414,8 +513,71 @@ export default function SettingsPage() {
         )}
 
         {isAdmin && (
-          <Section title="Lead statuses" description="How you sort your leads (Interested, Not interested, Converted, Call back…). Used in Contacts, Inbox, bulk campaigns and reports.">
-            <LeadStatusEditor initial={s.settings.leadStatuses} onSaved={() => Promise.all([load(), refresh()])} />
+          <Section title="Lead statuses" description="How you sort your leads. Click ⏱ to put a status in a stage and give it a time limit: when it runs out the lead moves on automatically, so nothing sits forever.">
+            <LeadStatusEditor key={JSON.stringify(s.settings.leadStatuses)} coaching={session.tenant?.businessType === "coaching"} initial={s.settings.leadStatuses} onSaved={() => Promise.all([load(), refresh()])} />
+          </Section>
+        )}
+
+        {isAdmin && session.tenant?.businessType === "coaching" && (
+          <Section title="Coaching industry pack" description="Ready-made WhatsApp templates (English + Hinglish), 25 drips and contact fields for coaching institutes. Only what is missing is added, so your edits are kept.">
+            <div className="space-y-3 text-sm text-slate-600">
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>Fill <b>Message info</b> below (city, rating, students trained, since year, address, review link). Templates use these instead of a fixed institute name.</li>
+                <li>Load the pack (templates and drips come as drafts). Add your courses on the Courses page, or load the sample catalog.</li>
+                <li>Templates page: check each template and click <b>Submit</b> (WhatsApp approves it).</li>
+                <li>Drips page: turn on a drip once its templates are approved.</li>
+              </ol>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="secondary"
+                  loading={busy === "content"}
+                  onClick={() =>
+                    run("content", async () => {
+                      const r = await api("/settings/coaching-content", { method: "POST", body: {} });
+                      toast.success(`Added: ${r.templates} templates, ${r.drips} drips, ${r.fields} contact fields`);
+                    })
+                  }
+                >
+                  <Sparkles className="h-4 w-4" /> Load templates &amp; drips
+                </Button>
+                <Button
+                  variant="secondary"
+                  loading={busy === "courses"}
+                  onClick={() =>
+                    run("courses", async () => {
+                      const r = await api("/settings/coaching-content", { method: "POST", body: { sampleCourses: true } });
+                      toast.success(`Added ${r.courses} sample courses. Edit or delete them on the Courses page.`);
+                    })
+                  }
+                >
+                  Load sample course catalog (51 IT &amp; skill courses)
+                </Button>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {isAdmin && (
+          <Section title="Lead follow-up rules" description="Drips, replies, overdue tasks and the morning report, so no lead is lost.">
+            <LeadFlowSettings key={JSON.stringify(s.settings.automation || {})} settings={s.settings} onSave={updateSetting} busy={busy === "settings"} />
+          </Section>
+        )}
+
+        {isAdmin && (
+          <Section title="Keyword rules (hot words & objections)" description="Words in a customer's message change the status, add a tag, alert the team or create a task. Checked on every message.">
+            <KeywordRulesEditor key={JSON.stringify(s.settings.automationRules || [])} initial={s.settings.automationRules} onSaved={() => Promise.all([load(), refresh()])} />
+          </Section>
+        )}
+
+        {isAdmin && (
+          <Section title="WhatsApp rates (cost estimate)" description="Used for the “WhatsApp cost” on the dashboard.">
+            <WaRatesSettings key={JSON.stringify(s.settings.waRates || {})} settings={s.settings} onSave={updateSetting} busy={busy === "settings"} />
+          </Section>
+        )}
+
+        {isAdmin && (
+          <Section title="Message info" description={`Business details you can put in template variables: review link, offer end date, address, payment details.${session.tenant?.businessType === "coaching" ? " Courses have their own details on the Courses page." : ""}`}>
+            <MessageInfoSettings key={JSON.stringify(s.settings.messageInfo || {})} settings={s.settings} onSave={updateSetting} busy={busy === "settings"} />
           </Section>
         )}
 

@@ -1,0 +1,981 @@
+[
+ {
+  "id": "D1",
+  "name": "Welcome series",
+  "group": "Get the first conversation",
+  "triggerText": "Status becomes New – Bot chat (any source except ads, which get D2).",
+  "stopsWhenText": "Replies, books a call or demo, or status changes.",
+  "goal": "Turn a silent enquiry into a conversation.",
+  "afterwardsText": "No reply by day 10 → Nurture – Later.",
+  "steps": [
+   {
+    "when": "+2 hours (if no reply)",
+    "delayFromStartMinutes": 120,
+    "kind": "message",
+    "template": "welcome_nudge",
+    "notes": "Only if no reply."
+   },
+   {
+    "when": "Day 1, 11 am",
+    "dayFromStart": 1,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "welcome_value"
+   },
+   {
+    "when": "Day 3, 6 pm",
+    "dayFromStart": 3,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "welcome_proof"
+   },
+   {
+    "when": "Day 5, 11 am",
+    "dayFromStart": 5,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "welcome_demo"
+   },
+   {
+    "when": "Day 7, 11 am",
+    "dayFromStart": 7,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "welcome_offer"
+   },
+   {
+    "when": "Day 10, 11 am",
+    "dayFromStart": 10,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "welcome_exit"
+   }
+  ]
+ },
+ {
+  "id": "D2",
+  "name": "Ad lead nurture",
+  "group": "Get the first conversation",
+  "triggerText": "New lead with Source = FB ad or IG ad (lead form or click-to-WhatsApp).",
+  "stopsWhenText": "Replies, books, or status changes.",
+  "goal": "Ad leads cool fastest — catch them in the first hour and answer the fear the ad stirred up.",
+  "afterwardsText": "Day 9 exit message decides: Nurture – Later, Counselled, or Lost.",
+  "steps": [
+   {
+    "when": "Instantly (lead form ads)",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "ad_hello",
+    "notes": "Lead form ads only."
+   },
+   {
+    "when": "+30 min",
+    "delayFromStartMinutes": 30,
+    "kind": "task",
+    "text": "counsellor call task — ad leads are called within 30 minutes in office hours.",
+    "actionLabel": "(task, no message)"
+   },
+   {
+    "when": "Day 1, 6 pm",
+    "dayFromStart": 1,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "ad_fear"
+   },
+   {
+    "when": "Day 2, 11 am",
+    "dayFromStart": 2,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "ad_build"
+   },
+   {
+    "when": "Day 4, 6 pm",
+    "dayFromStart": 4,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "ad_whyus"
+   },
+   {
+    "when": "Day 6, 11 am",
+    "dayFromStart": 6,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "ad_batch"
+   },
+   {
+    "when": "Day 9, 11 am",
+    "dayFromStart": 9,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "ad_exit"
+   }
+  ]
+ },
+ {
+  "id": "D3",
+  "name": "No-answer chase",
+  "group": "Get the first conversation",
+  "triggerText": "Status becomes Contacted – No answer.",
+  "stopsWhenText": "Picks up, replies, or status changes.",
+  "goal": "Most missed calls are bad timing, not lack of interest. Let them choose the time — or use WhatsApp instead.",
+  "afterwardsText": "Day 7 with no response → Lost – Not reachable (they come back to New if they ever message).",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "missed_call"
+   },
+   {
+    "when": "+4 hours / next evening",
+    "delayFromStartMinutes": 240,
+    "kind": "task",
+    "text": "2nd and 3rd call attempts — evenings 4–6 pm get the most pick-ups.",
+    "actionLabel": "(task)",
+    "notes": "2nd attempt ~4 hours later, 3rd the next evening (4–6 pm best); 240 used."
+   },
+   {
+    "when": "Day 1, 6 pm",
+    "dayFromStart": 1,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "missed_whatsapp"
+   },
+   {
+    "when": "Day 4, 11 am",
+    "dayFromStart": 4,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "missed_last"
+   }
+  ]
+ },
+ {
+  "id": "D4",
+  "name": "Call-back promise",
+  "group": "Get the first conversation",
+  "triggerText": "Status becomes Contacted – Call back (with a time).",
+  "stopsWhenText": "Call made.",
+  "goal": "Keep the promise. A missed call-back loses trust instantly.",
+  "afterwardsText": "Counsellor sets the next status after the call.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "callback_confirm"
+   },
+   {
+    "when": "15 min before",
+    "delayFromStartMinutes": -15,
+    "kind": "alert",
+    "text": "reminder to the counsellor; alert the team lead if the call isn't logged 30 minutes after the time.",
+    "actionLabel": "(alert)",
+    "notes": "Relative to the promised call-back time ({{callback_time}}), not the drip start."
+   }
+  ]
+ },
+ {
+  "id": "D5",
+  "name": "After counselling",
+  "group": "Move interest to action",
+  "triggerText": "Status becomes Counselled.",
+  "stopsWhenText": "Moves to Hot, Demo booked, Fee pending, or any objection status.",
+  "goal": "Put the call in writing so the student (and family) can re-read it.",
+  "afterwardsText": "Day 2 → Interested – Warm.",
+  "steps": [
+   {
+    "when": "Within 10 min of the call",
+    "delayFromStartMinutes": 10,
+    "kind": "message",
+    "template": "call_summary"
+   },
+   {
+    "when": "Day 2, 6 pm",
+    "dayFromStart": 2,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "call_nudge"
+   }
+  ]
+ },
+ {
+  "id": "D6",
+  "name": "Interested follow-up (Warm)",
+  "group": "Move interest to action",
+  "triggerText": "Status becomes Interested – Warm.",
+  "stopsWhenText": "Hot, Demo booked, Fee pending, Converted, or Not interested.",
+  "goal": "Keep the course top of mind with proof and a reason to act now.",
+  "afterwardsText": "Day 12 → Nurture – Later.",
+  "steps": [
+   {
+    "when": "Day 0, 6 pm",
+    "dayFromStart": 0,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "warm_story"
+   },
+   {
+    "when": "Day 2, 11 am",
+    "dayFromStart": 2,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "warm_demo"
+   },
+   {
+    "when": "Day 5, 6 pm",
+    "dayFromStart": 5,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "warm_offer"
+   },
+   {
+    "when": "Day 8, 11 am",
+    "dayFromStart": 8,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "warm_batch"
+   },
+   {
+    "when": "Day 12, 11 am",
+    "dayFromStart": 12,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "warm_exit"
+   }
+  ]
+ },
+ {
+  "id": "D7",
+  "name": "Family approval",
+  "group": "Remove the blocker",
+  "triggerText": "Status becomes Interested – Family approval (or Objection tag = Family).",
+  "stopsWhenText": "Demo/visit booked, Hot, or Converted.",
+  "goal": "Help the student win the family conversation and bring parents to the centre.",
+  "afterwardsText": "Day 9 → Interested – Warm.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "parent_card"
+   },
+   {
+    "when": "Day 2, 6 pm",
+    "dayFromStart": 2,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "family_visit"
+   },
+   {
+    "when": "Day 5, 6 pm",
+    "dayFromStart": 5,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "family_call"
+   }
+  ]
+ },
+ {
+  "id": "D8",
+  "name": "Price concern",
+  "group": "Remove the blocker",
+  "triggerText": "Status becomes Interested – Price concern (or Objection tag = Price).",
+  "stopsWhenText": "Fee plan agreed (Fee pending), Converted, or Nurture.",
+  "goal": "Turn a big number into a manageable plan without discounting the value.",
+  "afterwardsText": "Day 7 → counsellor call with a custom plan, then Warm.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "price_options"
+   },
+   {
+    "when": "Day 2, 6 pm",
+    "dayFromStart": 2,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "price_value"
+   },
+   {
+    "when": "Day 4",
+    "dayFromStart": 4,
+    "sendTime": "",
+    "kind": "task",
+    "text": "counsellor call to build a plan (track, EMI, online, package).",
+    "actionLabel": "(task)",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Day 7, 11 am",
+    "dayFromStart": 7,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "price_deadline"
+   }
+  ]
+ },
+ {
+  "id": "D9",
+  "name": "Demo booked",
+  "group": "Get them into a class",
+  "triggerText": "Status becomes Demo – Booked.",
+  "stopsWhenText": "Marked Attended or No-show.",
+  "goal": "Show-up rate is everything — remind, reassure, make it easy to find.",
+  "afterwardsText": "3 hours after demo time with no mark → task to counsellor.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "demo_confirm"
+   },
+   {
+    "when": "Day before, 6 pm",
+    "dayFromStart": -1,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "demo_reminder",
+    "notes": "Relative to the demo date (evening before the demo), not the drip start."
+   },
+   {
+    "when": "2 hours before",
+    "delayFromStartMinutes": -120,
+    "kind": "message",
+    "template": "demo_today",
+    "notes": "Relative to the demo time ({{demo_time}}), not the drip start."
+   }
+  ]
+ },
+ {
+  "id": "D10",
+  "name": "Demo no-show",
+  "group": "Get them into a class",
+  "triggerText": "Status becomes Demo – No-show.",
+  "stopsWhenText": "Re-books or status changes.",
+  "goal": "No guilt — just a new time.",
+  "afterwardsText": "Day 4 → Interested – Warm.",
+  "steps": [
+   {
+    "when": "+1 hour",
+    "delayFromStartMinutes": 60,
+    "kind": "message",
+    "template": "noshow_rebook"
+   },
+   {
+    "when": "Day 2, 6 pm",
+    "dayFromStart": 2,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "noshow_online"
+   }
+  ]
+ },
+ {
+  "id": "D11",
+  "name": "After the demo",
+  "group": "Close",
+  "triggerText": "Status becomes Demo – Attended (not enrolled).",
+  "stopsWhenText": "Fee pending or Converted.",
+  "goal": "The demo built desire — answer the last questions and give a reason to start this batch.",
+  "afterwardsText": "Day 10 → Interested – Warm.",
+  "steps": [
+   {
+    "when": "+2 hours",
+    "delayFromStartMinutes": 120,
+    "kind": "message",
+    "template": "demo_thanks"
+   },
+   {
+    "when": "Day 1, 6 pm",
+    "dayFromStart": 1,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "demo_plan"
+   },
+   {
+    "when": "Day 3, 6 pm",
+    "dayFromStart": 3,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "demo_story"
+   },
+   {
+    "when": "Day 6, 11 am",
+    "dayFromStart": 6,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "demo_deadline"
+   }
+  ]
+ },
+ {
+  "id": "D12",
+  "name": "Fee pending",
+  "group": "Close",
+  "triggerText": "Status becomes Admission – Fee pending.",
+  "stopsWhenText": "Payment received → Converted – Enrolled.",
+  "goal": "Remove friction from paying.",
+  "afterwardsText": "Day 3 → Hot + manager alert.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "fee_details"
+   },
+   {
+    "when": "Day 1, 11 am",
+    "dayFromStart": 1,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "fee_reminder"
+   },
+   {
+    "when": "Day 3",
+    "dayFromStart": 3,
+    "sendTime": "",
+    "kind": "alert",
+    "text": "move to Hot and alert the manager.",
+    "actionLabel": "(alert)",
+    "notes": "No send time given in the PDF."
+   }
+  ]
+ },
+ {
+  "id": "D13",
+  "name": "Onboarding (enrolled)",
+  "group": "Make them succeed",
+  "triggerText": "Status becomes Converted – Enrolled.",
+  "stopsWhenText": "Course completed.",
+  "goal": "A great first month means fewer drop-outs, better reviews and more referrals.",
+  "afterwardsText": "Course end date → Converted – Completed.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "welcome_student"
+   },
+   {
+    "when": "Day before class 1",
+    "dayFromStart": -1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "class_reminder",
+    "notes": "Relative to the first class / batch start date, not enrolment."
+   },
+   {
+    "when": "After class 1",
+    "dayFromStart": 0,
+    "sendTime": "",
+    "kind": "message",
+    "template": "day1_check",
+    "notes": "Sent after the first class (batch start date); relative to class 1, not enrolment."
+   },
+   {
+    "when": "Day 14",
+    "dayFromStart": 14,
+    "sendTime": "",
+    "kind": "message",
+    "template": "week2_check",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Day 30",
+    "dayFromStart": 30,
+    "sendTime": "",
+    "kind": "message",
+    "template": "review_ask",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Any time: missed 2 classes in a row",
+    "delayFromStartMinutes": 0,
+    "kind": "alert",
+    "text": "counsellor calls the student the same day — early drop-out signal.",
+    "actionLabel": "(alert)",
+    "notes": "Event-triggered (2 consecutive absences), not time-based."
+   }
+  ]
+ },
+ {
+  "id": "D14",
+  "name": "Completion, internship and placement",
+  "group": "Make them succeed",
+  "triggerText": "Status becomes Converted – Completed.",
+  "stopsWhenText": "—",
+  "goal": "Celebrate, guide the next step, and collect proof (reviews, videos) that sells the next batch.",
+  "afterwardsText": "Hands over to Refer & earn and Anniversary.",
+  "steps": [
+   {
+    "when": "Instantly",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "congrats"
+   },
+   {
+    "when": "Day 3",
+    "dayFromStart": 3,
+    "sendTime": "",
+    "kind": "message",
+    "template": "testimonial_ask",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Day 14",
+    "dayFromStart": 14,
+    "sendTime": "",
+    "kind": "message",
+    "template": "next_course",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Day 45",
+    "dayFromStart": 45,
+    "sendTime": "",
+    "kind": "message",
+    "template": "job_check",
+    "notes": "No send time given in the PDF."
+   }
+  ]
+ },
+ {
+  "id": "D15",
+  "name": "Refer & earn",
+  "group": "Grow from happy students",
+  "triggerText": "Converted – Enrolled for 30+ days, or Converted – Completed.",
+  "stopsWhenText": "Opts out.",
+  "goal": "Happy students bring friends who already trust you — the cheapest, best-converting leads.",
+  "afterwardsText": "Repeats every 60 days, max 4 times a year.",
+  "steps": [
+   {
+    "when": "Start",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "refer_intro"
+   },
+   {
+    "when": "When a referral enrols",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "refer_reward",
+    "notes": "Event-triggered: a referred friend enrols."
+   }
+  ]
+ },
+ {
+  "id": "D16",
+  "name": "Long-term nurture",
+  "group": "Win them back",
+  "triggerText": "Status becomes Nurture – Later.",
+  "stopsWhenText": "Replies (→ Hot), Converted, or Opted out.",
+  "goal": "Stay useful for months so they come back when the timing is right.",
+  "afterwardsText": "Monthly for 6 months, then quarterly.",
+  "steps": [
+   {
+    "when": "Month 1",
+    "dayFromStart": 30,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nurture_batch",
+    "notes": "\"Month 1\" approximated as day 30; no send time given."
+   },
+   {
+    "when": "Month 2",
+    "dayFromStart": 60,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nurture_story",
+    "notes": "\"Month 2\" approximated as day 60; no send time given."
+   },
+   {
+    "when": "Month 3",
+    "dayFromStart": 90,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nurture_offer",
+    "notes": "\"Month 3\" approximated as day 90; no send time given."
+   },
+   {
+    "when": "Month 4",
+    "dayFromStart": 120,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nurture_free",
+    "notes": "\"Month 4\" approximated as day 120; no send time given."
+   },
+   {
+    "when": "Month 6",
+    "dayFromStart": 180,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nurture_check",
+    "notes": "\"Month 6\" approximated as day 180; no send time given."
+   }
+  ]
+ },
+ {
+  "id": "D17",
+  "name": "Joined elsewhere",
+  "group": "Win them back",
+  "triggerText": "Status becomes Lost – Joined elsewhere.",
+  "stopsWhenText": "Replies or opts out.",
+  "goal": "Stay friendly — many want practice, an internship or an advanced course later.",
+  "afterwardsText": "Two messages only.",
+  "steps": [
+   {
+    "when": "Day 60",
+    "dayFromStart": 60,
+    "sendTime": "",
+    "kind": "message",
+    "template": "elsewhere_60",
+    "notes": "No send time given in the PDF."
+   },
+   {
+    "when": "Day 120",
+    "dayFromStart": 120,
+    "sendTime": "",
+    "kind": "message",
+    "template": "elsewhere_120",
+    "notes": "No send time given in the PDF."
+   }
+  ]
+ },
+ {
+  "id": "D18",
+  "name": "Birthday offer",
+  "group": "Grow from happy students",
+  "triggerText": "Birthday date (leads not yet converted, and students).",
+  "stopsWhenText": "—",
+  "goal": "A warm, personal touch — and a time-bound reason to join.",
+  "afterwardsText": "Once a year.",
+  "steps": [
+   {
+    "when": "Birthday, 10 am — leads",
+    "dayFromStart": 0,
+    "sendTime": "10:00",
+    "kind": "message",
+    "template": "bday_lead",
+    "notes": "On the birthday; for leads (not yet converted)."
+   },
+   {
+    "when": "Birthday, 10 am — students",
+    "dayFromStart": 0,
+    "sendTime": "10:00",
+    "kind": "message",
+    "template": "bday_student",
+    "notes": "On the birthday; for students."
+   }
+  ]
+ },
+ {
+  "id": "D19",
+  "name": "Anniversary wish",
+  "group": "Grow from happy students",
+  "triggerText": "Joining date anniversary (students and alumni).",
+  "stopsWhenText": "—",
+  "goal": "Reconnect alumni: celebrate progress, ask for referrals, offer the next course.",
+  "afterwardsText": "Once a year.",
+  "steps": [
+   {
+    "when": "Anniversary, 11 am",
+    "dayFromStart": 0,
+    "sendTime": "11:00",
+    "kind": "message",
+    "template": "anniversary",
+    "notes": "On the joining-date anniversary."
+   }
+  ]
+ },
+ {
+  "id": "D20",
+  "name": "Fee & EMI instalment reminders",
+  "group": "Run the institute",
+  "triggerText": "Instalment due date (fee plan field) for Converted – Enrolled students.",
+  "stopsWhenText": "Payment recorded for that instalment.",
+  "goal": "Collect on time without awkward calls; every payment gets an instant receipt.",
+  "afterwardsText": "Day +5 overdue → accounts/counsellor task; day +10 → manager.",
+  "steps": [
+   {
+    "when": "3 days before due",
+    "dayFromStart": -3,
+    "sendTime": "",
+    "kind": "message",
+    "template": "fee_due_soon",
+    "notes": "Relative to the instalment due date."
+   },
+   {
+    "when": "Due date, 10 am",
+    "dayFromStart": 0,
+    "sendTime": "10:00",
+    "kind": "message",
+    "template": "fee_due_today",
+    "notes": "On the instalment due date."
+   },
+   {
+    "when": "1 day overdue",
+    "dayFromStart": 1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "fee_overdue",
+    "notes": "1 day after the instalment due date."
+   },
+   {
+    "when": "On payment (any time)",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "payment_receipt",
+    "notes": "Event-triggered: payment recorded."
+   },
+   {
+    "when": "Need more time tapped",
+    "delayFromStartMinutes": 0,
+    "kind": "task",
+    "text": "accounts task to agree a new date; record it in the fee plan so reminders follow the new date.",
+    "actionLabel": "(task)",
+    "notes": "Event-triggered: student taps \"Need more time\"."
+   }
+  ]
+ },
+ {
+  "id": "D21",
+  "name": "Attendance & absence",
+  "group": "Run the institute",
+  "triggerText": "Attendance marked absent (classroom) or not joined (online).",
+  "stopsWhenText": "—",
+  "goal": "Catch drop-outs in week one, not month three.",
+  "afterwardsText": "2 absences in a row → counsellor call; parent message if the student is under 18 or parent number saved.",
+  "steps": [
+   {
+    "when": "Same day, 6 pm",
+    "dayFromStart": 0,
+    "sendTime": "18:00",
+    "kind": "message",
+    "template": "absent_today",
+    "notes": "Same day the absence is marked."
+   },
+   {
+    "when": "2 absences in a row",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "absent_parent",
+    "notes": "Event-triggered: second consecutive absence."
+   },
+   {
+    "when": "1st of every month",
+    "dayFromStart": 0,
+    "sendTime": "",
+    "kind": "message",
+    "template": "attendance_summary",
+    "notes": "Recurring: 1st of every month."
+   }
+  ]
+ },
+ {
+  "id": "D22",
+  "name": "Class updates & online links",
+  "group": "Run the institute",
+  "triggerText": "Class schedule (per batch) and admin announcements.",
+  "stopsWhenText": "—",
+  "goal": "No student ever misses a class because of a missing link or a schedule change.",
+  "afterwardsText": "Runs for the whole course.",
+  "steps": [
+   {
+    "when": "15 min before each online class",
+    "delayFromStartMinutes": -15,
+    "kind": "message",
+    "template": "class_link",
+    "notes": "Recurring, relative to each online class start time."
+   },
+   {
+    "when": "After each online class",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "recording_ready",
+    "notes": "Recurring: after each online class."
+   },
+   {
+    "when": "When the schedule changes",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "class_change",
+    "notes": "Event-triggered: schedule change."
+   },
+   {
+    "when": "Before holidays",
+    "dayFromStart": -1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "holiday_notice",
+    "notes": "Before the holiday date; exact lead time not given (-1 day assumed)."
+   }
+  ]
+ },
+ {
+  "id": "D23",
+  "name": "Assignments & assessments",
+  "group": "Run the institute",
+  "triggerText": "Assignment due dates and assessment dates per batch.",
+  "stopsWhenText": "Submitted.",
+  "goal": "Keep practice on track — practice is what builds the portfolio.",
+  "afterwardsText": "Missed 2 assignments → trainer task.",
+  "steps": [
+   {
+    "when": "Day before due",
+    "dayFromStart": -1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "assignment_due",
+    "notes": "Relative to the assignment due date."
+   },
+   {
+    "when": "3 days before assessment",
+    "dayFromStart": -3,
+    "sendTime": "",
+    "kind": "message",
+    "template": "assessment_reminder",
+    "notes": "Relative to the assessment date."
+   },
+   {
+    "when": "Result shared",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "assessment_result",
+    "notes": "Event-triggered: assessment result shared."
+   }
+  ]
+ },
+ {
+  "id": "D24",
+  "name": "Monthly progress & feedback (NPS)",
+  "group": "Run the institute",
+  "triggerText": "Every 30 days for Converted – Enrolled.",
+  "stopsWhenText": "Course completed.",
+  "goal": "Show progress to students and parents, and catch unhappy students before they post a bad review.",
+  "afterwardsText": "Score 0–6 → manager call within 24 h. Score 9–10 → Google review request.",
+  "steps": [
+   {
+    "when": "Day 30, 60, 90…",
+    "dayFromStart": 30,
+    "sendTime": "",
+    "kind": "message",
+    "template": "progress_report",
+    "notes": "Recurring every 30 days (day 30, 60, 90…)."
+   },
+   {
+    "when": "Next day",
+    "dayFromStart": 1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "nps_survey",
+    "notes": "Day after the previous step/event."
+   }
+  ]
+ },
+ {
+  "id": "D25",
+  "name": "Admission documents pending",
+  "group": "Run the institute",
+  "triggerText": "Enrolled with documents field incomplete.",
+  "stopsWhenText": "Documents marked received.",
+  "goal": "Complete files without chasing in class.",
+  "afterwardsText": "Day 7 → admin task.",
+  "steps": [
+   {
+    "when": "Day 2",
+    "dayFromStart": 2,
+    "sendTime": "",
+    "kind": "message",
+    "template": "docs_pending",
+    "notes": "No send time given in the PDF."
+   }
+  ]
+ },
+ {
+  "id": "D26",
+  "name": "Certificate & college documents",
+  "group": "Run the institute",
+  "triggerText": "Certificate or training letter marked ready.",
+  "stopsWhenText": "Collected.",
+  "goal": "Instant good news — a natural moment to ask for a review.",
+  "afterwardsText": "Hands over to D14.",
+  "steps": [
+   {
+    "when": "When ready",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "certificate_ready",
+    "notes": "Event-triggered: certificate/letter marked ready."
+   }
+  ]
+ },
+ {
+  "id": "D27",
+  "name": "Placement & job alerts",
+  "group": "Make them succeed",
+  "triggerText": "New job opening matching the student's course tag (Completed students, and Enrolled in the last month).",
+  "stopsWhenText": "Student tagged Placed, or opts out of job alerts.",
+  "goal": "Visible placement assistance — and proof stories for the next batch.",
+  "afterwardsText": "On \"Got a job\" → tag Placed, ask for a testimonial.",
+  "steps": [
+   {
+    "when": "New opening",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "job_alert",
+    "notes": "Event-triggered: new matching job opening."
+   },
+   {
+    "when": "Day before interview",
+    "dayFromStart": -1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "interview_reminder",
+    "notes": "Relative to the interview date."
+   },
+   {
+    "when": "2 days after interview",
+    "dayFromStart": 2,
+    "sendTime": "",
+    "kind": "message",
+    "template": "interview_followup",
+    "notes": "Relative to the interview date."
+   }
+  ]
+ },
+ {
+  "id": "D28",
+  "name": "Workshops & webinars",
+  "group": "Win them back",
+  "triggerText": "Registered for a free workshop or webinar.",
+  "stopsWhenText": "—",
+  "goal": "Free events turn cold leads warm; the follow-up converts them.",
+  "afterwardsText": "Attended → Interested – Warm with the workshop's course tag.",
+  "steps": [
+   {
+    "when": "On registration",
+    "delayFromStartMinutes": 0,
+    "kind": "message",
+    "template": "event_confirm"
+   },
+   {
+    "when": "1 hour before",
+    "delayFromStartMinutes": -60,
+    "kind": "message",
+    "template": "event_link",
+    "notes": "Relative to the event start time."
+   },
+   {
+    "when": "Next day",
+    "dayFromStart": 1,
+    "sendTime": "",
+    "kind": "message",
+    "template": "event_followup",
+    "notes": "Day after the previous step/event."
+   }
+  ]
+ }
+]

@@ -15,6 +15,9 @@ export const env = {
   port: Number(process.env.PORT || 4000),
   // Empty MONGO_URI in development = use a local persistent in-memory MongoDB (see config/db.js)
   mongoUri: process.env.MONGO_URI || '',
+  // Max time a single DB network read may stall before it is retried (see config/db.js). Heavy writes are batched.
+  dbSocketTimeoutMs: Number(process.env.DB_SOCKET_TIMEOUT_MS) || 4000,
+  dbMaxIdleMs: Number(process.env.DB_MAX_IDLE_MS) || 15000,
   jwtSecret: required('JWT_SECRET', isProd ? undefined : 'dev-only-jwt-secret-change-me'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   // 64 hex chars (32 bytes). Used to encrypt each tenant's WhatsApp access token at rest.

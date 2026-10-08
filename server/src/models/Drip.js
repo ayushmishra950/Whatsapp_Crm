@@ -4,7 +4,16 @@ const variableSchema = { _id: false, source: { type: String, enum: ['field', 'st
 
 const stepSchema = new mongoose.Schema(
   {
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
+    // message = send a template · task = create a task for the lead's counsellor · alert = notify them · status = change status
+    kind: { type: String, enum: ['message', 'task', 'alert', 'status'], default: 'message' },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template' },
+    // Optional Hinglish version: sent to leads whose language is Hinglish
+    templateIdHi: { type: mongoose.Schema.Types.ObjectId, ref: 'Template' },
+    variablesHi: { type: [variableSchema], default: [] },
+    text: { type: String, default: '' }, // task title / alert text
+    dueMinutes: { type: Number, default: 30 }, // task: due this long after the step runs
+    setStatus: { type: String, default: '' }, // status step
+    delayMinutes: { type: Number, default: 0 }, // extra wait on top of delayDays, e.g. +2 hours = 120
     variables: { type: [variableSchema], default: [] },
     delayDays: { type: Number, default: 0, min: 0, max: 365 }, // after the previous step (first step: after joining)
     sendTime: { type: String, default: '' }, // "HH:MM" in the business time zone, empty = as soon as due
@@ -42,6 +51,10 @@ const dripSchema = new mongoose.Schema(
     // When a contact leaves the drip early
     stopOnReply: { type: Boolean, default: true },
     stopStatuses: { type: [String], default: [] }, // e.g. converted, lost
+    // "One status = one drip": any status change ends this drip (default on, off for birthday / manual drips)
+    stopOnStatusChange: { type: Boolean, default: true },
+    // When the last step is done: move the lead on / tag them (e.g. Day 10 -> Nurture – Later)
+    onComplete: { setStatus: { type: String, default: '' }, addTag: { type: String, default: '' } },
     activatedAt: Date,
     lastDateScan: String, // YYYY-MM-DD of the last birthday/anniversary scan
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

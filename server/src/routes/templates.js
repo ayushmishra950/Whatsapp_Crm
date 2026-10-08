@@ -15,6 +15,24 @@ const variableDefault = z.object({
   example: z.string().trim().max(200).default(''),
 });
 
+const templateButton = z
+  .object({
+    type: z.enum(['QUICK_REPLY', 'URL', 'PHONE_NUMBER']).default('QUICK_REPLY'),
+    text: z.string().trim().min(1, 'Button text is required').max(25, 'Button text: max 25 characters'),
+    url: z.string().trim().max(2000).default(''),
+    phone: z.string().trim().max(20).default(''),
+  })
+  .superRefine((b, ctx) => {
+    if (b.type === 'URL' && !/^https?:\/\/\S+$/.test(b.url)) ctx.addIssue({ code: 'custom', message: `Button "${b.text}": enter the link (https://…)` });
+    if (b.type === 'PHONE_NUMBER' && !/^\+?\d{8,15}$/.test(b.phone)) ctx.addIssue({ code: 'custom', message: `Button "${b.text}": enter the phone number with country code` });
+  });
+
+// Meta: max 10 buttons, of which at most 2 links and 1 phone number
+function checkButtons(buttons = []) {
+  if (buttons.filter((b) => b.type === 'URL').length > 2) throw badRequest('Max 2 link buttons');
+  if (buttons.filter((b) => b.type === 'PHONE_NUMBER').length > 1) throw badRequest('Max 1 call button');
+}
+
 // Keep exactly one default per {{n}} in the body
 const fitDefaults = (defaults = [], body = '') => {
   const count = new Set(body.match(/\{\{(\d+)\}\}/g) || []).size;
@@ -33,6 +51,7 @@ const templateFields = z.object({
   body: z.string().trim().min(1).max(1024),
   footer: z.string().max(60),
   variableDefaults: z.array(variableDefault).max(20),
+  buttons: z.array(templateButton).max(10),
 });
 
 function checkVariables(body) {
@@ -49,6 +68,7 @@ router.get('/', async (req, res) => {
 router.post('/', authorize('admin'), async (req, res) => {
   const data = validate(templateFields.partial().required({ name: true, body: true }), req.body);
   checkVariables(data.body);
+  checkButtons(data.buttons);
   const language = data.language || 'en';
   if (await Template.exists({ tenantId: req.tenantId, name: data.name, language })) {
     throw conflict('A template with this name and language already exists');
@@ -71,6 +91,7 @@ router.patch('/:id', authorize('admin'), async (req, res) => {
   if (!['draft', 'rejected'].includes(template.status)) throw badRequest('Only draft or rejected templates can be edited');
   Object.assign(template, data);
   checkVariables(template.body);
+  checkButtons(template.buttons);
   template.variableDefaults = fitDefaults(data.variableDefaults ?? template.variableDefaults, template.body);
   if (template.status === 'rejected') template.status = 'draft';
   await template.save();
@@ -105,6 +126,7 @@ const approvedEditFields = z.object({
   body: z.string().trim().min(1).max(1024),
   footer: z.string().max(60).default(''),
   variableDefaults: z.array(variableDefault).max(20).optional(),
+  buttons: z.array(templateButton).max(10).optional(),
 });
 
 router.post('/:id/edit-approved', authorize('admin'), async (req, res) => {
@@ -113,7 +135,9 @@ router.post('/:id/edit-approved', authorize('admin'), async (req, res) => {
   if (!template) throw notFound('Template not found');
   if (template.status !== 'approved' || !template.metaTemplateId) throw badRequest('Only approved templates can be edited this way');
   checkVariables(data.body);
-  if (data.header === template.header && data.body === template.body && data.footer === template.footer) {
+  if (data.buttons) checkButtons(data.buttons);
+  const sameButtons = !data.buttons || JSON.stringify(data.buttons) === JSON.stringify((template.buttons || []).map(({ type, text, url, phone }) => ({ type, text, url, phone })));
+  if (data.header === template.header && data.body === template.body && data.footer === template.footer && sameButtons) {
     throw badRequest('Nothing changed');
   }
   if (await Campaign.exists({ templateId: template._id, status: { $in: ['scheduled', 'running', 'paused'] } })) {

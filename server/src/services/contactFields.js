@@ -13,14 +13,24 @@ export const BUILTIN_CONTACT_FIELDS = [
   { key: 'email', label: 'Email' },
 ];
 // Keys that would clash with real contact properties
-const RESERVED = new Set(['name', 'phone', 'email', 'tags', 'notes', 'source', 'lead_status', 'leadstatus', 'status', 'id', '_id']);
+const RESERVED = new Set(['name', 'phone', 'email', 'tags', 'notes', 'source', 'lead_status', 'leadstatus', 'status', 'id', '_id', 'course', 'language']);
+export const FIELD_TYPES = ['text', 'date', 'select', 'multiselect'];
+// Where a lead came from (automatic: whatsapp, ad, import; set by hand: the rest)
+export const LEAD_SOURCES = ['whatsapp', 'ad', 'import', 'manual', 'website', 'walkin', 'referral', 'call', 'other'];
+export const MANUAL_SOURCES = ['manual', 'website', 'walkin', 'referral', 'call', 'other'];
 
 export const fieldKeyFromLabel = (label) =>
   String(label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'field';
 
 export const isReservedFieldKey = (key) => RESERVED.has(key);
 
-export const getContactFields = (tenant) => (tenant?.settings?.contactFields || []).map(({ key, label, type }) => ({ key, label, type: type || 'text' }));
+export const getContactFields = (tenant) =>
+  (tenant?.settings?.contactFields || []).map(({ key, label, type, options }) => ({
+    key,
+    label,
+    type: type || 'text',
+    ...((type === 'select' || type === 'multiselect') && { options: [...(options || [])] }),
+  }));
 
 // Is customFields.<key> a date field (birthday, anniversary...)?
 export const isDateField = (tenant, key) => getContactFields(tenant).some((f) => f.key === key && f.type === 'date');
@@ -62,6 +72,16 @@ export function normalizeCustomFields(tenant, values = {}, { strict = false } = 
         continue;
       }
       out[key] = iso;
+    } else if ((def?.type === 'select' || def?.type === 'multiselect') && value) {
+      // Dropdown fields: use the option's own spelling; multi-select is stored as "A, B"
+      const parts = def.type === 'multiselect' ? value.split(',').map((v) => v.trim()).filter(Boolean) : [value];
+      const picked = [];
+      for (const p of parts) {
+        const opt = def.options.find((o) => o.toLowerCase() === p.toLowerCase());
+        if (!opt && strict) throw badRequest(`"${p}" is not an option of "${def.label}" (${def.options.join(', ')})`);
+        picked.push(opt || p);
+      }
+      out[key] = [...new Set(picked)].join(', ');
     } else {
       out[key] = value;
     }

@@ -181,6 +181,20 @@ function templateComponents(template) {
     }),
   });
   if (template.footer) components.push({ type: 'FOOTER', text: template.footer });
+  if (template.buttons?.length) {
+    // Meta wants quick replies grouped together, before the link / call buttons
+    const sorted = [...template.buttons].sort((a, b) => (a.type === 'QUICK_REPLY' ? 0 : 1) - (b.type === 'QUICK_REPLY' ? 0 : 1));
+    components.push({
+      type: 'BUTTONS',
+      buttons: sorted.map((b) =>
+        b.type === 'URL'
+          ? { type: 'URL', text: b.text, url: b.url }
+          : b.type === 'PHONE_NUMBER'
+          ? { type: 'PHONE_NUMBER', text: b.text, phone_number: b.phone }
+          : { type: 'QUICK_REPLY', text: b.text }
+      ),
+    });
+  }
   return components;
 }
 

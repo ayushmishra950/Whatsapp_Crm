@@ -67,3 +67,8 @@ export function emitToSuperAdmins(event, payload) {
 export function emitToTenant(tenantId, event, payload) {
   io?.to(rooms.tenantAdmins(String(tenantId))).to(rooms.tenantAgents(String(tenantId))).emit(event, payload);
 }
+
+// One person (all their open tabs), e.g. a notification for them
+export function emitToUser(userId, event, payload) {
+  io?.to(rooms.user(String(userId))).emit(event, payload);
+}

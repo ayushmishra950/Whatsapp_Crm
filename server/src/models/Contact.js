@@ -34,10 +34,58 @@ const contactSchema = new mongoose.Schema(
     optedOutAt: Date,
     lastMessageAt: Date,
     lastInboundAt: Date, // last message FROM the customer ("contacted us in the last 30 days")
+    course: { type: String, trim: true, uppercase: true, default: '' }, // Course catalog code (DM, AIML…)
+    // Every course the lead looked at in the chatbot and what they did there (newest last, max 20)
+    // actions: viewed | fees | details | demo | interested | not_now | booked
+    courseInterest: {
+      type: [{ _id: false, code: String, name: String, firstAt: Date, lastAt: Date, actions: { type: [String], default: [] } }],
+      default: [],
+    },
+    language: { type: String, enum: ['', 'en', 'hi'], default: '' }, // en = English, hi = Hinglish (auto-detected)
+    languageLocked: { type: Boolean, default: false }, // set by a person: stop auto-detecting
+    callAttempts: { type: Number, default: 0 },
+    lastCallAt: Date,
+    lastCallOutcome: String,
+    nextActionAt: Date, // earliest open task or follow-up (no next action = lead can get lost)
+    statusTimeoutMark: Date, // statusUpdatedAt whose time limit was already handled
     // Follow-up: "message" = also send a WhatsApp template at followUpAt (not just a reminder)
     followUpAction: { type: String, enum: ['remind', 'message'], default: 'remind' },
     followUpTemplateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template' },
     followUpSentAt: Date,
+    // Fees (students): plan + payments; the summary fields are kept up to date for lists and reminders
+    fees: {
+      total: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      note: { type: String, default: '' },
+      installments: {
+        type: [
+          {
+            amount: { type: Number, required: true },
+            dueDate: { type: String, required: true }, // YYYY-MM-DD
+            reminded: { soon: Date, due: Date, overdue: Date },
+          },
+        ],
+        default: [],
+      },
+      payments: {
+        type: [
+          {
+            amount: { type: Number, required: true },
+            date: { type: String, required: true }, // YYYY-MM-DD
+            mode: { type: String, default: '' }, // Cash, UPI, Bank transfer, Card, Cheque
+            receiptNo: { type: String, default: '' },
+            note: { type: String, default: '' },
+            by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            at: { type: Date, default: Date.now },
+          },
+        ],
+        default: [],
+      },
+      paid: { type: Number, default: 0 },
+      balance: { type: Number, default: 0 },
+      nextDue: { type: String, default: '' }, // YYYY-MM-DD of the next unpaid instalment ('' = none)
+      nextAmount: { type: Number, default: 0 },
+    },
     // Refer & earn
     referralCode: { type: String, trim: true, uppercase: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' },
@@ -54,6 +102,10 @@ contactSchema.index({ tenantId: 1, leadStatus: 1 });
 contactSchema.index({ tenantId: 1, followUpAt: 1 });
 contactSchema.index({ tenantId: 1, 'adSource.sourceId': 1 });
 contactSchema.index({ tenantId: 1, lastInboundAt: -1 });
+contactSchema.index({ tenantId: 1, course: 1 });
+contactSchema.index({ tenantId: 1, nextActionAt: 1 });
+contactSchema.index({ tenantId: 1, 'fees.nextDue': 1 });
+contactSchema.index({ 'fees.nextDue': 1 });
 contactSchema.index({ tenantId: 1, referralCode: 1 }, { unique: true, partialFilterExpression: { referralCode: { $type: 'string' } } });
 contactSchema.index({ tenantId: 1, referredBy: 1 });
 contactSchema.index({ followUpAction: 1, followUpSentAt: 1, followUpAt: 1 });

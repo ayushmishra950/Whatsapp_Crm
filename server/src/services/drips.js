@@ -14,6 +14,8 @@ import { resolveVariables } from './variables.js';
 import { segmentQuery, monthDays } from './segments.js';
 import { isSubscriptionActive, messagesUsedThisMonth } from './subscription.js';
 import { emitToTenantAdmins } from './socket.js';
+import { createTask, notify } from './alerts.js';
+import { setStatusByAutomation } from './automation.js';
 import { DEFAULT_TZ, addDays, dayKey, hhmmToMinutes, localMinutes, safeTimeZone, zonedTime } from '../utils/time.js';
 
 const TICK_MS = 20 * 1000;
@@ -51,7 +53,7 @@ function quietEndAfter(date, s) {
 /** When should a step run: base + delayDays, at sendTime (local) if set. Never before "now". */
 export function scheduleStep(base, step, tz) {
   const days = step?.delayDays || 0;
-  const target = new Date(base.getTime() + days * 864e5);
+  const target = new Date(base.getTime() + days * 864e5 + (step?.delayMinutes || 0) * 6e4);
   if (!step?.sendTime) return target;
   const at = zonedTime(dayKey(target, tz), step.sendTime, tz);
   return at < base ? (days === 0 ? base : at) : at;
@@ -68,13 +70,37 @@ export async function enrollContacts(drip, contactIds, { cycle = '', base = new 
   const first = drip.steps[0];
   const nextRunAt = scheduleStep(base, first, tz);
   const docs = contactIds.map((contactId) => ({ tenantId: drip.tenantId, dripId: drip._id, contactId, cycle, nextRunAt, enrolledAt: new Date() }));
-  let added = 0;
-  try {
-    const res = await DripEnrollment.insertMany(docs, { ordered: false });
-    added = res.length;
-  } catch (err) {
-    if (err.code !== 11000 && !err.writeErrors) throw err;
-    added = err.insertedDocs?.length ?? err.result?.insertedCount ?? 0;
+  if (!cycle && drip.trigger?.type === 'status_changed') {
+    // A lead can come back to this status later (Warm → Hot → Warm): the old, finished run is archived so it can start again
+    await DripEnrollment.updateMany(
+      { dripId: drip._id, contactId: { $in: contactIds }, cycle: '', status: { $in: ['stopped', 'completed'] } },
+      [{ $set: { cycle: { $concat: ['done-', { $toString: '$_id' }] } } }],
+      { updatePipeline: true }
+    );
+  }
+  let inserted = [];
+  // In batches of 1000 so no single DB call runs long (see the socket timeout in config/db.js)
+  for (let i = 0; i < docs.length; i += 1000) {
+    try {
+      inserted.push(...(await DripEnrollment.insertMany(docs.slice(i, i + 1000), { ordered: false })));
+    } catch (err) {
+      if (err.code !== 11000 && !err.writeErrors) throw err;
+      inserted.push(...(err.insertedDocs || []));
+    }
+  }
+  const added = inserted.length;
+  if (added && drip.stopOnStatusChange !== false) {
+    // "One drip at a time": a lead in this drip leaves its other status drips
+    const tenant = await Tenant.findById(drip.tenantId).select('settings.automation');
+    if (tenant?.settings?.automation?.oneDripAtATime !== false) {
+      const others = await Drip.find({ tenantId: drip.tenantId, _id: { $ne: drip._id }, stopOnStatusChange: { $ne: false } }).select('_id').lean();
+      if (others.length) {
+        await DripEnrollment.updateMany(
+          { dripId: { $in: others.map((o) => o._id) }, contactId: { $in: inserted.map((e) => e.contactId) }, status: { $in: ['active', 'sending'] } },
+          { $set: { status: 'stopped', stoppedReason: 'other_drip', nextRunAt: null } }
+        );
+      }
+    }
   }
   if (added) emitToTenantAdmins(drip.tenantId, 'drip:update', { _id: drip._id });
   return added;
@@ -96,7 +122,7 @@ export async function triggerDrips(tenantId, event) {
   try {
     const ids = (event.contactIds || []).filter(Boolean);
     if (!ids.length) return;
-    if (event.type === 'status_changed') await stopOnStatus(tenantId, ids, event.status);
+    if (event.type === 'status_changed') await stopOnStatus(tenantId, ids, event.status, event.fromDripId);
 
     const drips = await Drip.find({ tenantId, status: 'active' });
     if (!drips.length) return;
@@ -122,26 +148,45 @@ export async function triggerDrips(tenantId, event) {
   }
 }
 
-async function stopOnStatus(tenantId, contactIds, status) {
+async function stopOnStatus(tenantId, contactIds, status, fromDripId) {
   const drips = await Drip.find({ tenantId, stopStatuses: status }).select('_id');
-  if (!drips.length) return;
-  await DripEnrollment.updateMany(
-    { dripId: { $in: drips.map((d) => d._id) }, contactId: { $in: contactIds }, status: 'active' },
-    { $set: { status: 'stopped', stoppedReason: 'status', nextRunAt: null } }
-  );
+  if (drips.length) {
+    await DripEnrollment.updateMany(
+      { dripId: { $in: drips.map((d) => d._id) }, contactId: { $in: contactIds }, status: 'active' },
+      { $set: { status: 'stopped', stoppedReason: 'status', nextRunAt: null } }
+    );
+  }
+  // "One status = one drip": the lead moved on, so the drip of the old status ends
+  // (except the drip that changed the status itself, and birthday / manual drips)
+  const flow = await Drip.find({ tenantId, stopOnStatusChange: { $ne: false }, ...(fromDripId && { _id: { $ne: fromDripId } }) }).select('_id');
+  if (flow.length) {
+    await DripEnrollment.updateMany(
+      { dripId: { $in: flow.map((d) => d._id) }, contactId: { $in: contactIds }, status: 'active' },
+      { $set: { status: 'stopped', stoppedReason: 'status_changed', nextRunAt: null } }
+    );
+  }
 }
 
-/** Customer replied: leave every drip that stops on reply */
+/**
+ * Customer replied: leave every drip that stops on reply.
+ * Returns the names of the drips the lead was in (so the counsellor can be told a human is needed).
+ */
 export async function stopDripsOnReply(tenantId, contactId) {
   try {
-    const drips = await Drip.find({ tenantId, stopOnReply: true }).select('_id');
-    if (!drips.length) return;
-    await DripEnrollment.updateMany(
-      { dripId: { $in: drips.map((d) => d._id) }, contactId, status: 'active' },
-      { $set: { status: 'stopped', stoppedReason: 'replied', nextRunAt: null } }
-    );
+    const active = await DripEnrollment.find({ tenantId, contactId, status: { $in: ['active', 'sending'] } }).select('dripId').lean();
+    if (!active.length) return [];
+    const drips = await Drip.find({ _id: { $in: active.map((e) => e.dripId) } }).select('name stopOnReply').lean();
+    const stopping = drips.filter((d) => d.stopOnReply).map((d) => d._id);
+    if (stopping.length) {
+      await DripEnrollment.updateMany(
+        { dripId: { $in: stopping }, contactId, status: 'active' },
+        { $set: { status: 'stopped', stoppedReason: 'replied', nextRunAt: null } }
+      );
+    }
+    return drips.map((d) => d.name);
   } catch (err) {
     console.error('[drips] stop on reply error', err.message);
+    return [];
   }
 }
 
@@ -218,7 +263,21 @@ async function processEnrollment(enrollment, now) {
   if (drip.stopStatuses?.includes(contact.leadStatus)) return stop('status');
 
   const step = drip.steps[enrollment.stepIndex];
-  if (!step) return DripEnrollment.updateOne({ _id: enrollment._id }, { $set: { status: 'completed', nextRunAt: null } });
+  if (!step) {
+    await DripEnrollment.updateOne({ _id: enrollment._id }, { $set: { status: 'completed', nextRunAt: null } });
+    return finishDrip(drip, tenant, contact);
+  }
+
+  // Task / alert / status steps do not message the customer: no quiet hours or daily limit
+  if (step.kind && step.kind !== 'message') {
+    let entry = { step: enrollment.stepIndex, at: now, status: 'sent' };
+    try {
+      await runActionStep(drip, step, tenant, contact, now);
+    } catch (err) {
+      entry = { ...entry, status: 'failed', error: err.message };
+    }
+    return advance(drip, enrollment, entry, now, s, tenant, contact);
+  }
 
   if (inQuietHours(now, s)) return fail({ nextRunAt: quietEndAfter(now, s) });
   const blocked = canSendNow(tenant);
@@ -228,23 +287,30 @@ async function processEnrollment(enrollment, now) {
     return fail({ nextRunAt: inQuietHours(tomorrow, s) ? quietEndAfter(tomorrow, s) : tomorrow, lastError: 'Daily limit for this contact reached' });
   }
 
-  const template = await Template.findOne({ _id: step.templateId, tenantId: drip.tenantId });
+  // Hinglish leads get the Hinglish version of the message when the step has one
+  const hindi = contact.language === 'hi' && step.templateIdHi;
+  const template = await Template.findOne({ _id: hindi ? step.templateIdHi : step.templateId, tenantId: drip.tenantId });
+  const variables = hindi ? step.variablesHi : step.variables;
   let entry;
   if (!template || template.status !== 'approved') {
     entry = { step: enrollment.stepIndex, at: now, status: 'skipped', error: template ? 'Template is not approved' : 'Template deleted' };
   } else {
     try {
-      const message = await sendAutomatedTemplate({ tenant, contact, template, variables: step.variables, automation: { kind: 'drip', name: drip.name, dripId: drip._id } });
+      const message = await sendAutomatedTemplate({ tenant, contact, template, variables, automation: { kind: 'drip', name: drip.name, dripId: drip._id } });
       entry = { step: enrollment.stepIndex, at: now, status: message.status === 'failed' ? 'failed' : 'sent', messageId: message._id, error: message.error };
     } catch (err) {
       entry = { step: enrollment.stepIndex, at: now, status: 'failed', error: err.message };
     }
   }
 
+  return advance(drip, enrollment, entry, now, s, tenant, contact);
+}
+
+async function advance(drip, enrollment, entry, now, s, tenant, contact) {
   const nextIndex = enrollment.stepIndex + 1;
   const next = drip.steps[nextIndex];
-  await DripEnrollment.updateOne(
-    { _id: enrollment._id },
+  const res = await DripEnrollment.updateOne(
+    { _id: enrollment._id, status: 'sending' }, // a status step may have stopped this enrollment meanwhile
     {
       $set: next
         ? { status: 'active', stepIndex: nextIndex, nextRunAt: scheduleStep(now, next, s.tz), lastError: entry.error || null }
@@ -252,7 +318,41 @@ async function processEnrollment(enrollment, now) {
       $push: { history: entry },
     }
   );
+  if (!res.modifiedCount) await DripEnrollment.updateOne({ _id: enrollment._id }, { $push: { history: entry } });
+  else if (!next) await finishDrip(drip, tenant, contact);
   emitToTenantAdmins(drip.tenantId, 'drip:update', { _id: drip._id });
+}
+
+const stepText = (text, contact) => String(text || '').replace(/\{name\}/gi, contact.name || `+${contact.phone}`);
+
+/** Task / alert / status step */
+async function runActionStep(drip, step, tenant, contact, now) {
+  const who = contact.name || `+${contact.phone}`;
+  if (step.kind === 'task') {
+    await createTask({
+      tenantId: tenant._id, contact, title: stepText(step.text, contact) || 'Call this lead', kind: 'call',
+      dueAt: new Date(now.getTime() + (step.dueMinutes || 0) * 6e4), source: 'automation', sourceName: drip.name,
+    });
+  } else if (step.kind === 'alert') {
+    await notify(tenant._id, { to: 'counsellor', contact, kind: 'alert', title: stepText(step.text, contact) || `Check ${who}`, body: `${who} · ${drip.name}` });
+  } else if (step.kind === 'status') {
+    if (!step.setStatus) throw new Error('No status chosen');
+    await setStatusByAutomation(tenant, contact, step.setStatus, `drip "${drip.name}"`, { fromDripId: drip._id });
+  }
+}
+
+/** Last step done: drip's "when finished" action (e.g. move to Nurture – Later) */
+async function finishDrip(drip, tenant, contact) {
+  const oc = drip.onComplete || {};
+  try {
+    if (oc.addTag && !contact.tags.includes(oc.addTag)) {
+      await Contact.updateOne({ _id: contact._id }, { $addToSet: { tags: oc.addTag } });
+      triggerDrips(tenant._id, { type: 'tag_added', contactIds: [contact._id], tags: [oc.addTag] });
+    }
+    if (oc.setStatus) await setStatusByAutomation(tenant, await Contact.findById(contact._id), oc.setStatus, `drip "${drip.name}" finished`, { fromDripId: drip._id });
+  } catch (err) {
+    console.error('[drips] on complete error', err.message);
+  }
 }
 
 /** Follow-ups set to "send a WhatsApp message" that are due */

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useLeadStatuses } from "@/lib/lead-statuses";
 import { useContactFields } from "@/lib/contact-fields";
 import { useToast } from "@/components/toast";
+import { LEAD_SOURCES } from "@/lib/contact-fields";
 import { Button, Input, Select, cx } from "@/components/ui";
 
 /**
@@ -32,12 +33,7 @@ const WHEN = [
   ["this_month", "This month"],
   ["next_month", "Next month"],
 ];
-const SOURCES = [
-  ["whatsapp", "WhatsApp"],
-  ["ad", "Facebook / Insta ad"],
-  ["import", "Sheet import"],
-  ["manual", "Added by hand"],
-];
+const SOURCES = LEAD_SOURCES;
 
 const chip = (on) => cx("rounded-full border px-2.5 py-0.5 text-xs", on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-600 hover:bg-slate-50");
 const toggleIn = (list = [], v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);

@@ -9,6 +9,19 @@ const templateSchema = new mongoose.Schema(
     header: { type: String, default: '' },
     body: { type: String, required: true }, // supports {{1}}, {{2}} ...
     footer: { type: String, default: '' },
+    // Buttons shown under the message: quick replies (the tap comes back as the customer's reply) and links / call
+    buttons: {
+      type: [
+        {
+          _id: false,
+          type: { type: String, enum: ['QUICK_REPLY', 'URL', 'PHONE_NUMBER'], default: 'QUICK_REPLY' },
+          text: { type: String, required: true, trim: true, maxlength: 25 },
+          url: { type: String, default: '' },
+          phone: { type: String, default: '' },
+        },
+      ],
+      default: [],
+    },
     status: { type: String, enum: ['draft', 'pending', 'approved', 'rejected'], default: 'draft' },
     rejectionReason: String,
     metaTemplateId: String,

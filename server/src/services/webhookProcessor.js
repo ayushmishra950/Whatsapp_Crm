@@ -8,6 +8,7 @@ import { runChatbot } from './chatbot.js';
 import { autoLeadStatus, getLeadStatuses } from './leadStatuses.js';
 import { triggerDrips, stopDripsOnReply } from './drips.js';
 import { detectReferral } from './referrals.js';
+import { beforeInbound, afterInbound } from './automation.js';
 
 const STATUS_RANK = { queued: 0, sending: 0, pending: 0, sent: 1, delivered: 2, read: 3 };
 const STAT_FOR_RANK = { 1: 'sent', 2: 'delivered', 3: 'read' };
@@ -115,6 +116,7 @@ export async function processInbound(tenant, msg, profileName) {
     if (!contact.tags.includes('facebook-ad')) contact.tags.push('facebook-ad');
   }
   // Every ad gets a row on the Ads page; the admin's tag for that ad goes on the lead
+  let adCourseCode = '';
   if (referral?.sourceId) {
     const ad = await AdSource.findOneAndUpdate(
       { tenantId: tenant._id, sourceId: referral.sourceId },
@@ -125,6 +127,7 @@ export async function processInbound(tenant, msg, profileName) {
       { upsert: true, returnDocument: 'after' }
     );
     if (ad.tag && contact.adSource?.sourceId === referral.sourceId && !contact.tags.includes(ad.tag)) contact.tags.push(ad.tag);
+    if (ad.courseCode) adCourseCode = ad.courseCode;
   }
   if (contact.isModified()) await contact.save();
 
@@ -136,6 +139,12 @@ export async function processInbound(tenant, msg, profileName) {
   if (optOutWords.includes(keyword) && !contact.optedOut) {
     contact.optedOut = true;
     contact.optedOutAt = new Date();
+    // Businesses with an "Opted out" status (Infonic preset) see it in the pipeline too
+    if (getLeadStatuses(tenant).some((s) => s.key === 'opted_out')) {
+      contact.leadStatus = 'opted_out';
+      contact.statusUpdatedAt = new Date();
+      contact.statusUpdatedBy = undefined;
+    }
     await contact.save();
   } else if (keyword === 'START' && contact.optedOut) {
     contact.optedOut = false;
@@ -181,14 +190,21 @@ export async function processInbound(tenant, msg, profileName) {
   contact.lastInboundAt = receivedAt;
   // Refer & earn: a referral code in the message links this lead to the person who referred them
   const referrer = await detectReferral(tenant, contact, parsed.text).catch(() => null);
-  // Customer wrote "interested" / "not interested" -> update the lead status (Settings → Automation)
-  const statusChange = autoLeadStatus(tenant, contact, parsed.text);
+  // Language, course, "came back" rule and hot-word / objection rules (Settings → Automation)
+  const effects = await beforeInbound({ tenant, contact, text: parsed.text, isNewContact, statusBefore, adCourseCode, isButtonReply: !!parsed.interactiveReplyId }).catch((err) => {
+    console.error('[automation] inbound error', err.message);
+    return { notes: [], alerts: [], tasks: [], statusReason: null };
+  });
+  // Customer wrote "interested" / "not interested" -> update the lead status (unless a rule above already did)
+  const statusChange = effects.statusReason ? null : autoLeadStatus(tenant, contact, parsed.text);
   await contact.save();
 
   // Show the customer's message first, then let the bot answer
   await emitMessage(conversation._id, message);
-  // A reply ends drips that stop on reply
-  if (!isNewContact) await stopDripsOnReply(tenant._id, contact._id);
+  // A reply ends drips that stop on reply (and tells the counsellor)
+  const dripsInterrupted = isNewContact ? [] : await stopDripsOnReply(tenant._id, contact._id);
+  // Automation notes in the chat right after the customer's message (alerts / tasks come after assignment)
+  await afterInbound({ tenant, contact, effects: { ...effects, alerts: [], tasks: [] } }).catch((err) => console.error('[automation] notes error', err.message));
 
   if (referrer) {
     const note = await Message.create({
@@ -247,6 +263,8 @@ export async function processInbound(tenant, msg, profileName) {
       emitConversationEvent(fresh, 'conversation:updated', fresh, { wasUnassigned: !before });
     }
   }
+  // Notes, alerts and tasks from the automations (after assignment, so they reach the right counsellor)
+  await afterInbound({ tenant, contact, effects: { ...effects, notes: [] }, dripsInterrupted }).catch((err) => console.error('[automation] after inbound error', err.message));
   return message;
 }
 

@@ -12,6 +12,17 @@ export const DEFAULT_LEAD_STATUSES = [
 ];
 export const STATUS_COLORS = ["gray", "blue", "green", "yellow", "red", "purple"];
 
+// The 7 stages of a lead (same as the server); every status can belong to one
+export const STAGES = [
+  { key: "new", label: "New" },
+  { key: "contacted", label: "Contacted" },
+  { key: "interested", label: "Interested" },
+  { key: "demo", label: "Demo" },
+  { key: "admission", label: "Admission" },
+  { key: "converted", label: "Converted" },
+  { key: "closed", label: "Nurture & Lost" },
+];
+
 /** The business's own lead statuses + helpers */
 export function useLeadStatuses() {
   const { session } = useAuth();
@@ -21,5 +32,7 @@ export function useLeadStatuses() {
     list,
     label: (key) => byKey[key]?.label || key || "—",
     color: (key) => byKey[key]?.color || "gray",
+    // Stages used by this business, with their status keys (for stage tabs)
+    stages: STAGES.map((st) => ({ ...st, keys: list.filter((s) => s.stage === st.key).map((s) => s.key) })).filter((st) => st.keys.length),
   };
 }

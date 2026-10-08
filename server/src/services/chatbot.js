@@ -15,6 +15,13 @@ import { emitConversationEvent } from './socket.js';
 import { getLeadStatuses } from './leadStatuses.js';
 import { isDateField } from './contactFields.js';
 import { checkAnswer } from './answerTypes.js';
+import { handleCourseFlow, openCourseIfKnown } from './courseBot.js';
+import { automationNote, createTask, notify } from './alerts.js';
+import { statusLabel } from './leadStatuses.js';
+
+// Button / row ids that belong to the course flow (also taps on older messages)
+const COURSE_IDS = /^(nav_courses|cat_|crs_|cf_|aq_)/;
+const COURSE_STEPS = new Set(['course_areas', 'course_list', 'course', 'course_q']);
 
 const LOOP_WINDOW_MS = 10 * 60 * 1000;
 const LOOP_MAX_REPLIES = 15; // bot turns (answers to customer messages) per chat per 10 minutes, then hand off (bot-to-bot loop guard)
@@ -98,7 +105,9 @@ function findOption(bot, parsed) {
   if (!text) return null;
   const index = /^\d{1,2}$/.test(text) ? Number(text) - 1 : -1; // customer typed "2"
   if (index >= 0 && bot.menu[index]) return bot.menu[index];
-  return bot.menu.find((o) => norm(o.title) === text) || null;
+  // Ignore emojis / punctuation: a template button "Explore courses" picks "📚 Explore courses"
+  const bare = (v) => norm(v).replace(/[^a-z0-9\u0900-\u097f]+/g, ' ').trim();
+  return bot.menu.find((o) => norm(o.title) === text) || (bare(text) && bot.menu.find((o) => bare(o.title) === bare(text))) || null;
 }
 
 // Guess from part of an option name. Used only after the admin's own keyword rules found nothing.
@@ -267,6 +276,16 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       state.justStarted = true;
     }
 
+    // ---- course flow (coaching institutes with a "Courses" menu option) ----
+    const courseFlow = fullTenant.businessType === 'coaching' && bot.menu.some((o) => o.action === 'courses');
+    let courseResult = null; // { status, booking } to apply after the turn
+    const activity = []; // course history lines of this turn ("📘 Digital Marketing (DM): checked the fees")
+    const runCourse = async (extra = {}) => {
+      const r = await handleCourseFlow({ bot, contact, state, parsed, send, sendText, now, tenant: fullTenant, activity, ...extra });
+      if (r.handled) courseResult = r;
+      return r.handled;
+    };
+
     // ---- loop guard ----
     if (!state.windowStartedAt || now - state.windowStartedAt > LOOP_WINDOW_MS) {
       state.windowStartedAt = now;
@@ -286,6 +305,19 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
         state.questionIndex = 0;
         state.fallbackCount = 0;
         await sendMenu();
+      } else if (courseFlow && (COURSE_IDS.test(parsed.interactiveReplyId || '') || COURSE_STEPS.has(state.step)) && (await runCourse())) {
+        // handled by the course flow
+        if (courseResult?.tag) addTag(courseResult.tag);
+        if (courseResult?.handoff) outcome = await finish(courseResult.booking ? 'lead_complete' : 'handoff', '');
+      } else if (courseFlow && state.justStarted && !findOption(bot, parsed) && (await (async () => {
+        // First message names a course (from the ad, or words like "digital marketing"): open that course straight away
+        const r = await openCourseIfKnown({ bot, contact, state, parsed, send, sendText, now, tenant: fullTenant, activity });
+        if (r.handled) courseResult = r;
+        return r.handled;
+      })())) {
+        state.fallbackCount = 0;
+        if (courseResult?.tag) addTag(courseResult.tag);
+        if (courseResult?.handoff) outcome = await finish(courseResult.booking ? 'lead_complete' : 'handoff', '');
       } else if (state.step === 'question') {
         // ---- collecting lead details ----
         const q = bot.leadQuestions[state.questionIndex];
@@ -327,11 +359,20 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
         // Exact pick first, then the admin's keyword rules, then a guess from part of an option name
         const exactOption = findOption(bot, parsed);
         const rule = exactOption ? null : findKeywordRule(bot, parsed.text);
-        const option = exactOption || (rule ? null : findOptionByPartialName(bot, parsed));
-        if (option) {
+        // Coaching: a typed question ("emi hai?") or a course name is answered before guessing a menu option
+        const courseFirst = !exactOption && !rule && courseFlow && !parsed.interactiveReplyId && (await runCourse());
+        const option = courseFirst ? null : exactOption || (rule ? null : findOptionByPartialName(bot, parsed));
+        if (courseFirst) {
+          state.fallbackCount = 0;
+          if (courseResult?.tag) addTag(courseResult.tag);
+          if (courseResult?.handoff) outcome = await finish(courseResult.booking ? 'lead_complete' : 'handoff', '');
+        } else if (option) {
           state.fallbackCount = 0;
           addTag(option.tag);
-          if (option.action === 'handoff') {
+          if (option.action === 'courses' && courseFlow) {
+            if (option.replyText?.trim()) await sendText(option.replyText);
+            await runCourse({ fromMenu: true });
+          } else if (option.action === 'handoff') {
             outcome = await finish('handoff', option.replyText || bot.handoffText);
           } else if (option.action === 'lead') {
             if (!bot.leadQuestions.length) {
@@ -366,14 +407,25 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
 
     if (answeredThisTurn) state.repliesInWindow = (state.repliesInWindow || 0) + 1;
     delete state.justStarted;
+    // Course flow moved the lead on (booked a counselling call / "not now")
+    let statusNote = null;
+    if (courseResult?.status && courseResult.status !== contact.leadStatus) {
+      statusNote = `Lead status changed by the chatbot: ${statusLabel(fullTenant, contact.leadStatus)} → ${statusLabel(fullTenant, courseResult.status)}`;
+      contact.leadStatus = courseResult.status;
+      contact.statusUpdatedAt = now;
+      contact.statusUpdatedBy = undefined;
+    }
     conv.set('bot', state);
     await conv.save();
     await contact.save();
+    if (activity.length) await automationNote(fullTenant, contact, activity.join('\n'));
+    if (statusNote) await automationNote(fullTenant, contact, statusNote);
 
     if (outcome === 'handoff') {
       const wasUnassigned = !conv.assignedTo;
       await autoAssign(fullTenant, conv);
       await emitConversation(conv._id, { wasUnassigned });
+      if (courseResult?.booking) await afterBooking(fullTenant, contact, courseResult.booking, now);
       return false;
     }
     // Bot state changed (started / next question...) -> keep open Inboxes in sync
@@ -414,4 +466,26 @@ export async function setBotForConversation({ tenant, conversation, contact, act
     throw Object.assign(new Error(message.error || 'Could not send the bot menu'), { status: 502 });
   }
   return conversation;
+}
+
+/** Booked through the chatbot: a call task for the counsellor (after assignment), an alert and a summary note */
+async function afterBooking(tenant, contact, b, now) {
+  try {
+    const who = contact.name?.trim() || `+${contact.phone}`;
+    const details = [b.course, b.mode, b.start, b.call && `call ${b.call}`].filter(Boolean).join(' · ');
+    await automationNote(tenant, contact, `🤖 Booked free counselling via chatbot\n📘 ${b.course}\n👤 ${[b.profile, b.goal].filter(Boolean).join(' · ') || '—'}\n🏫 ${b.mode || 'mode not decided'} · 🗓 ${b.start || '—'}${b.city ? ` · 📍 ${b.city}` : ''}\n📞 Call: ${b.call || 'any time'}`);
+    await createTask({
+      tenantId: tenant._id,
+      contact,
+      title: `Call ${who} – ${b.course}${b.call ? ` (${b.call})` : ''}`,
+      kind: 'call',
+      dueAt: new Date(now.getTime() + 30 * 60 * 1000),
+      source: 'automation',
+      sourceName: 'Chatbot booking',
+      silent: true,
+    });
+    await notify(tenant._id, { to: 'counsellor', contact, kind: b.start === 'This month' ? 'hot' : 'task', title: `${b.start === 'This month' ? '🔥 ' : ''}${who} booked counselling: ${b.course}`, body: details });
+  } catch (err) {
+    console.error('[chatbot] booking follow-up error', err.message);
+  }
 }

@@ -1,7 +1,20 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
-import { User, Tenant } from '../models/index.js';
+import { User, Tenant, Plan } from '../models/index.js';
 import { unauthorized, forbidden } from '../utils/http.js';
+
+// Plans change rarely: keep them in memory for a minute (every API call needs the business's plan)
+const planCache = new Map(); // id -> { plan, at }
+const PLAN_TTL_MS = 60 * 1000;
+async function cachedPlan(id) {
+  const key = String(id);
+  const hit = planCache.get(key);
+  if (hit && Date.now() - hit.at < PLAN_TTL_MS) return hit.plan;
+  const plan = await Plan.findById(key);
+  if (plan) planCache.set(key, { plan, at: Date.now() });
+  return plan || id;
+}
+export const clearPlanCache = () => planCache.clear();
 
 export function signToken(user, { impersonatedBy } = {}) {
   const payload = { sub: String(user._id) };
@@ -24,7 +37,8 @@ export async function resolveSession(token) {
 
   let tenant = null;
   if (user.tenantId) {
-    tenant = await Tenant.findById(user.tenantId).populate('plan');
+    tenant = await Tenant.findById(user.tenantId);
+    if (tenant?.plan) tenant.plan = await cachedPlan(tenant.plan); // same as populate('plan'), one DB call less
     if (!tenant) throw unauthorized('Business not found');
     // Super admin can still enter a suspended business while impersonating
     if (tenant.status === 'suspended' && !payload.imp) {

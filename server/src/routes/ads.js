@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { AdSource, Contact } from '../models/index.js';
+import { AdSource, Course, Contact } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
 import { validate, notFound } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { triggerDrips } from '../services/drips.js';
+import { isCoaching } from '../services/coaching.js';
 
 /**
  * Facebook / Instagram Click-to-WhatsApp ads. Every ad that brought a lead is listed; the admin names
@@ -65,6 +66,7 @@ router.patch('/:id', authorize('admin'), async (req, res) => {
     z.object({
       name: z.string().trim().max(80).optional(),
       tag: z.string().trim().toLowerCase().max(40).regex(/^[a-z0-9 _-]*$/, 'Tag can use letters, numbers, - and _').optional(),
+      courseCode: z.string().trim().toUpperCase().max(20).optional(),
       applyToExisting: z.boolean().default(true),
     }),
     req.body
@@ -74,7 +76,16 @@ router.patch('/:id', authorize('admin'), async (req, res) => {
   if (!ad) throw notFound('Ad not found');
   if (data.name !== undefined) ad.name = data.name;
   if (data.tag !== undefined) ad.tag = data.tag.replace(/\s+/g, '-');
+  if (data.courseCode !== undefined && isCoaching(req.tenant)) {
+    if (data.courseCode && !(await Course.exists({ tenantId: req.tenantId, code: data.courseCode }))) throw notFound('Course not found');
+    ad.courseCode = data.courseCode;
+  }
   await ad.save();
+  // Leads from this ad without a course get the ad's course
+  let coursed = 0;
+  if (ad.courseCode && data.applyToExisting) {
+    coursed = (await Contact.updateMany({ tenantId: req.tenantId, 'adSource.sourceId': ad.sourceId, course: { $in: ['', null] } }, { $set: { course: ad.courseCode } })).modifiedCount;
+  }
   let tagged = 0;
   if (ad.tag && data.applyToExisting) {
     const ids = (await Contact.find({ tenantId: req.tenantId, 'adSource.sourceId': ad.sourceId, tags: { $ne: ad.tag } }).select('_id').lean()).map((c) => c._id);
@@ -85,7 +96,7 @@ router.patch('/:id', authorize('admin'), async (req, res) => {
     }
   }
   await audit(req, 'ad.update', { targetType: 'AdSource', targetId: ad._id, meta: { name: ad.name, tag: ad.tag, tagged } });
-  res.json({ ad, tagged });
+  res.json({ ad, tagged, coursed });
 });
 
 export default router;

@@ -33,7 +33,8 @@ export function triggerSummary(t, { statusLabel, fieldLabel }) {
 }
 
 
-const step = (delayDays = 0, sendTime = "") => ({ templateId: "", variables: [], delayDays, sendTime });
+export const newStep = (delayDays = 0, sendTime = "", kind = "message") => ({ kind, templateId: "", variables: [], templateIdHi: "", variablesHi: [], text: "", dueMinutes: 30, setStatus: "", delayDays, delayMinutes: 0, sendTime });
+const step = newStep;
 
 /** Pre-filled drip for an idea (templates are picked by the admin) */
 export function draftFromIdea(id, { dateFields = [], statuses = [] } = {}) {
@@ -41,7 +42,7 @@ export function draftFromIdea(id, { dateFields = [], statuses = [] } = {}) {
   const stop = ["converted", "lost"].filter(has);
   const bday = dateFields.find((f) => /birth|dob|bday/i.test(f.key + f.label)) || dateFields[0];
   const anniv = dateFields.find((f) => /anniv/i.test(f.key + f.label)) || dateFields[0];
-  const base = { name: "", trigger: { type: "manual", sources: [], adIds: [], tags: [], statuses: [], field: "", offsetDays: 0 }, condition: {}, steps: [step()], stopOnReply: true, stopStatuses: stop };
+  const base = { name: "", trigger: { type: "manual", sources: [], adIds: [], tags: [], statuses: [], field: "", offsetDays: 0 }, condition: {}, steps: [step()], stopOnReply: true, stopStatuses: stop, onComplete: { setStatus: "", addTag: "" } };
   switch (id) {
     case "welcome":
       return { ...base, name: "Welcome series", trigger: { ...base.trigger, type: "new_lead" }, steps: [step(0), step(2, "11:00"), step(3, "11:00")] };
@@ -59,3 +60,25 @@ export function draftFromIdea(id, { dateFields = [], statuses = [] } = {}) {
       return base;
   }
 }
+
+// Playbook groups (Drips & Automations playbook): drips are shown in these batches, in playbook order
+export const DRIP_GROUPS = [
+  { key: "first", label: "🤝 Get the first conversation", ids: [1, 2, 3, 4] },
+  { key: "interest", label: "🔥 Move interest to action", ids: [5, 6] },
+  { key: "blocker", label: "🧱 Remove the blocker", ids: [7, 8] },
+  { key: "class", label: "🎓 Get them into a class", ids: [9, 10] },
+  { key: "close", label: "✅ Close the admission", ids: [11, 12] },
+  { key: "succeed", label: "🚀 Make them succeed", ids: [13, 14, 27] },
+  { key: "grow", label: "🎁 Grow from happy students", ids: [15, 18, 19] },
+  { key: "winback", label: "🔁 Win them back", ids: [16, 17, 28] },
+  { key: "ops", label: "🏫 Run the institute (fees, classes, attendance)", ids: [20, 21, 22, 23, 24, 25, 26] },
+];
+/** Playbook number of a drip ("D12 Fee pending" -> 12), or null for your own drips */
+export const dripNumber = (name = "") => {
+  const m = /^D(\d{1,2})\b/.exec(name.trim());
+  return m ? Number(m[1]) : null;
+};
+export const groupOf = (name) => {
+  const n = dripNumber(name);
+  return n ? DRIP_GROUPS.find((g) => g.ids.includes(n))?.key || "mine" : "mine";
+};

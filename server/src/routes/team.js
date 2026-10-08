@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { User, Conversation } from '../models/index.js';
+import { User, Conversation, Contact } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
 import { validate, notFound, conflict, forbidden } from '../utils/http.js';
 import { audit } from '../services/audit.js';
@@ -58,7 +58,9 @@ router.patch('/:id', authorize('admin'), async (req, res) => {
 
   if (data.isActive === false) {
     // Release chats of a disabled agent back to the unassigned queue
-    await Conversation.updateMany({ tenantId: req.tenantId, assignedTo: agent._id, status: { $ne: 'resolved' } }, { $set: { assignedTo: null } });
+    const released = await Conversation.find({ tenantId: req.tenantId, assignedTo: agent._id, status: { $ne: 'resolved' } }).select('contactId').lean();
+    await Conversation.updateMany({ _id: { $in: released.map((c) => c._id) } }, { $set: { assignedTo: null } });
+    await Contact.updateMany({ _id: { $in: released.map((c) => c.contactId) }, assignedTo: agent._id }, { $set: { assignedTo: null } });
   }
   await audit(req, 'agent.update', { targetType: 'User', targetId: agent._id, meta: { ...data, password: data.password ? '***' : undefined } });
   res.json(agent);
@@ -68,6 +70,7 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
   const agent = await User.findOne({ _id: req.params.id, tenantId: req.tenantId, role: 'agent' });
   if (!agent) throw notFound('Agent not found');
   await Conversation.updateMany({ tenantId: req.tenantId, assignedTo: agent._id }, { $set: { assignedTo: null } });
+  await Contact.updateMany({ tenantId: req.tenantId, assignedTo: agent._id }, { $set: { assignedTo: null } });
   await agent.deleteOne();
   await audit(req, 'agent.delete', { targetType: 'User', targetId: agent._id, meta: { email: agent.email } });
   res.json({ ok: true });

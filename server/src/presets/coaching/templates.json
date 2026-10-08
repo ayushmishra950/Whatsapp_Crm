@@ -1,0 +1,1613 @@
+[
+  {
+    "name": "welcome_nudge",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}} 👋 Thanks for checking out {{course}} at Infonic Training. Any question about fees, timings or online classes? Just reply here — we answer in minutes.",
+    "hi": "Hi {{name}} 👋 Infonic Training mein {{course}} dekhne ke liye thank you. Fees, timing ya online class ka koi sawaal? Yahin reply karo — minuton mein jawab milega.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Course details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Call me"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_value",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}}, here's what you'll be able to do after {{course}}: {{outcome}} ✅\n\nYou'll work on real projects and leave with a portfolio you can show. Want the full details?",
+    "hi": "Hi {{name}}, {{course}} ke baad aap ye kar paoge: {{outcome}} ✅\n\nReal projects par kaam karoge aur ek portfolio banega jo aap dikha sako. Poori details bhejun?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, send details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Fees"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_proof",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}}, 3,000+ students have trained with us since 2012, and they rate us 4.9/5 ⭐\n\nSee what they say: {{review_link}}\n\nAny doubts? Reply anytime.",
+    "hi": "Hi {{name}}, 2012 se 3,000+ students humare saath train hue hain, aur unhone 4.9/5 ⭐ rating di hai.\n\nUnki baat suniye: {{review_link}}\n\nKoi doubt? Kabhi bhi reply karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_demo",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}}, the next {{course}} batch starts on {{batch_date}}. Before you decide, sit in a free demo class — in our classroom or online. Shall we book one?",
+    "hi": "Hi {{name}}, {{course}} ka agla batch {{batch_date}} se shuru ho raha hai. Decide karne se pehle ek free demo class dekh lo — classroom ya online. Book karein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_offer",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}}, a quick heads-up: this month you can save up to 20% on {{course}} when you enrol on the spot or with a friend (T&C apply). Want our counsellor to check what applies to you?",
+    "hi": "Hi {{name}}, ek zaroori baat: is mahine on-the-spot ya dost ke saath join karne par {{course}} par 20% tak bachat ho sakti hai (T&C apply). Counsellor se check karwayein aap par kya lagega?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, check for me"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_exit",
+    "category": "MARKETING",
+    "drip": "D1",
+    "en": "Hi {{name}}, we don't want to disturb you 🙏 Should we keep you posted about new {{course}} batches, or would you like to talk to a counsellor now?",
+    "hi": "Hi {{name}}, hum aapko disturb nahi karna chahte 🙏 Naye {{course}} batches ki info bhejte rahein, ya abhi counsellor se baat karni hai?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Keep me posted"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not interested"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "walkin_welcome",
+    "category": "MARKETING",
+    "drip": "",
+    "en": "Hi {{name}} 👋 Thank you for visiting Infonic Training today!\n\nSave this number 📲 Ask anything about courses, fees or batch timings right here on WhatsApp — we reply in minutes.\n\nTap below to see all our courses 👇",
+    "hi": "Hi {{name}} 👋 Aaj Infonic Training aane ke liye thank you!\n\nYe number save kar lijiye 📲 Courses, fees ya batch timing ka koi bhi sawaal yahin WhatsApp par poochiye — minuton mein jawab milega.\n\nSaare courses dekhne ke liye neeche tap kijiye 👇",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Explore courses"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": "Sent the moment a walk-in visitor is added (Contacts → Walk-in)."
+  },
+  {
+    "name": "ad_hello",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Hi {{name}} 👋 You asked about {{course}} on Instagram/Facebook. Quick version: {{outcome}}.\n\nTap below for fees, full details or a free demo class.",
+    "hi": "Hi {{name}} 👋 Aapne Instagram/Facebook par {{course}} ke baare mein poocha tha. Short mein: {{outcome}}.\n\nFees, poori details ya free demo ke liye neeche tap karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Fees & details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Call me"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "ad_fear",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Hi {{name}}, many students ask us: \"Can I do this with no experience / weak English?\" 🙂 Yes. Classes start from the basics, in Hindi and simple English, in small batches where the trainer knows your name.",
+    "hi": "Hi {{name}}, bahut students poochte hain: \"Bina experience / kamzor English ke kar paunga?\" 🙂 Haan. Classes basics se shuru, Hindi aur simple English mein, chhote batch mein jahan trainer aapko naam se jaanta hai.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Course details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "ad_build",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Hi {{name}}, in {{course}} you don't just watch — you build. You'll finish with real projects and a portfolio you can show employers or clients. See our students' work: {{proof_link}}",
+    "hi": "Hi {{name}}, {{course}} mein sirf dekhna nahi — banana hai. Real projects aur ek portfolio ke saath niklo jo employers ya clients ko dikha sako. Students ka kaam dekho: {{proof_link}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Fees & details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "ad_whyus",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Why students choose Infonic 👇\n✅ Small batches · ✅ Hindi + simple English\n✅ Classroom or online live with recordings\n✅ Internship option + placement assistance\n✅ 3,000+ students since 2012 · ★ 4.9/5\n\nTry a free demo before paying anything.",
+    "hi": "Students Infonic kyun chunte hain 👇\n✅ Chhote batch · ✅ Hindi + simple English\n✅ Classroom ya online live, recordings ke saath\n✅ Internship option + placement assistance\n✅ 2012 se 3,000+ students · ★ 4.9/5\n\nPaise dene se pehle free demo try karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Student reviews"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "ad_batch",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Hi {{name}}, the {{course}} batch starting {{batch_date}} is filling up. Weekday and weekend timings, classroom or online. Want us to hold a demo slot for you?",
+    "hi": "Hi {{name}}, {{batch_date}} wala {{course}} batch bhar raha hai. Weekday aur weekend timing, classroom ya online. Aapke liye demo slot rakh dein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Hold a demo slot"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "ad_exit",
+    "category": "MARKETING",
+    "drip": "D2",
+    "en": "Hi {{name}}, last message from us on this 🙏 Should we keep you posted about future batches, or close your enquiry?",
+    "hi": "Hi {{name}}, is baare mein ye humara aakhri message hai 🙏 Aage ke batches ki info bhejte rahein, ya enquiry band kar dein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Keep me posted"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Close enquiry"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "missed_call",
+    "category": "UTILITY",
+    "drip": "D3",
+    "en": "Hi {{name}}, {{counsellor}} from Infonic Training tried calling you about {{course}}. When is a good time to talk?",
+    "hi": "Hi {{name}}, Infonic Training se {{counsellor}} ne aapko {{course}} ke baare mein call kiya tha. Baat karne ka sahi time kya hai?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Morning"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Afternoon"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Evening"
+      }
+    ],
+    "notes": "Chatbot Playbook (section 10) has a different version of this template using positional variables ({{1}}=name, {{2}}=course): EN \"Hi {{1}}, our counsellor tried calling you about {{2}}. When is a good time to talk?\" | HI \"Hi {{1}}, humare counsellor ne aapko {{2}} ke baare mein call kiya tha. Baat karne ka sahi time kya hai?\" | Buttons: Quick reply: Morning · Quick reply: Afternoon · Quick reply: Evening. When: Counsellor couldn't reach the student."
+  },
+  {
+    "name": "missed_whatsapp",
+    "category": "MARKETING",
+    "drip": "D3",
+    "en": "Hi {{name}}, couldn't reach you on call — no problem! You can ask anything about {{course}} right here on WhatsApp 🙂",
+    "hi": "Hi {{name}}, call par baat nahi ho payi — koi baat nahi! {{course}} ke baare mein kuch bhi yahin WhatsApp par poocho 🙂",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Send details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Fees"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Call me later"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "missed_last",
+    "category": "MARKETING",
+    "drip": "D3",
+    "en": "Hi {{name}}, we'll stop trying to reach you so we don't disturb you. If you still want details of {{course}}, just reply \"Hi\" anytime.",
+    "hi": "Hi {{name}}, aapko disturb na karein isliye ab call nahi karenge. {{course}} ki details chahiye ho to kabhi bhi bas \"Hi\" bhej dena.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Send details now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "callback_confirm",
+    "category": "UTILITY",
+    "drip": "D4",
+    "en": "Hi {{name}}, done ✅ {{counsellor}} will call you at {{callback_time}} about {{course}}.",
+    "hi": "Hi {{name}}, ho gaya ✅ {{counsellor}} aapko {{callback_time}} baje {{course}} ke baare mein call karenge.",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "call_summary",
+    "category": "UTILITY",
+    "drip": "D5",
+    "en": "Thanks for speaking with {{counsellor}} today, {{name}}! 😊 Your summary:\n📘 Course: {{course}}\n🎯 Suggested: {{track}}\n🏫 Mode: {{mode}}\n📅 Next batch: {{batch_date}}\n\nNext step: a free demo class. Shall we book it?",
+    "hi": "Aaj {{counsellor}} se baat karne ke liye thank you, {{name}}! 😊 Aapka summary:\n📘 Course: {{course}}\n🎯 Suggestion: {{track}}\n🏫 Mode: {{mode}}\n📅 Agla batch: {{batch_date}}\n\nAgla step: free demo class. Book karein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Send to parents"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "I have a question"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "call_nudge",
+    "category": "MARKETING",
+    "drip": "D5",
+    "en": "Hi {{name}}, did you get a chance to think about {{course}}? If anything is holding you back — fees, timing, family — tell me and we'll find a way.",
+    "hi": "Hi {{name}}, {{course}} ke baare mein socha? Agar kuch rok raha hai — fees, timing, family — batao, hum raasta nikalenge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Fees plan"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Timings"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "warm_story",
+    "category": "MARKETING",
+    "drip": "D6",
+    "en": "Hi {{name}}, many of our students started exactly where you are — unsure, a little nervous. Here's what they say after {{course}}: {{review_link}} ⭐",
+    "hi": "Hi {{name}}, humare bahut students bilkul aapki jagah se shuru hue the — confuse aur thode nervous. {{course}} ke baad wo kya kehte hain, dekhiye: {{review_link}} ⭐",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "warm_demo",
+    "category": "MARKETING",
+    "drip": "D6",
+    "en": "Hi {{name}}, the best way to decide is to see a real class. Free demo, no payment, no pressure — classroom or online. Which day suits you?",
+    "hi": "Hi {{name}}, decide karne ka sabse achha tarika — ek asli class dekhna. Free demo, koi payment nahi, koi pressure nahi — classroom ya online. Kaunsa din suit karega?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "This week"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Next week"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Online demo"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "warm_offer",
+    "category": "MARKETING",
+    "drip": "D6",
+    "en": "Hi {{name}}, joining with a friend? You can both save up to 20% on {{course}} this month (T&C apply). Ask your counsellor for details.",
+    "hi": "Hi {{name}}, dost ke saath join karoge? Is mahine dono {{course}} par 20% tak bacha sakte ho (T&C apply). Details counsellor se poochiye.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Tell me more"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "warm_batch",
+    "category": "MARKETING",
+    "drip": "D6",
+    "en": "Hi {{name}}, a quick update: the {{course}} batch starts on {{batch_date}}. If you'd like to start this month, now is a good time to book your seat.",
+    "hi": "Hi {{name}}, ek update: {{course}} batch {{batch_date}} se shuru ho raha hai. Is mahine shuru karna hai to seat book karne ka yahi sahi time hai.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book my seat"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Next batch"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "warm_exit",
+    "category": "MARKETING",
+    "drip": "D6",
+    "en": "Hi {{name}}, we'll give you some space 🙏 Should we keep you posted about future {{course}} batches?",
+    "hi": "Hi {{name}}, ab hum aapko thoda time dete hain 🙏 Aage ke {{course}} batches ki info bhejte rahein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Keep me posted"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not interested"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "parent_card",
+    "category": "UTILITY",
+    "drip": "D7",
+    "en": "Here's a short summary you can forward to your family 👇\n\n{{course}} at Infonic Training, Jaipur\n✅ What you'll learn: {{outcome}}\n✅ Classroom or online live · small batches · Hindi + English\n✅ Real projects, internship option, placement assistance\n✅ 3,000+ students since 2012 · ★ 4.9/5\n📍 Krishna Tower, Heera Nagar Mode, Ajmer Road, Jaipur\nParents are welcome to visit and sit in a free demo.",
+    "hi": "Ye chhota summary family ko forward kar dijiye 👇\n\n{{course}} — Infonic Training, Jaipur\n✅ Kya seekhenge: {{outcome}}\n✅ Classroom ya online live · chhote batch · Hindi + English\n✅ Real projects, internship option, placement assistance\n✅ 2012 se 3,000+ students · ★ 4.9/5\n📍 Krishna Tower, Heera Nagar Mode, Ajmer Road, Jaipur\nParents centre aakar free demo dekh sakte hain.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book family visit"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "family_visit",
+    "category": "MARKETING",
+    "drip": "D7",
+    "en": "Hi {{name}}, would your parents like to see the centre? They can meet our team, see the classroom and sit in a free demo with you. Which day works?",
+    "hi": "Hi {{name}}, kya aapke parents centre dekhna chahenge? Wo humari team se mil sakte hain, classroom dekh sakte hain aur aapke saath free demo baith sakte hain. Kaunsa din theek rahega?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Weekday"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Weekend"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Call my parents"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "family_call",
+    "category": "MARKETING",
+    "drip": "D7",
+    "en": "Hi {{name}}, if it helps, our counsellor can speak to your parents directly and answer their questions about fees, safety and outcomes. Just share a good time.",
+    "hi": "Hi {{name}}, agar help ho to humare counsellor aapke parents se seedhe baat karke fees, safety aur results ke sawaalon ka jawab de sakte hain. Bas sahi time bata do.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, call them"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not yet"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "price_options",
+    "category": "UTILITY",
+    "drip": "D8",
+    "en": "Totally understand, {{name}} — fees are a big decision 🙏 Ways to make it easier:\n• No-cost EMI on fees above ₹15,000\n• Online live classes cost less (with recordings)\n• Save up to 20% with on-the-spot, group or seasonal offers (T&C)\n• Fast-track options with a smaller fee",
+    "hi": "Bilkul samajh sakte hain, {{name}} — fees bada decision hai 🙏 Ise aasan banane ke tarike:\n• ₹15,000 se upar no-cost EMI\n• Online live classes sasti (recordings ke saath)\n• On-the-spot, group ya seasonal offer mein 20% tak bachat (T&C)\n• Kam fees wale fast-track options",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "EMI plan"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Online option"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "price_value",
+    "category": "MARKETING",
+    "drip": "D8",
+    "en": "Hi {{name}}, a different way to look at it: {{course}} works out to about {{per_day}} a day — less than a daily snack — for a skill you'll use for years.",
+    "hi": "Hi {{name}}, aise sochiye: {{course}} lagbhag {{per_day}} roz padta hai — ek nashte se bhi kam — aur skill saalon kaam aayegi.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "See fee plan"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "price_deadline",
+    "category": "MARKETING",
+    "drip": "D8",
+    "en": "Hi {{name}}, the current offer on {{course}} ends on {{offer_end}}. Want our counsellor to lock it in for you?",
+    "hi": "Hi {{name}}, {{course}} par chal raha offer {{offer_end}} ko khatam ho raha hai. Counsellor aapke liye lock kar dein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, lock it"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_confirm",
+    "category": "UTILITY",
+    "drip": "D9",
+    "en": "Your free {{course}} demo is booked for {{demo_time}} ✅\n📍 2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road (opp. Axis Bank, DCM)\nOnline? We'll send the link an hour before.",
+    "hi": "Aapki free {{course}} demo {{demo_time}} ke liye book hai ✅\n📍 2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road (Axis Bank ke saamne, DCM)\nOnline ho to link ek ghanta pehle bhejenge.",
+    "buttons": [
+      {
+        "type": "URL",
+        "text": "Get directions",
+        "url": ""
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Change time"
+      }
+    ],
+    "notes": "Hinglish line break before \"Online ho to...\" inferred from the English layout (PDF line is ambiguous). Button types are not given in the Drips PDF; \"Get directions\" set as URL (the Chatbot Playbook marks it \"URL: Get directions\"), url left blank."
+  },
+  {
+    "name": "demo_reminder",
+    "category": "UTILITY",
+    "drip": "D9",
+    "en": "Hi {{name}}, see you tomorrow at {{demo_time}} for your free {{course}} demo 😊 Bring any questions — and family are welcome too!",
+    "hi": "Hi {{name}}, kal {{demo_time}} baje aapki free {{course}} demo hai 😊 Apne sawaal le aana — family bhi aa sakti hai!",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "I'll be there"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Change time"
+      }
+    ],
+    "notes": "Chatbot Playbook (section 10) has a different version of this template using positional variables ({{1}}=name, {{2}}=course, {{3}}=demo time): EN \"Hi {{1}}, just a reminder: your free {{2}} demo class is tomorrow at {{3}}. Joining online? We'll send the link an hour before. See you! 😊\" | HI \"Hi {{1}}, yaad dila dein: aapki free {{2}} demo class kal {{3}} baje hai. Online join kar rahe ho to link ek ghanta pehle bhejenge. Milte hain! 😊\" | Buttons: Quick reply: I'll be there · Quick reply: Change time. When: Evening before the demo."
+  },
+  {
+    "name": "demo_today",
+    "category": "UTILITY",
+    "drip": "D9",
+    "en": "Hi {{name}}, your demo is today at {{demo_time}}. Here's the location: {{maps_link}} (online link: {{meet_link}}). See you soon!",
+    "hi": "Hi {{name}}, aaj {{demo_time}} baje aapki demo hai. Location: {{maps_link}} (online link: {{meet_link}}). Jaldi milte hain!",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "noshow_rebook",
+    "category": "MARKETING",
+    "drip": "D10",
+    "en": "Hi {{name}}, we missed you at today's demo — no worries, things come up! 😊 Want to pick another time this week?",
+    "hi": "Hi {{name}}, aaj demo mein aapki kami lagi — koi baat nahi, ho jaata hai! 😊 Is hafte koi aur time chunein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Tomorrow"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "This weekend"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Online demo"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "noshow_online",
+    "category": "MARKETING",
+    "drip": "D10",
+    "en": "Hi {{name}}, if travelling is hard, you can join a live class online as your demo — same trainer, from home. Shall I send a slot?",
+    "hi": "Hi {{name}}, aana mushkil ho to online live class ko demo ki tarah join kar sakte ho — wahi trainer, ghar se. Slot bhejun?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, online slot"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Later"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_thanks",
+    "category": "UTILITY",
+    "drip": "D11",
+    "en": "Thanks for coming today, {{name}}! 🙌 How did you find the {{course}} class?",
+    "hi": "Aaj aane ke liye thank you, {{name}}! 🙌 {{course}} ki class kaisi lagi?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Loved it"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "I have questions"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need time"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_plan",
+    "category": "MARKETING",
+    "drip": "D11",
+    "en": "Hi {{name}}, here's the plan we discussed: {{track}} for {{course}}, starting {{batch_date}}. EMI and online options available. Want to book your seat?",
+    "hi": "Hi {{name}}, jo plan discuss hua tha: {{course}} ke liye {{track}}, {{batch_date}} se shuru. EMI aur online options available. Seat book karein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book my seat"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_story",
+    "category": "MARKETING",
+    "drip": "D11",
+    "en": "Hi {{name}}, one of our students felt exactly the same after their demo — here's where they are now: {{proof_link}} 🌟",
+    "hi": "Hi {{name}}, humare ek student ko demo ke baad bilkul aisa hi laga tha — dekhiye wo ab kahan hain: {{proof_link}} 🌟",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book my seat"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Ask a question"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_deadline",
+    "category": "MARKETING",
+    "drip": "D11",
+    "en": "Hi {{name}}, the {{batch_date}} batch is almost full, and the current offer ends {{offer_end}}. Shall we hold your seat?",
+    "hi": "Hi {{name}}, {{batch_date}} wala batch lagbhag full hai, aur offer {{offer_end}} ko khatam ho raha hai. Aapki seat hold karein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Hold my seat"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Next batch"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "fee_details",
+    "category": "UTILITY",
+    "drip": "D12",
+    "en": "Great decision, {{name}}! 🎉 To confirm your seat in the {{batch_date}} {{course}} batch:\n💳 Amount: {{amount}}\n🏦 Pay at the centre or by transfer: {{payment_details}}\nYou'll get a receipt every time.",
+    "hi": "Bahut badhiya decision, {{name}}! 🎉 {{batch_date}} ke {{course}} batch mein seat confirm karne ke liye:\n💳 Amount: {{amount}}\n🏦 Centre par ya transfer se: {{payment_details}}\nHar baar receipt milegi.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Paid ✅"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need help"
+      }
+    ],
+    "notes": "Hinglish line break before \"Har baar receipt milegi.\" inferred from the English layout (PDF line is ambiguous)."
+  },
+  {
+    "name": "fee_reminder",
+    "category": "UTILITY",
+    "drip": "D12",
+    "en": "Hi {{name}}, a gentle reminder to complete your seat booking for {{course}}. Need help with EMI or payment? Just reply.",
+    "hi": "Hi {{name}}, {{course}} ki seat booking complete karne ka chhota sa reminder. EMI ya payment mein help chahiye? Bas reply karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Paid ✅"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need help"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "welcome_student",
+    "category": "UTILITY",
+    "drip": "D13",
+    "en": "Welcome to Infonic Training, {{name}}! 🎉 Your {{course}} batch starts on {{batch_date}} at {{class_time}}.\nPlease bring a photo ID and two passport-size photos {{laptop_line}}.\nSee you there!",
+    "hi": "Infonic Training mein swagat hai, {{name}}! 🎉 Aapka {{course}} batch {{batch_date}} ko {{class_time}} baje shuru hoga.\nEk photo ID aur do passport size photo le aana {{laptop_line}}.\nMilte hain!",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "class_reminder",
+    "category": "UTILITY",
+    "drip": "D13",
+    "en": "Hi {{name}}, your first {{course}} class is tomorrow at {{class_time}} 🙌 Excited to have you!",
+    "hi": "Hi {{name}}, kal {{class_time}} baje aapki pehli {{course}} class hai 🙌 Aapka intezaar hai!",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "day1_check",
+    "category": "UTILITY",
+    "drip": "D13",
+    "en": "How was your first day, {{name}}? 😊",
+    "hi": "Pehla din kaisa raha, {{name}}? 😊",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Loved it"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Have a doubt"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Something's wrong"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "week2_check",
+    "category": "UTILITY",
+    "drip": "D13",
+    "en": "Hi {{name}}, two weeks in! Anything you'd like more help with? You can book a one-to-one doubt session anytime.",
+    "hi": "Hi {{name}}, do hafte ho gaye! Kisi cheez mein aur help chahiye? Kabhi bhi one-to-one doubt session book kar sakte ho.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "All good"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book doubt session"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "review_ask",
+    "category": "UTILITY",
+    "drip": "D13",
+    "en": "Hi {{name}}, one month done 🎉 If you're enjoying {{course}}, would you share a quick Google review? It helps other students decide: {{review_link}}",
+    "hi": "Hi {{name}}, ek mahina ho gaya 🎉 {{course}} pasand aa raha hai to ek chhota Google review de doge? Doosre students ko decide karne mein help milti hai: {{review_link}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Done ✅"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Later"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "congrats",
+    "category": "UTILITY",
+    "drip": "D14",
+    "en": "Congratulations, {{name}}! 🎓 You've completed {{course}}. Your certificate is ready. Next: {{next_step}} (internship / placement assistance). Our team will call you this week.",
+    "hi": "Badhai ho, {{name}}! 🎓 Aapne {{course}} complete kar liya. Certificate ready hai. Agla step: {{next_step}} (internship / placement assistance). Humari team is hafte call karegi.",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "testimonial_ask",
+    "category": "UTILITY",
+    "drip": "D14",
+    "en": "Hi {{name}}, would you record a 1-minute video about your journey at Infonic? Your story could help someone who feels exactly like you did on day one 🙏",
+    "hi": "Hi {{name}}, kya aap Infonic ke apne safar par 1 minute ka video bana doge? Aapki kahani kisi aise student ki help karegi jo pehle din aap jaisa feel kar raha hai 🙏",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, happy to"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "next_course",
+    "category": "MARKETING",
+    "drip": "D14",
+    "en": "Hi {{name}}, many students who finish {{course}} add {{next_course}} next — it opens more roles. Want details?",
+    "hi": "Hi {{name}}, {{course}} ke baad bahut students {{next_course}} bhi karte hain — isse aur roles khulte hain. Details chahiye?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "No thanks"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "job_check",
+    "category": "UTILITY",
+    "drip": "D14",
+    "en": "Hi {{name}}, how's the job search going? Got an offer? We'd love to celebrate with you 🎉 Need help with interviews? Reply anytime.",
+    "hi": "Hi {{name}}, job search kaisi chal rahi hai? Offer mila? Hum bhi celebrate karna chahenge 🎉 Interview mein help chahiye? Kabhi bhi reply karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Got a job!"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need help"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "refer_intro",
+    "category": "MARKETING",
+    "drip": "D15",
+    "en": "Hi {{name}}, know someone who'd love {{course}} or any of our courses? Share your code {{ref_code}} — your friend saves on fees and you get {{reward}} when they join 🎁\nLink: {{ref_link}}",
+    "hi": "Hi {{name}}, koi dost hai jise {{course}} ya humara koi course pasand aayega? Apna code {{ref_code}} share karo — dost ki fees kam hogi aur unke join karne par aapko {{reward}} milega 🎁\nLink: {{ref_link}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Share now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Later"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "refer_reward",
+    "category": "UTILITY",
+    "drip": "D15",
+    "en": "🎉 {{friend}} just joined using your code! Your reward ({{reward}}) is ready. Thank you, {{name}}!",
+    "hi": "🎉 {{friend}} ne aapka code use karke join kiya! Aapka reward ({{reward}}) ready hai. Thank you, {{name}}!",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "nurture_batch",
+    "category": "MARKETING",
+    "drip": "D16",
+    "en": "Hi {{name}}, a new {{course}} batch starts on {{batch_date}} — weekday and weekend timings, classroom or online. Is this a better time for you?",
+    "hi": "Hi {{name}}, {{course}} ka naya batch {{batch_date}} se shuru ho raha hai — weekday aur weekend timing, classroom ya online. Kya ab aapke liye sahi time hai?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, tell me more"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not yet"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "nurture_story",
+    "category": "MARKETING",
+    "drip": "D16",
+    "en": "Hi {{name}}, a quick story: one of our students went from zero to {{student_result}} after {{course}}. Watch: {{proof_link}}",
+    "hi": "Hi {{name}}, ek chhoti si kahani: humare ek student ne {{course}} ke baad zero se {{student_result}} tak ka safar tay kiya. Dekhiye: {{proof_link}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "nurture_offer",
+    "category": "MARKETING",
+    "drip": "D16",
+    "en": "Hi {{name}}, our {{season}} offer is on: save up to 20% on {{course}} (T&C apply) till {{offer_end}}.",
+    "hi": "Hi {{name}}, humara {{season}} offer chal raha hai: {{offer_end}} tak {{course}} par 20% tak bachat (T&C apply).",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Check my offer"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "nurture_free",
+    "category": "MARKETING",
+    "drip": "D16",
+    "en": "Hi {{name}}, join our free live workshop on {{workshop_topic}} on {{workshop_date}} — no cost, just learning 🙂",
+    "hi": "Hi {{name}}, {{workshop_date}} ko {{workshop_topic}} par humara free live workshop join karo — koi fees nahi, bas seekhna 🙂",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Register free"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "nurture_check",
+    "category": "MARKETING",
+    "drip": "D16",
+    "en": "Hi {{name}}, still thinking about {{course}}? Reply \"Yes\" and our counsellor will call — or \"Stop\" and we won't message again.",
+    "hi": "Hi {{name}}, abhi bhi {{course}} ke baare mein soch rahe ho? \"Yes\" likho to counsellor call karenge — ya \"Stop\" likho to hum aur message nahi karenge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Stop"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "elsewhere_60",
+    "category": "MARKETING",
+    "drip": "D17",
+    "en": "Hi {{name}}, hope your course is going well! 😊 If you ever want extra hands-on practice or an internship option, we're happy to help.",
+    "hi": "Hi {{name}}, umeed hai aapka course achha chal raha hai! 😊 Kabhi extra practice ya internship option chahiye ho to hum help karenge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Tell me more"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "No thanks"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "elsewhere_120",
+    "category": "MARKETING",
+    "drip": "D17",
+    "en": "Hi {{name}}, finished your course? Our {{next_course}} could be your next step — want details?",
+    "hi": "Hi {{name}}, course khatam ho gaya? Humara {{next_course}} aapka agla step ho sakta hai — details chahiye?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "No thanks"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "bday_lead",
+    "category": "MARKETING",
+    "drip": "D18",
+    "en": "Happy birthday, {{name}}! 🎂 Start your new year with a new skill — enjoy a special birthday offer on {{course}} for the next 7 days (T&C apply).",
+    "hi": "Janmdin ki dher saari shubhkamnayein, {{name}}! 🎂 Naye saal ki shuruaat ek nayi skill se karo — agle 7 din {{course}} par special birthday offer (T&C apply).",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "See my offer"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Thank you!"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "bday_student",
+    "category": "MARKETING",
+    "drip": "D18",
+    "en": "Happy birthday, {{name}}! 🎉 Wishing you a year full of growth. Thank you for being part of Infonic Training 💚",
+    "hi": "Janmdin mubarak, {{name}}! 🎉 Aapka ye saal tarakki se bhara ho. Infonic Training parivaar ka hissa banne ke liye thank you 💚",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "anniversary",
+    "category": "MARKETING",
+    "drip": "D19",
+    "en": "Hi {{name}}, it's been {{years}} year(s) since you joined Infonic Training! 🎉 We'd love to hear where you are now. And if a friend wants to start their journey, your code {{ref_code}} still gives them a discount.",
+    "hi": "Hi {{name}}, aapko Infonic Training join kiye {{years}} saal ho gaye! 🎉 Hum jaanna chahenge aap ab kahan ho. Aur koi dost apna safar shuru karna chahe to aapka code {{ref_code}} se use discount milega.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Share my news"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Refer a friend"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "fee_due_soon",
+    "category": "UTILITY",
+    "drip": "D20",
+    "en": "Hi {{name}}, a friendly reminder: your {{course}} instalment of {{amount}} is due on {{due_date}}. Pay at the centre or by transfer: {{payment_details}}",
+    "hi": "Hi {{name}}, chhota sa reminder: aapki {{course}} ki {{amount}} ki kist {{due_date}} ko due hai. Centre par ya transfer se pay kar sakte ho: {{payment_details}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Pay now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Already paid"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need more time"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "fee_due_today",
+    "category": "UTILITY",
+    "drip": "D20",
+    "en": "Hi {{name}}, your instalment of {{amount}} for {{course}} is due today. Already paid? Reply \"Paid\" and we'll update your account.",
+    "hi": "Hi {{name}}, {{course}} ki {{amount}} ki kist aaj due hai. Pay kar diya? \"Paid\" likho, hum account update kar denge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Pay now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Paid"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need more time"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "fee_overdue",
+    "category": "UTILITY",
+    "drip": "D20",
+    "en": "Hi {{name}}, your {{course}} instalment of {{amount}} (due {{due_date}}) is still pending. If something's come up, reply and we'll work out a plan together.",
+    "hi": "Hi {{name}}, {{course}} ki {{amount}} ki kist ({{due_date}} ko due) abhi pending hai. Koi dikkat ho to reply karo, saath milkar plan banate hain.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Pay now"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to accounts"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "payment_receipt",
+    "category": "UTILITY",
+    "drip": "D20",
+    "en": "Payment received ✅ Thank you, {{name}}!\nAmount: {{amount}} · Date: {{paid_date}}\nReceipt: {{receipt_link}}\nBalance: {{balance}} · Next due: {{next_due}}",
+    "hi": "Payment mil gaya ✅ Thank you, {{name}}!\nAmount: {{amount}} · Date: {{paid_date}}\nReceipt: {{receipt_link}}\nBaaki: {{balance}} · Agli kist: {{next_due}}",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "absent_today",
+    "category": "UTILITY",
+    "drip": "D21",
+    "en": "Hi {{name}}, we missed you in today's {{course}} class 🙂 Online students: today's recording is here: {{recording_link}}. Need help catching up? Reply anytime.",
+    "hi": "Hi {{name}}, aaj ki {{course}} class mein aapki kami lagi 🙂 Online students: aaj ki recording yahan hai: {{recording_link}}. Catch up mein help chahiye? Kabhi bhi reply karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "See you tomorrow"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Need help"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "absent_parent",
+    "category": "UTILITY",
+    "drip": "D21",
+    "en": "Namaste, {{name}} has missed 2 {{course}} classes this week at Infonic Training. Please let us know if everything is okay — we're happy to help them catch up.",
+    "hi": "Namaste, {{name}} is hafte Infonic Training ki 2 {{course}} classes miss kar chuke hain. Sab theek ho to batayein — hum catch up mein poori madad karenge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "All okay"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Please call me"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "attendance_summary",
+    "category": "UTILITY",
+    "drip": "D21",
+    "en": "Hi {{name}}, your {{course}} attendance last month: {{attendance}}% 📊 {{attendance_note}}",
+    "hi": "Hi {{name}}, pichhle mahine aapki {{course}} attendance: {{attendance}}% 📊 {{attendance_note}}",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "class_link",
+    "category": "UTILITY",
+    "drip": "D22",
+    "en": "Hi {{name}}, your {{course}} class starts at {{class_time}} 🔔 Join here: {{meet_link}}",
+    "hi": "Hi {{name}}, aapki {{course}} class {{class_time}} baje shuru 🔔 Yahan join karo: {{meet_link}}",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "recording_ready",
+    "category": "UTILITY",
+    "drip": "D22",
+    "en": "Today's {{course}} class recording is ready: {{recording_link}} 🎥",
+    "hi": "Aaj ki {{course}} class ki recording ready hai: {{recording_link}} 🎥",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "class_change",
+    "category": "UTILITY",
+    "drip": "D22",
+    "en": "Update for your {{course}} batch: {{change_detail}}. Sorry for any inconvenience — reply if this doesn't work for you.",
+    "hi": "Aapke {{course}} batch ke liye update: {{change_detail}}. Asuvidha ke liye maafi — agar ye suit na kare to reply karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Okay 👍"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Doesn't work for me"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "holiday_notice",
+    "category": "UTILITY",
+    "drip": "D22",
+    "en": "Infonic Training will be closed on {{holiday_date}} for {{holiday}}. Classes resume on {{resume_date}}. 🙏",
+    "hi": "{{holiday}} ke liye {{holiday_date}} ko Infonic Training band rahega. Classes {{resume_date}} se phir shuru. 🙏",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "assignment_due",
+    "category": "UTILITY",
+    "drip": "D23",
+    "en": "Hi {{name}}, your {{course}} assignment \"{{assignment}}\" is due tomorrow ✍ Stuck somewhere? Book a doubt session.",
+    "hi": "Hi {{name}}, aapka {{course}} assignment \"{{assignment}}\" kal due hai ✍ Kahin atke ho? Doubt session book karo.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Submitted ✅"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book doubt session"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "assessment_reminder",
+    "category": "UTILITY",
+    "drip": "D23",
+    "en": "Hi {{name}}, your {{course}} assessment is on {{assessment_date}}. It decides internship eligibility — revise {{topics}} and ask your trainer if anything's unclear 💪",
+    "hi": "Hi {{name}}, aapka {{course}} assessment {{assessment_date}} ko hai. Isse internship eligibility tay hoti hai — {{topics}} revise karo aur kuch samajh na aaye to trainer se poocho 💪",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book doubt session"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Got it"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "assessment_result",
+    "category": "UTILITY",
+    "drip": "D23",
+    "en": "Hi {{name}}, your {{course}} assessment feedback is ready: {{result_link}}. Your trainer will discuss next steps with you.",
+    "hi": "Hi {{name}}, aapke {{course}} assessment ka feedback ready hai: {{result_link}}. Trainer aapke saath agle steps discuss karenge.",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "progress_report",
+    "category": "UTILITY",
+    "drip": "D24",
+    "en": "Hi {{name}}, your {{course}} progress this month 📈\n✅ Attendance: {{attendance}}%\n✅ Assignments: {{assignments_done}}\n✅ Trainer's note: {{trainer_note}}\nKeep going!",
+    "hi": "Hi {{name}}, is mahine ka aapka {{course}} progress 📈\n✅ Attendance: {{attendance}}%\n✅ Assignments: {{assignments_done}}\n✅ Trainer ka note: {{trainer_note}}\nAise hi lage raho!",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "nps_survey",
+    "category": "UTILITY",
+    "drip": "D24",
+    "en": "Quick question, {{name}}: how likely are you to recommend Infonic Training to a friend? Reply with a number from 0 to 10.",
+    "hi": "Ek chhota sawaal, {{name}}: aap Infonic Training ko kisi dost ko recommend karne ki kitni sambhavna rakhte ho? 0 se 10 ke beech number likho.",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "docs_pending",
+    "category": "UTILITY",
+    "drip": "D25",
+    "en": "Hi {{name}}, please bring a photo ID and two passport-size photos to your next class to complete your admission file. Thank you!",
+    "hi": "Hi {{name}}, admission file poori karne ke liye agli class mein ek photo ID aur do passport size photo le aana. Thank you!",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Will bring"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Already submitted"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "certificate_ready",
+    "category": "UTILITY",
+    "drip": "D26",
+    "en": "Great news, {{name}}! 🎓 Your {{course}} {{document_type}} is ready. {{collect_or_download}}",
+    "hi": "Khushkhabri, {{name}}! 🎓 Aapka {{course}} {{document_type}} ready hai. {{collect_or_download}}",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Thank you!"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Leave a review"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "job_alert",
+    "category": "UTILITY",
+    "drip": "D27",
+    "en": "💼 New opening for {{course}} students: {{role}} at {{company}} ({{location}}). Interested? Reply \"Apply\" and our placement team will guide you.",
+    "hi": "💼 {{course}} students ke liye nayi opening: {{role}}, {{company}} ({{location}}). Interest hai? \"Apply\" likho, placement team guide karegi.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Apply"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not for me"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "interview_reminder",
+    "category": "UTILITY",
+    "drip": "D27",
+    "en": "All the best for tomorrow's interview at {{company}}, {{name}}! 🍀 Quick tips: {{tips}}. Want a 15-minute mock interview today?",
+    "hi": "Kal {{company}} ke interview ke liye all the best, {{name}}! 🍀 Chhote tips: {{tips}}. Aaj 15 minute ka mock interview karein?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, mock interview"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "I'm ready"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "interview_followup",
+    "category": "UTILITY",
+    "drip": "D27",
+    "en": "Hi {{name}}, how did the {{company}} interview go? Tell us — we'll help with the next step either way.",
+    "hi": "Hi {{name}}, {{company}} ka interview kaisa raha? Batao — kaisa bhi raha ho, agle step mein help karenge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Got the job!"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Waiting"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Didn't work out"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "event_confirm",
+    "category": "UTILITY",
+    "drip": "D28",
+    "en": "You're registered for {{event}} on {{event_date}} at {{event_time}} ✅ We'll send the link before it starts.",
+    "hi": "Aap {{event}} ke liye registered ho, {{event_date}} ko {{event_time}} baje ✅ Shuru hone se pehle link bhejenge.",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "event_link",
+    "category": "UTILITY",
+    "drip": "D28",
+    "en": "{{event}} starts in 1 hour! Join here: {{event_link}}",
+    "hi": "{{event}} 1 ghante mein shuru! Yahan join karo: {{event_link}}",
+    "buttons": [],
+    "notes": ""
+  },
+  {
+    "name": "event_followup",
+    "category": "MARKETING",
+    "drip": "D28",
+    "en": "Thanks for joining {{event}}, {{name}}! Here's the recording: {{recording_link}}. Want to go deeper? Our {{course}} course starts {{batch_date}} — attendees get a special offer (T&C apply).",
+    "hi": "{{event}} join karne ke liye thank you, {{name}}! Recording yahan hai: {{recording_link}}. Aur gehraai mein seekhna hai? Humara {{course}} course {{batch_date}} se shuru — attendees ke liye special offer (T&C apply).",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Tell me more"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      }
+    ],
+    "notes": ""
+  },
+  {
+    "name": "demo_booked",
+    "category": "UTILITY",
+    "drip": "BOT",
+    "en": "Hi {{name}}, your free demo class for {{course}} is booked for {{demo_time}} at Infonic Training, Ajmer Road, Jaipur. We're looking forward to meeting you! Reply here if you need to change the time.",
+    "hi": "Hi {{name}}, aapki {{course}} ki free demo class {{demo_time}} ko Infonic Training, Ajmer Road, Jaipur mein book hai. Aapse milne ka intezaar rahega! Time badalna ho to yahin reply karein.",
+    "buttons": [
+      {
+        "type": "URL",
+        "text": "Get directions",
+        "url": ""
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Change time"
+      }
+    ],
+    "notes": "Chatbot Playbook section 10. When: Right after the counsellor books a demo. Uses positional variables as in the PDF: {{1}}=name, {{2}}=course, {{3}}=demo date/time."
+  },
+  {
+    "name": "followup_1day",
+    "category": "MARKETING",
+    "drip": "BOT",
+    "en": "Hi {{name}}, still thinking about {{course}}? 😊 Most students ask about fees, online classes and the internship before joining — tap below and we'll answer in a couple of minutes.",
+    "hi": "Hi {{name}}, {{course}} ke baare mein soch rahe ho? 😊 Join karne se pehle zyadatar students fees, online class aur internship poochte hain — neeche tap karo, 2 minute mein jawab denge.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Talk to counsellor"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Course details"
+      }
+    ],
+    "notes": "Chatbot Playbook section 10. When: No reply for 1 day, no booking. Uses positional variables as in the PDF: {{1}}=name, {{2}}=course. Button text \"T alk to counsellor\" in the PDF extraction fixed to \"Talk to counsellor\". Stray space before ?/: after {{2}} in the PDF removed."
+  },
+  {
+    "name": "followup_4day",
+    "category": "MARKETING",
+    "drip": "BOT",
+    "en": "Hi {{name}}, a new {{course}} batch starts on {{batch_date}} — weekday and weekend timings, classroom or online live. Would you like to see a free demo class first?",
+    "hi": "Hi {{name}}, {{course}} ka naya batch {{batch_date}} se shuru ho raha hai — weekday aur weekend timing, classroom ya online live. Pehle ek free demo class dekhna chahoge?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Book free demo"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "Not now"
+      }
+    ],
+    "notes": "Chatbot Playbook section 10. When: Still no reply after 4 days (send once, then stop). Uses positional variables as in the PDF: {{1}}=name, {{2}}=course, {{3}}=batch date."
+  },
+  {
+    "name": "after_demo",
+    "category": "MARKETING",
+    "drip": "BOT",
+    "en": "Hi {{name}}, thank you for attending the {{course}} demo today! 🙌 How did you find it? If you have any questions about the course, fees or timings, just reply here.",
+    "hi": "Hi {{name}}, aaj {{course}} ki demo class attend karne ke liye thank you! 🙌 Kaisi lagi? Course, fees ya timing ke baare mein koi sawaal ho to yahin reply karein.",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "I want to join"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "I have a question"
+      }
+    ],
+    "notes": "Chatbot Playbook section 10. When: Same day, after the demo. Uses positional variables as in the PDF: {{1}}=name, {{2}}=course."
+  },
+  {
+    "name": "package_offer",
+    "category": "MARKETING",
+    "drip": "BOT",
+    "en": "Hi {{name}}, since you were looking at {{course}}: most students who want a job take the full {{package_course}} course — it includes {{course}} and costs less than taking courses one by one. Want the details?",
+    "hi": "Hi {{name}}, aap {{course}} dekh rahe the: job chahne wale zyadatar students poora {{package_course}} course lete hain — usme {{course}} bhi hai aur alag-alag course lene se sasta padta hai. Details bhejun?",
+    "buttons": [
+      {
+        "type": "QUICK_REPLY",
+        "text": "Yes, send details"
+      },
+      {
+        "type": "QUICK_REPLY",
+        "text": "No thanks"
+      }
+    ],
+    "notes": "Chatbot Playbook section 10. When: Asked about a single short course and didn't book. Uses positional variables as in the PDF: {{1}}=name, {{2}}=short course looked at, {{3}}=full course/package. Stray space before ?/: after {{2}} in the PDF removed."
+  },
+  {
+    "name": "otp_login",
+    "category": "AUTHENTICATION",
+    "drip": "OTP",
+    "en": "{{1}} is your Infonic Training verification code. For your security, do not share this code.",
+    "hi": "",
+    "buttons": [
+      {
+        "type": "COPY_CODE",
+        "text": "Copy code"
+      }
+    ],
+    "notes": "Used for: Student portal / app login. Note: Expires in 10 minutes. Authentication template — Meta fixes the wording; {{1}} = the code."
+  },
+  {
+    "name": "otp_demo",
+    "category": "AUTHENTICATION",
+    "drip": "OTP",
+    "en": "{{1}} is your verification code to confirm your free demo booking. For your security, do not share this code.",
+    "hi": "",
+    "buttons": [
+      {
+        "type": "COPY_CODE",
+        "text": "Copy code"
+      }
+    ],
+    "notes": "Used for: Confirm a demo booking made on the website. Note: Stops fake bookings. Authentication template — Meta fixes the wording; {{1}} = the code."
+  },
+  {
+    "name": "otp_referral",
+    "category": "AUTHENTICATION",
+    "drip": "OTP",
+    "en": "{{1}} is your verification code. For your security, do not share this code.",
+    "hi": "",
+    "buttons": [
+      {
+        "type": "COPY_CODE",
+        "text": "Copy code"
+      }
+    ],
+    "notes": "Used for: Verify a friend's referral claim. Note: Stops referral abuse. Authentication template — Meta fixes the wording; {{1}} = the code."
+  },
+  {
+    "name": "otp_payment",
+    "category": "AUTHENTICATION",
+    "drip": "OTP",
+    "en": "{{1}} is your verification code. For your security, do not share this code.",
+    "hi": "",
+    "buttons": [
+      {
+        "type": "COPY_CODE",
+        "text": "Copy code"
+      }
+    ],
+    "notes": "Used for: Confirm a fee payment or EMI change request. Note: Use before changing a fee plan or bank details. Authentication template — Meta fixes the wording; {{1}} = the code."
+  }
+]

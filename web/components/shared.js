@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { useLeadStatuses } from "@/lib/lead-statuses";
 import { contactFieldValue, fmtFieldDate, useContactFields } from "@/lib/contact-fields";
 import { fmtDateTime } from "@/lib/format";
+import { useIsCoaching } from "@/lib/business";
 import { Badge, Input, Select, cx } from "./ui";
 
 export function TagInput({ value, onChange, suggestions = [], placeholder = "Add tags (comma or Enter)" }) {
@@ -45,7 +46,7 @@ export function TagInput({ value, onChange, suggestions = [], placeholder = "Add
   );
 }
 
-export function TemplatePreview({ header, body, footer, params }) {
+export function TemplatePreview({ header, body, footer, params, buttons }) {
   const text = (body || "").replace(/\{\{(\d+)\}\}/g, (m, n) => (params?.[n - 1] ? params[n - 1] : m));
   return (
     <div className="rounded-lg bg-chat p-4">
@@ -53,6 +54,16 @@ export function TemplatePreview({ header, body, footer, params }) {
         {header && <p className="mb-1 font-semibold">{header}</p>}
         <p className="whitespace-pre-wrap text-slate-800">{text || "Message body…"}</p>
         {footer && <p className="mt-2 text-xs text-slate-400">{footer}</p>}
+        {buttons?.length > 0 && (
+          <div className="-mx-3 -mb-3 mt-2 divide-y divide-slate-100 border-t border-slate-100">
+            {buttons.map((b, i) => (
+              <p key={i} className="py-2 text-center text-sm font-medium text-sky-600">
+                {b.type === "URL" ? "🔗 " : b.type === "PHONE_NUMBER" ? "📞 " : "↩ "}
+                {b.text || "Button"}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -106,7 +117,14 @@ export function FollowUpChip({ at }) {
 
 
 // ---------- Template variables ({{1}}, {{2}} ...) ----------
-const FIELD_EXAMPLES = { name: "Rahul", phone: "919876543210", email: "rahul@example.com", referral_code: "RAHUL7K2", referral_link: "https://wa.me/91…?text=…RAHUL7K2" };
+const FIELD_EXAMPLES = {
+  name: "Rahul", phone: "919876543210", email: "rahul@example.com", referral_code: "RAHUL7K2", referral_link: "https://wa.me/91…?text=…RAHUL7K2",
+  "course.name": "Digital Marketing", "course.outcome": "run ads and get your first client", "course.next_batch": "15 Nov", "course.per_day": "₹300",
+  "course.fees": "₹27,000 (EMI available)", "course.greeting": "Great choice!", "course.duration": "90 days", "course.internship": "3-month live internship",
+  "course.proof_link": "https://example.com/results", "course.link": "https://yourwebsite.com/course", counsellor: "Riya", "business.name": "ABC Institute", "business.review_link": "https://g.page/r/…",
+  "business.proof_link": "https://example.com/results", "business.offer_end": "31 Oct", "business.address": "Jaipur", "business.maps_link": "https://maps.app.goo.gl/…",
+  "business.payment_details": "UPI: institute@upi", "business.city": "Jaipur", "business.students_trained": "3,000+", "business.since_year": "2012", "business.rating": "4.9/5",
+};
 
 export const countVariables = (body = "") => new Set(body.match(/\{\{(\d+)\}\}/g) || []).size;
 
@@ -130,12 +148,13 @@ export const variableExample = (d, i) =>
 /** Dropdown of contact fields: built-in + custom (Settings → Contact fields) */
 export function ContactFieldSelect({ value, onChange, className, ariaLabel }) {
   const { options, label } = useContactFields();
+  const coaching = useIsCoaching();
   const known = options.some((o) => o.value === value);
   return (
     <Select className={className} value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel}>
       {!known && value && <option value={value}>{label(value)} (not in field list)</option>}
       <optgroup label="Built-in">
-        {options.filter((o) => !o.value.startsWith("custom.") && !o.value.startsWith("referral_")).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {options.filter((o) => !/^(custom\.|referral_|course\.|business\.|counsellor$)/.test(o.value)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </optgroup>
       {options.some((o) => o.value.startsWith("custom.")) && (
         <optgroup label="Custom fields">
@@ -144,6 +163,14 @@ export function ContactFieldSelect({ value, onChange, className, ariaLabel }) {
       )}
       <optgroup label="Refer & earn">
         {options.filter((o) => o.value.startsWith("referral_")).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </optgroup>
+      {coaching && (
+        <optgroup label="Lead's course">
+          {options.filter((o) => o.value.startsWith("course.")).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </optgroup>
+      )}
+      <optgroup label="Counsellor & business">
+        {options.filter((o) => o.value === "counsellor" || o.value.startsWith("business.")).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </optgroup>
     </Select>
   );
@@ -194,6 +221,7 @@ export function VariableDefaultsEditor({ value, body, onChange }) {
 export function CustomFieldInputs({ value, onChange, onBlurField, compact }) {
   const { custom, label } = useContactFields();
   const typeOf = (k) => custom.find((f) => f.key === k)?.type || "text";
+  const optionsOf = (k) => custom.find((f) => f.key === k)?.options || [];
   const keys = [...custom.map((f) => f.key), ...Object.keys(value).filter((k) => !custom.some((f) => f.key === k))];
   if (!keys.length) {
     return compact ? null : <p className="text-xs text-slate-500">No custom fields yet. Add fields like Course or City in Settings → Contact fields.</p>;
@@ -216,6 +244,14 @@ export function CustomFieldInputs({ value, onChange, onBlurField, compact }) {
                 />
                 {String(value[k] || "").startsWith("0000") && <span className="block text-[11px] text-slate-500">Saved without year: {fmtFieldDate(value[k])}</span>}
               </>
+            ) : typeOf(k) === "select" ? (
+              <Select className="h-8 text-sm" value={value[k] ?? ""} onChange={(e) => { onChange({ ...value, [k]: e.target.value }); onBlurField?.(k, e.target.value); }}>
+                <option value="">—</option>
+                {value[k] && !optionsOf(k).includes(value[k]) && <option value={value[k]}>{value[k]}</option>}
+                {optionsOf(k).map((o) => <option key={o} value={o}>{o}</option>)}
+              </Select>
+            ) : typeOf(k) === "multiselect" ? (
+              <MultiPick options={optionsOf(k)} value={value[k] || ""} onChange={(v) => { onChange({ ...value, [k]: v }); onBlurField?.(k, v); }} />
             ) : (
               <Input
                 className="h-8 text-sm"
@@ -228,6 +264,22 @@ export function CustomFieldInputs({ value, onChange, onBlurField, compact }) {
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Chips for a multi-select field, stored as "A, B"
+function MultiPick({ options, value, onChange }) {
+  const picked = value.split(",").map((v) => v.trim()).filter(Boolean);
+  const toggle = (o) => onChange((picked.includes(o) ? picked.filter((p) => p !== o) : [...picked, o]).join(", "));
+  return (
+    <div className="flex flex-wrap gap-1">
+      {[...options, ...picked.filter((p) => !options.includes(p))].map((o) => (
+        <button key={o} type="button" onClick={() => toggle(o)}
+          className={cx("rounded-full border px-2 py-0.5 text-xs", picked.includes(o) ? "border-brand-600 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-600 hover:bg-slate-50")}>
+          {o}
+        </button>
+      ))}
     </div>
   );
 }

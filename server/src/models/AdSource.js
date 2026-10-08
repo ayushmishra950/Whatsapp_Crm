@@ -13,6 +13,7 @@ const adSourceSchema = new mongoose.Schema(
     sourceUrl: String,
     name: { type: String, trim: true, default: '' }, // e.g. "Video Editing – Oct"
     tag: { type: String, trim: true, lowercase: true, default: '' }, // added to every lead from this ad
+    courseCode: { type: String, trim: true, uppercase: true, default: '' }, // course this ad is for
     firstSeenAt: Date,
     lastLeadAt: Date,
   },

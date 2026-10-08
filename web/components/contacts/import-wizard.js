@@ -12,10 +12,15 @@ export const CAMPAIGN_PREFILL_KEY = "crm_campaign_prefill";
 
 const FIELDS = [
   { key: "phone", label: "Phone / WhatsApp number", required: true },
-  { key: "name", label: "Name" },
+  { key: "name", label: "Name", required: true },
   { key: "email", label: "Email" },
   { key: "tags", label: "Tags", hint: "separate with , | or ;" },
   { key: "leadStatus", label: "Lead status", hint: "e.g. Interested, Converted" },
+  { key: "course", label: "Course", hint: "course name or code (Courses page)" },
+  { key: "counsellor", label: "Counsellor", hint: "team member's name or email" },
+  { key: "followUp", label: "Follow-up date", hint: "e.g. 15/10/2026 5 pm → next action" },
+  { key: "notes", label: "Notes / query" },
+  { key: "enquiryDate", label: "Enquiry date", hint: "when the lead came (for date filters)" },
 ];
 
 
@@ -34,6 +39,7 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
   const [addTags, setAddTags] = useState([]);
   const [setLeadStatus, setSetLeadStatus] = useState("");
   const [batchTag, setBatchTag] = useState(true);
+  const [startDrips, setStartDrips] = useState(false);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -45,6 +51,7 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
     setAddTags([]);
     setSetLeadStatus("");
     setBatchTag(true);
+    setStartDrips(false);
     setResult(null);
   };
   const close = () => {
@@ -97,6 +104,7 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
           addTags,
           ...(setLeadStatus && { setLeadStatus }),
           batchTag,
+          startDrips,
         })
       );
       const r = await api("/contacts/import", { method: "POST", form });
@@ -128,7 +136,7 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
     ) : step === 2 ? (
       <>
         <Button variant="secondary" onClick={reset}>Choose another file</Button>
-        <Button onClick={runImport} loading={busy} disabled={!mapping.phone}>
+        <Button onClick={runImport} loading={busy} disabled={!mapping.phone || !mapping.name}>
           <Upload className="h-4 w-4" /> Import {preview.totalRows} rows
         </Button>
       </>
@@ -168,6 +176,9 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
         <div className="space-y-5 text-sm">
           <p className="text-slate-600">
             <b>{file?.name}</b> · {preview.totalRows} rows. Tell us which column is what:
+          </p>
+          <p className="rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900">
+            Only <b>Phone</b> and <b>Name</b> are needed. Everything else is optional: choose a column only if your sheet has it. Empty cells are skipped and never wipe details already in the CRM, so a sheet with half the details is fine.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {FIELDS.map((f) => (
@@ -231,6 +242,7 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
             <TagInput value={addTags} onChange={setAddTags} suggestions={tagSuggestions} placeholder="e.g. expo-2026, php (comma or Enter)" />
           </Field>
           <Toggle checked={batchTag} onChange={setBatchTag} label="Tag this upload (e.g. sheet-061026-1530)" description="Lets you send a bulk message to exactly these people right after the import." />
+          <Toggle checked={startDrips} onChange={setStartDrips} label="Start drips for these leads" description="Off for old enquiries: they are saved without getting welcome / follow-up series. Turn on for a fresh list that should start the drips set to “new lead” / status." />
         </div>
       )}
 
@@ -240,7 +252,14 @@ export function ImportWizard({ open, onClose, onImported, tagSuggestions = [] })
             <ResultStat label="New contacts" value={result.created} tone="text-brand-700" />
             <ResultStat label="Updated" value={result.updated} tone="text-sky-700" />
             <ResultStat label="Invalid numbers" value={result.invalid} tone={result.invalid ? "text-amber-700" : "text-slate-400"} />
+            {(result.unmatched?.course?.length > 0 || result.unmatched?.counsellor?.length > 0) && (
+              <p className="col-span-full rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {result.unmatched.course?.length > 0 && <>Courses not found (add them on the Courses page and import again): <b>{result.unmatched.course.join(", ")}</b>. </>}
+                {result.unmatched.counsellor?.length > 0 && <>Counsellors not found in the team: <b>{result.unmatched.counsellor.join(", ")}</b>.</>}
+              </p>
+            )}
             <ResultStat label="Duplicates merged" value={result.duplicatesInSheet} tone="text-slate-500" />
+            {result.noName > 0 && <p className="col-span-full text-xs text-slate-500">{result.noName} row(s) had no name: they are saved with the number only. The chatbot asks the name when they write.</p>}
           </div>
           {result.skippedLimit > 0 && <p className="rounded-md bg-red-50 px-3 py-2 text-red-700">⛔ {result.skippedLimit} rows skipped — your plan&apos;s contact limit was reached.</p>}
           {result.errors.length > 0 && (

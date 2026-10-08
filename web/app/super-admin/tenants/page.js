@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- logos are small data URLs, next/image would not optimise them */
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -9,12 +10,13 @@ import { fmtDate } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { useSocketEvent } from "@/lib/socket";
+import { BUSINESS_TYPES } from "@/lib/business";
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, PageLoader, Pagination, PasswordInput, Select, StatusBadge, Table,
 } from "@/components/ui";
 
 const emptyForm = {
-  name: "", email: "", phone: "", planId: "", subscriptionStatus: "trial", months: 1,
+  name: "", email: "", phone: "", planId: "", subscriptionStatus: "trial", months: 1, businessType: "general", sampleCourses: false,
   admin: { name: "", email: "", password: "" },
 };
 
@@ -68,9 +70,13 @@ export default function TenantsPage() {
       key: "name",
       label: "Business",
       render: (t) => (
-        <Link href={`/super-admin/tenants/${t._id}`} className="font-medium text-slate-900 hover:text-brand-700">
+        <Link href={`/super-admin/tenants/${t._id}`} className="flex items-start gap-2 font-medium text-slate-900 hover:text-brand-700">
+          {t.logo ? <img src={t.logo} alt="" className="mt-0.5 h-7 w-7 shrink-0 rounded object-contain" /> : <span className="mt-0.5 h-7 w-7 shrink-0 rounded bg-slate-100" />}
+          <span>
           {t.name}
+          {t.businessType === "coaching" && <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">Coaching</span>}
           <span className="block text-xs font-normal text-slate-500">{t.admin?.email}</span>
+          </span>
         </Link>
       ),
     },
@@ -133,6 +139,17 @@ export default function TenantsPage() {
             <Field label="Business email"><Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} /></Field>
             <Field label="Phone"><Input value={form.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
           </div>
+          <Field label="Business type" hint="Coaching institute = courses, Hinglish templates and the 19-status lead playbook, set up automatically">
+            <Select value={form.businessType} onChange={(e) => set("businessType", e.target.value)}>
+              {BUSINESS_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </Select>
+          </Field>
+          {form.businessType === "coaching" && (
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={form.sampleCourses} onChange={(e) => set("sampleCourses", e.target.checked)} />
+              <span>Also add the sample course catalog (51 IT &amp; skill courses: AI, coding, digital marketing, office, communication…). Leave off if the institute teaches other courses.</span>
+            </label>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Plan">
               <Select value={form.planId || plans[0]?._id || ""} onChange={(e) => set("planId", e.target.value)}>

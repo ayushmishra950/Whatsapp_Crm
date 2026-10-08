@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Clock, Inbox, UserPlus, ArrowDownLeft, ArrowUpRight, Contact, BellRing, Megaphone, Users, Cake } from "lucide-react";
+import { MessageCircle, Clock, Inbox, UserPlus, ArrowDownLeft, ArrowUpRight, Contact, BellRing, Megaphone, Users, Cake, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime, fmtNum, fmtPhone } from "@/lib/format";
@@ -41,6 +41,9 @@ export default function Dashboard() {
         <Stat label="Unassigned" value={fmtNum(d.unassigned)} sub={d.botActive ? `Waiting for an agent · 🤖 ${d.botActive} with bot` : "Waiting for an agent"} icon={Inbox} />
         <Stat label="New leads today" value={fmtNum(d.newLeadsToday)} sub={`${fmtNum(d.contacts)} total contacts`} icon={UserPlus} />
       </div>
+
+      <NeedsAttention isAdmin={isAdmin} />
+      {isAdmin && <MessagesAndCost />}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-2">
@@ -270,6 +273,96 @@ function TeamPerformance() {
           </p>
         </div>
       )}
+    </Card>
+  );
+}
+
+/** A11: overdue tasks, leads with no next action, customers waiting for a reply */
+function NeedsAttention({ isAdmin }) {
+  const [a, setA] = useState(null);
+  useEffect(() => {
+    api("/dashboard/attention").then(setA).catch(() => {});
+  }, []);
+  if (!a) return null;
+  const boxes = [
+    { label: "Overdue tasks", n: a.overdueTasks.count, href: "/app/tasks", tone: "text-red-600", hint: `${a.dueToday.count} more due today` },
+    { label: "Leads without a next action", n: a.noNextAction.count, href: "/app/contacts?nextAction=none", tone: "text-amber-600", hint: "Add a task or follow-up" },
+    { label: "Customers waiting > 30 min", n: a.waitingReply.count, href: "/app/inbox", tone: "text-sky-600", hint: "Last message is theirs" },
+  ];
+  const total = a.overdueTasks.count + a.noNextAction.count + a.waitingReply.count;
+  return (
+    <Card className="mt-6 p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-medium text-slate-900">
+        <AlertTriangle className={cx("h-4 w-4", total ? "text-amber-500" : "text-slate-300")} /> Needs attention {isAdmin ? "" : "(my leads)"}
+        {!total && <span className="text-sm font-normal text-slate-500">– all clear 🎉</span>}
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {boxes.map((b) => (
+          <Link key={b.label} href={b.href} className="rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+            <p className={cx("text-2xl font-semibold tabular-nums", b.n ? b.tone : "text-slate-400")}>{fmtNum(b.n)}</p>
+            <p className="text-sm text-slate-700">{b.label}</p>
+            <p className="text-xs text-slate-500">{b.hint}</p>
+          </Link>
+        ))}
+      </div>
+      {a.overdueTasks.items.length > 0 && (
+        <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          {a.overdueTasks.items.slice(0, 5).map((t) => (
+            <li key={t._id} className="flex items-center justify-between gap-3 py-2">
+              <span className="min-w-0 truncate"><b>{t.title}</b> · {t.contactId?.name || fmtPhone(t.contactId?.phone)}{t.assignedTo?.name && <span className="text-slate-500"> · {t.assignedTo.name}</span>}</span>
+              <span className="shrink-0 text-xs font-medium text-red-600">{fmtDateTime(t.dueAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** New vs returning customers who wrote each day, messages, and the estimated WhatsApp cost (template messages) */
+function MessagesAndCost() {
+  const [days, setDays] = useState(14);
+  const [m, setM] = useState(null);
+  useEffect(() => {
+    api("/dashboard/messages", { query: { days, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } }).then(setM).catch(() => {});
+  }, [days]);
+  if (!m) return null;
+  const max = Math.max(1, ...m.days.map((d) => d.newCustomers + d.returningCustomers));
+  const rupees = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const today = m.days.at(-1);
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium text-slate-900">💬 Customers & WhatsApp cost</h2>
+        <div className="flex gap-1">
+          {[7, 14, 30].map((n) => (
+            <button key={n} type="button" onClick={() => setDays(n)} className={cx("rounded-md px-2.5 py-1 text-xs font-medium", days === n ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100")}>{n} days</button>
+          ))}
+        </div>
+      </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="rounded-lg bg-brand-50 p-3"><p className="text-xs text-brand-800">New customers today</p><p className="text-2xl font-semibold text-brand-700">{today?.newCustomers || 0}</p></div>
+        <div className="rounded-lg bg-sky-50 p-3"><p className="text-xs text-sky-800">Returning today</p><p className="text-2xl font-semibold text-sky-700">{today?.returningCustomers || 0}</p></div>
+        <div className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-600">New · {days} days</p><p className="text-2xl font-semibold">{m.totals.newCustomers}</p></div>
+        <div className="rounded-lg bg-slate-50 p-3"><p className="text-xs text-slate-600">Messages in / out</p><p className="text-2xl font-semibold">{m.totals.inbound} <span className="text-base text-slate-400">/ {m.totals.outbound}</span></p></div>
+        <div className="rounded-lg bg-amber-50 p-3"><p className="text-xs text-amber-800">WhatsApp cost · {days} days</p><p className="text-2xl font-semibold text-amber-700">{rupees(m.totals.cost)}</p><p className="text-[11px] text-amber-800">{m.totals.marketing} marketing · {m.totals.utility} utility · today {rupees(today?.cost)}</p></div>
+      </div>
+      <div className="flex h-36 items-end gap-1">
+        {m.days.map((d) => (
+          <div key={d.day} className="group flex flex-1 flex-col items-center gap-1" title={`${d.day}: ${d.newCustomers} new, ${d.returningCustomers} returning · ${rupees(d.cost)}`}>
+            <div className="flex h-28 w-full flex-col justify-end">
+              <div className="w-full rounded-t bg-sky-400" style={{ height: `${(d.returningCustomers / max) * 100}%` }} />
+              <div className="w-full bg-brand-500" style={{ height: `${(d.newCustomers / max) * 100}%` }} />
+            </div>
+            <span className="text-[10px] text-slate-400">{Number(d.day.slice(8))}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-brand-500" /> New customers</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-400" /> Returning customers</span>
+        <span>Cost = template messages × rate (marketing {rupees(m.rates.marketing)}, utility {rupees(m.rates.utility)}). Replies within 24 h are free. Estimate — set Meta&apos;s current rates in Settings.</span>
+      </div>
     </Card>
   );
 }

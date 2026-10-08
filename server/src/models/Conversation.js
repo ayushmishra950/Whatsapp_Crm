@@ -15,7 +15,14 @@ const conversationSchema = new mongoose.Schema(
     // Chatbot state for this chat. active = bot is handling it (no human yet)
     bot: {
       active: { type: Boolean, default: false },
-      step: { type: String, enum: ['menu', 'question'], default: 'menu' },
+      step: { type: String, enum: ['menu', 'question', 'course_areas', 'course_list', 'course', 'course_q'], default: 'menu' },
+      // Course flow (coaching): course being discussed, list position, admission question
+      course: String,
+      courseArea: String,
+      coursePage: Number,
+      flowKey: String, // admission question being asked
+      flowTotal: Number,
+      pendingAction: String, // "fees" / "book" asked before a course was chosen
       questionIndex: { type: Number, default: 0 },
       fallbackCount: { type: Number, default: 0 },
       // Loop guard: bot replies counted per rolling window
@@ -30,6 +37,24 @@ const conversationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// The chat's counsellor is also the lead's owner (Contacts filters, reports, tasks use contact.assignedTo)
+conversationSchema.pre('save', function () {
+  this.$locals.ownerChanged = this.isNew || this.isModified('assignedTo');
+});
+conversationSchema.post('save', async function () {
+  if (!this.$locals.ownerChanged) return;
+  await mongoose.model('Contact').updateOne({ _id: this.contactId, assignedTo: { $ne: this.assignedTo } }, { $set: { assignedTo: this.assignedTo || null } });
+});
+
+/** One-time / startup backfill: copy every chat's counsellor to its lead */
+export async function syncContactOwners() {
+  const convs = await mongoose.model('Conversation').find({}).select('contactId assignedTo').lean();
+  const ops = convs.map((c) => ({ updateOne: { filter: { _id: c.contactId, assignedTo: { $ne: c.assignedTo || null } }, update: { $set: { assignedTo: c.assignedTo || null } } } }));
+  let changed = 0;
+  for (let i = 0; i < ops.length; i += 1000) changed += (await mongoose.model('Contact').bulkWrite(ops.slice(i, i + 1000), { ordered: false })).modifiedCount;
+  return changed;
+}
 
 conversationSchema.index({ tenantId: 1, contactId: 1 }, { unique: true });
 conversationSchema.index({ tenantId: 1, lastMessageAt: -1 });

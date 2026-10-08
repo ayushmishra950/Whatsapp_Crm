@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { escapeRegex } from '../utils/http.js';
+import { LEAD_SOURCES } from './contactFields.js';
 import { DEFAULT_TZ, dayKey, safeTimeZone, zonedTime } from '../utils/time.js';
 
 /**
@@ -22,7 +23,7 @@ export const segmentFilterSchema = z
     tagMatch: z.enum(['any', 'all']).default('any'),
     excludeTags: z.array(z.string()).default([]),
     adIds: z.array(z.string()).default([]),
-    sources: z.array(z.enum(['whatsapp', 'ad', 'import', 'manual'])).default([]),
+    sources: z.array(z.enum(LEAD_SOURCES)).default([]),
     joined: range.default({}), // first contact (contact created)
     lastInbound: range.default({}), // last message FROM the customer
     fields: z

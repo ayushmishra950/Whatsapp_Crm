@@ -7,8 +7,10 @@ import { validate, notFound, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { segmentFilterSchema, segmentQuery } from '../services/segments.js';
 import { automationSettings, enrollContacts } from '../services/drips.js';
-import { getContactFields } from '../services/contactFields.js';
+import { LEAD_SOURCES, getContactFields } from '../services/contactFields.js';
 import { getLeadStatuses } from '../services/leadStatuses.js';
+import { isCoaching } from '../services/coaching.js';
+import { missingBusinessInfo } from '../services/coachingContent.js';
 
 // Drips are built and managed by the business admin only
 const router = Router();
@@ -21,7 +23,7 @@ const dripSchema = z.object({
   name: z.string().trim().min(2).max(80),
   trigger: z.object({
     type: z.enum(['new_lead', 'ad_lead', 'tag_added', 'status_changed', 'date', 'manual']),
-    sources: z.array(z.enum(['whatsapp', 'ad', 'import', 'manual'])).default([]),
+    sources: z.array(z.enum(LEAD_SOURCES)).default([]),
     adIds: z.array(z.string()).default([]),
     tags: z.array(z.string().trim().toLowerCase().min(1)).default([]),
     statuses: z.array(z.string()).default([]),
@@ -32,16 +34,25 @@ const dripSchema = z.object({
   steps: z
     .array(
       z.object({
-        templateId: objectId,
+        kind: z.enum(['message', 'task', 'alert', 'status']).default('message'),
+        templateId: objectId.optional().nullable(),
         variables: z.array(z.object({ source: z.enum(['field', 'static']), value: z.string() })).default([]),
+        templateIdHi: objectId.optional().nullable(),
+        variablesHi: z.array(z.object({ source: z.enum(['field', 'static']), value: z.string() })).default([]),
+        text: z.string().trim().max(200).default(''),
+        dueMinutes: z.coerce.number().int().min(0).max(60 * 24 * 30).default(30),
+        setStatus: z.string().default(''),
         delayDays: z.coerce.number().int().min(0).max(365).default(0),
+        delayMinutes: z.coerce.number().int().min(0).max(60 * 24 * 30).default(0),
         sendTime: hhmm.default(''),
       })
     )
-    .min(1, 'Add at least one message')
-    .max(20),
+    .min(1, 'Add at least one step')
+    .max(30),
   stopOnReply: z.boolean().default(true),
   stopStatuses: z.array(z.string()).default([]),
+  stopOnStatusChange: z.boolean().optional(),
+  onComplete: z.object({ setStatus: z.string().default(''), addTag: z.string().trim().toLowerCase().max(40).default('') }).default({ setStatus: '', addTag: '' }),
 });
 
 async function checkDrip(req, data) {
@@ -56,13 +67,33 @@ async function checkDrip(req, data) {
   }
   const statusKeys = new Set(getLeadStatuses(req.tenant).map((s) => s.key));
   for (const s of [...t.statuses, ...data.stopStatuses]) if (!statusKeys.has(s)) throw badRequest(`Unknown lead status "${s}"`);
-  const ids = [...new Set(data.steps.map((s) => s.templateId))];
+  if (data.onComplete.setStatus && !statusKeys.has(data.onComplete.setStatus)) throw badRequest('Unknown lead status in "When the drip ends"');
+  // Birthday / manual drips run beside the status drips; status drips follow "one status = one drip"
+  if (data.stopOnStatusChange === undefined) data.stopOnStatusChange = !['date', 'manual'].includes(t.type);
+  if (!isCoaching(req.tenant)) for (const s of data.steps) Object.assign(s, { templateIdHi: null, variablesHi: [] }); // Hinglish version = coaching format
+  const ids = [...new Set(data.steps.flatMap((s) => (s.kind === 'message' ? [s.templateId, s.templateIdHi] : [])).filter(Boolean))];
   const templates = await Template.find({ _id: { $in: ids }, tenantId: req.tenantId });
   if (templates.length !== ids.length) throw badRequest('A selected template was not found');
   for (const [i, step] of data.steps.entries()) {
-    const tpl = templates.find((x) => String(x._id) === step.templateId);
-    if ((step.variables?.length || 0) < tpl.variableCount) throw badRequest(`Message ${i + 1}: fill all ${tpl.variableCount} variable(s) of "${tpl.name}"`);
+    const n = i + 1;
+    if (step.kind === 'message') {
+      if (!step.templateId) throw badRequest(`Step ${n}: choose the template to send`);
+      for (const [id, vars, what] of [[step.templateId, step.variables, ''], [step.templateIdHi, step.variablesHi, ' (Hinglish)']]) {
+        if (!id) continue;
+        const tpl = templates.find((x) => String(x._id) === String(id));
+        if ((vars?.length || 0) < tpl.variableCount) throw badRequest(`Step ${n}${what}: fill all ${tpl.variableCount} variable(s) of "${tpl.name}"`);
+      }
+      if (!step.templateIdHi) step.variablesHi = [];
+    } else {
+      step.templateId = null;
+      step.templateIdHi = null;
+      step.variables = [];
+      step.variablesHi = [];
+      if ((step.kind === 'task' || step.kind === 'alert') && !step.text) throw badRequest(`Step ${n}: write what the ${step.kind} says`);
+      if (step.kind === 'status' && !statusKeys.has(step.setStatus)) throw badRequest(`Step ${n}: choose the status to move the lead to`);
+    }
   }
+  if (!data.steps.some((s) => s.kind === 'message') && !data.steps.some((s) => s.kind !== 'message')) throw badRequest('Add at least one step');
 }
 
 async function findDrip(req) {
@@ -127,6 +158,12 @@ router.put('/:id', async (req, res) => {
 router.post('/:id/status', async (req, res) => {
   const { status, includeExisting } = validate(z.object({ status: z.enum(['active', 'paused']), includeExisting: z.boolean().default(false) }), req.body);
   const drip = await findDrip(req);
+  if (status === 'active') {
+    // A message would go out with a blank where e.g. the rating or review link should be: ask for it first
+    const ids = drip.steps.flatMap((s) => [s.templateId, s.templateIdHi]).filter(Boolean);
+    const missing = missingBusinessInfo(req.tenant, await Template.find({ _id: { $in: ids } }).select('variableDefaults').lean());
+    if (missing.length) throw badRequest(`Fill these in Settings → Message info first (the messages use them): ${missing.join(', ')}`);
+  }
   drip.status = status;
   if (status === 'active' && !drip.activatedAt) drip.activatedAt = new Date();
   await drip.save();

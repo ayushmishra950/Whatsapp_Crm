@@ -1,0 +1,1606 @@
+[
+  {
+    "key": "details",
+    "title": "Course details",
+    "node": "COURSE_DETAILS",
+    "keywords": [
+      "details bhejo",
+      "plz detail",
+      "course ke baare mein batao",
+      "kya sikhate ho",
+      "syllabus",
+      "what will i learn",
+      "more info"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → COURSE_DETAILS (or MENU_CAT if no course is known). COURSE_DETAILS is built from course fields ({{course.who}}, {{course.learn}}, {{course.internship}}) plus a fixed line about classroom at Ajmer Road, Jaipur or online live with recordings; buttons Fees & duration / Why Infonic? / Book free demo."
+  },
+  {
+    "key": "fees",
+    "title": "Fees",
+    "node": "COURSE_FEES",
+    "keywords": [
+      "fees kitni hai",
+      "fee kitni h",
+      "fess",
+      "fee structure",
+      "kitne ka hai",
+      "price",
+      "cost",
+      "charges",
+      "total kitna",
+      "kitna lagega"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → COURSE_FEES (or ask which course / MENU_CAT if no course). COURSE_FEES sends {{course.fees}} / {{course.fees_hi}} (fee-page courses show three tracks; others use the standard fee answer from Course Playbooks), buttons Book free demo / Student reviews / Talk to counsellor; then PACKAGE_NUDGE for single-skill courses if goal ≠ business. Generic fee-range FAQ is the separate \"fee_range\" entry."
+  },
+  {
+    "key": "price_objection",
+    "title": "Too expensive",
+    "node": "OBJ_PRICE",
+    "keywords": [
+      "bahut zyada hai",
+      "mehenga hai",
+      "kam karo",
+      "budget nahi hai",
+      "itna nahi de sakta",
+      "costly",
+      "expensive",
+      "mehenga",
+      "zyada hai",
+      "budget nahi",
+      "itna nahi"
+    ],
+    "en": "I completely understand — fees are a big decision, and you should feel sure. 🙏\n\nA few things that help:\n• No-cost EMI on fees above ₹15,000 — pay monthly\n• Online live classes cost less (with recordings)\n• Save up to 20% with on-the-spot, group or seasonal offers (T&C apply)\n\nBest of all, attend a free demo first and decide only if it feels worth it.",
+    "hi": "Bilkul samajh sakte hain — fees ek bada decision hai, aur aapko poora bharosa hona chahiye. 🙏\n\nYe cheezein help karti hain:\n• ₹15,000 se upar ki fees par no-cost EMI — mahine ke hisaab se do\n• Online live classes ki fees kam hai (recordings ke saath)\n• On-the-spot, group ya seasonal offer mein 20% tak bachat (T&C apply)\n\nSabse achha — pehle free demo dekho, worth lage tabhi decide karo.",
+    "buttons": [
+      "EMI options",
+      "Online option",
+      "Book free demo"
+    ],
+    "buttonsHi": [
+      "EMI options",
+      "Online option",
+      "Free demo book karo"
+    ],
+    "notes": "Keywords = Section 3 phrases + Section 8 trigger words. Facts: ₹15,000 EMI threshold, up to 20% offer. Button routes: EMI options → BOOK_NAME, Online option → F_ONLINE (FAQ online), Book free demo → BOOK_NAME. \"EMI options\"/\"Online option\" have a single label in the PDF (used for both languages). Hook: EMI + online + offer + demo."
+  },
+  {
+    "key": "discount",
+    "title": "Discount / offer",
+    "node": "FAQ_OFFER",
+    "keywords": [
+      "discount milega",
+      "offer hai kya",
+      "kuch kam ho sakta hai",
+      "scholarship",
+      "concession",
+      "discount",
+      "offer"
+    ],
+    "en": "You can save up to 20% when you enrol on the spot, join with a friend, or join during a running offer. T&C apply — your counsellor will confirm which applies to you.",
+    "hi": "On-the-spot admission, dost ke saath join karne, ya chal rahe offer mein 20% tak bachat ho sakti hai. T&C apply — counsellor batayenge aap par kaunsa lagega.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Offer\" row (keywords discount, offer, scholarship). Section 3 routes \"FAQ offer → BOOK\" (follow with booking). Fact: up to 20%. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "emi",
+    "title": "EMI / instalments",
+    "node": "FAQ_EMI",
+    "keywords": [
+      "emi hai kya",
+      "kist mein de sakte hai",
+      "installment",
+      "monthly payment",
+      "emi",
+      "kist"
+    ],
+    "en": "Yes — no-cost EMI is available on fees above ₹15,000. Your counsellor will explain the options.",
+    "hi": "Haan — ₹15,000 se upar ki fees par no-cost EMI hai. Counsellor options samjha denge.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"EMI\" row. Fact: ₹15,000 threshold. A fuller Section 13 draft (EMI partner and months, {{emi_details}}) is in the \"emi_details\" entry. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "duration",
+    "title": "Course duration",
+    "node": "COURSE_FEES",
+    "keywords": [
+      "kitne din ka hai",
+      "kitne mahine",
+      "duration",
+      "how long",
+      "kab tak chalega",
+      "fast track"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: Section 3 says → COURSE_FEES (tracks show duration) / FAQ duration. The PDF has no separate FAQ duration answer text in Section 9; duration depends on course (Course Playbooks). Internship courses: \"Available durations vary by page (4 weeks, 6 weeks, 2 months and longer) — counsellor confirms.\""
+  },
+  {
+    "key": "batch",
+    "title": "Start date / next batch",
+    "node": "FAQ_TIMING",
+    "keywords": [
+      "kab se start hai",
+      "next batch",
+      "new batch kab",
+      "abhi join kar sakte hai",
+      "admission open hai",
+      "timing",
+      "batch",
+      "weekend",
+      "kab se",
+      "start"
+    ],
+    "en": "New batches start every month — weekday morning and evening, and weekend batches too. The next batch starts on {{next_batch}}.",
+    "hi": "Har mahine naya batch shuru hota hai — weekday subah aur shaam, aur weekend batch bhi. Agla batch {{next_batch}} se shuru hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Batches & timings\" row (Section 3: FAQ timing + next batch line). Needs {{next_batch}} date. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "timing",
+    "title": "Class timings",
+    "node": "FAQ_TIMING",
+    "keywords": [
+      "timing kya hai",
+      "subah",
+      "shaam",
+      "evening batch",
+      "weekend batch",
+      "sunday class",
+      "kitne ghante",
+      "kitne baje",
+      "subah kitne baje",
+      "evening batch kab"
+    ],
+    "en": "Weekday batches run 5 days a week, about 1.5–2 hours a class, in morning and evening slots (Back Office also has an afternoon batch). Weekend batches cover the same course over a slightly longer time. Today's slots: morning {{morning_time}}, evening {{evening_time}}, weekend {{weekend_time}}.",
+    "hi": "Weekday batch hafte mein 5 din, har class lagbhag 1.5–2 ghante, subah aur shaam ke slot mein (Back Office mein dopahar ka batch bhi). Weekend batch mein wahi course thoda lambe time mein. Abhi ke slot: subah {{morning_time}}, shaam {{evening_time}}, weekend {{weekend_time}}.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 3 routes to \"FAQ timing\" (= Section 9 \"Batches & timings\" row, used for \"batch\"). This text is the Section 13-linked draft \"Exact class timings\" (\"Questions students ask that need your information\"): PDF says fill the yellow blanks {{morning_time}}, {{evening_time}}, {{weekend_time}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "location",
+    "title": "Address / location",
+    "node": "G_LOCATION",
+    "keywords": [
+      "kahan pe hai",
+      "kha pr h",
+      "address",
+      "location bhejo",
+      "map",
+      "ajmer road kahan",
+      "kaise aaye",
+      "location",
+      "kahan"
+    ],
+    "en": "📍 Infonic Training\n2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road, opp. Axis Bank, DCM, Jaipur 302021\n\nGoogle Maps: maps.google.com/?q=Krishna+Tower,+Heera+Nagar+Mode,+Ajmer+Road,+Jaipur\nOpen Mon–Fri, 9 am – 6 pm. Come and sit in a free demo class!",
+    "hi": "📍 Infonic Training\n2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road, opp. Axis Bank, DCM, Jaipur 302021\n\nGoogle Maps: maps.google.com/?q=Krishna+Tower,+Heera+Nagar+Mode,+Ajmer+Road,+Jaipur\nMon–Fri, 9 am – 6 pm khula hai. Aaiye, ek free demo class baith kar dekhiye!",
+    "buttons": [
+      "Book free demo",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Main menu"
+    ],
+    "notes": "Contains Infonic-specific facts: institute name, full address (Krishna Tower, Heera Nagar Mode, Ajmer Road, DCM, Jaipur 302021), Maps link, office hours Mon–Fri 9–6. PDF note: also send a WhatsApp location message (lat/long). Hook: someone asking for the address is close to visiting — offer the demo immediately."
+  },
+  {
+    "key": "online",
+    "title": "Online classes & recordings",
+    "node": "FAQ_ONLINE (F_ONLINE)",
+    "keywords": [
+      "online hai kya",
+      "ghar se kar sakte hai",
+      "online class",
+      "live hai ya recorded",
+      "recording milegi",
+      "online",
+      "live",
+      "recording",
+      "ghar se"
+    ],
+    "en": "Yes! 👍 Every course runs both ways:\n🏫 Classroom at Ajmer Road — face-to-face practice\n💻 Online live — the same live class from our digital board, a recording of every class, and a lower fee\nSame trainer, same syllabus. Not sure which suits you? Ask for a free demo in either mode.",
+    "hi": "Haan! 👍 Har course dono tarah se hota hai:\n🏫 Ajmer Road classroom — aamne-saamne practice\n💻 Online live — digital board se wahi live class, har class ki recording, aur fees kam\nTrainer aur syllabus same. Kaunsa better hai? Kisi bhi mode mein free demo lekar dekho.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Online & recordings\" row; \"Online option\" buttons in OBJ_PRICE/OBJ_NOTIME route here (F_ONLINE). Contains Infonic-specific facts: \"Ajmer Road\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "mode_compare",
+    "title": "Online vs classroom",
+    "node": "MODE_COMPARE",
+    "keywords": [
+      "online ya offline",
+      "kaunsa better",
+      "online mein kya farak",
+      "offline better hai"
+    ],
+    "en": "Both give you the same course, same trainer and the same live class 👍\n\n🏫 Classroom (Ajmer Road): face-to-face practice, learn alongside your batch, ask doubts on the spot. Best if you're in or near Jaipur.\n💻 Online live: join from home, ask doubts live, get a recording of every class, and pay a lower fee. Best if you're outside Jaipur, working, or short on time.\n\nStill unsure? Try a free demo in either mode.",
+    "hi": "Dono mein course, trainer aur live class same hai 👍\n\n🏫 Classroom (Ajmer Road): aamne-saamne practice, batch ke saath seekhna, doubt turant clear. Jaipur ya paas rehte ho to best.\n💻 Online live: ghar se join, live doubt poochna, har class ki recording, aur fees bhi kam. Jaipur ke bahar ho, job karte ho ya time kam hai to best.\n\nAbhi bhi confuse? Kisi bhi mode mein free demo try karo.",
+    "buttons": [
+      "Classroom",
+      "Online live",
+      "Free demo first"
+    ],
+    "buttonsHi": [
+      "Classroom",
+      "Online live",
+      "Pehle free demo"
+    ],
+    "notes": "All three buttons → BOOK_TIME (booking flow). Also reached from \"Help me decide\" in BOOK_MODE. Contains Infonic-specific facts: \"Ajmer Road\", \"Jaipur\"."
+  },
+  {
+    "key": "placement",
+    "title": "Job / placement",
+    "node": "FAQ_PLACEMENT",
+    "keywords": [
+      "job lagegi kya",
+      "placement hai",
+      "job guarantee",
+      "naukri milegi",
+      "100% placement",
+      "job ke baad",
+      "placement",
+      "job",
+      "naukri"
+    ],
+    "en": "We give placement assistance — resume and LinkedIn help, mock interviews and referrals to hiring companies. Our own company also hires. The final job depends on your interview, so no genuine institute can guarantee it.",
+    "hi": "Hum placement assistance dete hain — resume aur LinkedIn help, mock interviews, aur hiring companies ko referral. Humari apni company bhi hiring karti hai. Final job interview par depend karti hai, isliye koi genuine institute guarantee nahi de sakta.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Placement\" row; Section 3 says \"FAQ placement (honest)\". Guarantee-specific wording is the OBJ_GUARANTEE entry (\"guarantee\"). Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "salary",
+    "title": "Salary / package",
+    "node": "FAQ_SALARY",
+    "keywords": [
+      "salary kitni milegi",
+      "package kitna",
+      "kitna kama sakte hai",
+      "earning kitni",
+      "salary",
+      "package",
+      "kamai",
+      "lpa"
+    ],
+    "en": "Salary is decided by the hiring company at your interview, so we don't promise a number. What we make sure of: practical skills and a portfolio you can show.",
+    "hi": "Salary hiring company interview mein decide karti hai, isliye hum koi number promise nahi karte. Hum ye pakka karte hain: practical skills aur ek portfolio jo aap dikha sako.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 3: \"FAQ salary (no numbers)\" — never quote salary figures. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "internship",
+    "title": "Internship / stipend",
+    "node": "FAQ_INTERNSHIP",
+    "keywords": [
+      "internship milegi",
+      "paid internship",
+      "stipend kitna",
+      "internship certificate",
+      "internship",
+      "stipend"
+    ],
+    "en": "Most courses can be taken with or without an internship (the fee differs). Whether the internship carries a stipend, and how much, depends on your interview and performance. If you're new to the skill, you'll usually finish the course first.",
+    "hi": "Zyadatar courses internship ke saath ya bina le sakte ho (fees alag hoti hai). Internship mein stipend milega ya nahi, aur kitna — ye aapke interview aur performance par depend karta hai. Skill nayi hai to pehle course complete karna hota hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Internship & stipend\" row. See also \"course_internship_length\" and \"college_internship_hours\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "certificate",
+    "title": "Certificate",
+    "node": "FAQ_CERTIFICATE",
+    "keywords": [
+      "certificate milega",
+      "valid hai",
+      "government certificate",
+      "iso",
+      "certificate",
+      "valid"
+    ],
+    "en": "Yes, you get an Infonic Training certificate when you complete the course — plus a portfolio of real work, which employers value even more.",
+    "hi": "Haan, course complete hone par Infonic Training ka certificate milta hai — saath mein real kaam ka portfolio, jo employers aur bhi zyada dekhte hain.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Contains Infonic-specific facts: institute name \"Infonic Training\". The answer does not address \"government certificate\" / \"ISO\" claims — confirm before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "eligibility",
+    "title": "Eligibility",
+    "node": "FAQ_ELIGIBILITY",
+    "keywords": [
+      "12th ke baad kar sakte",
+      "graduation zaroori",
+      "commerce wala kar sakta",
+      "non it",
+      "beginner",
+      "kuch nahi aata",
+      "12th",
+      "graduate",
+      "eligibility"
+    ],
+    "en": "Most courses start from the basics — no experience needed. Your counsellor will tell you if a course needs anything first.",
+    "hi": "Zyadatar courses basics se shuru hote hain — koi experience nahi chahiye. Kisi course ke liye kuch pehle zaroori ho to counsellor bata denge.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 3 routes to \"FAQ eligibility / OBJ_CODING\" (non-IT / commerce / coding worries → OBJ_CODING, see coding_fear). Age questions: see \"min_age\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "english_fear",
+    "title": "Weak English",
+    "node": "OBJ_ENGLISH",
+    "keywords": [
+      "english weak hai",
+      "english nahi aati",
+      "hindi medium",
+      "angrezi",
+      "english weak"
+    ],
+    "en": "Please don't worry about that at all. 🙏 Many of our students come from Hindi-medium schools.\n\nClasses are in Hindi and simple English, we start from the basics, and nobody in class laughs at anyone. You'll be comfortable from day one.",
+    "hi": "Iski bilkul tension mat lijiye. 🙏 Humare bahut saare students Hindi medium se hain.\n\nClasses Hindi aur simple English mein hoti hain, basics se shuru karte hain, aur class mein koi kisi par hansta nahi. Pehle din se aap comfortable feel karoge.",
+    "buttons": [
+      "Course details",
+      "Book free demo"
+    ],
+    "buttonsHi": [
+      "Course ki details",
+      "Free demo book karo"
+    ],
+    "notes": "Keywords = Section 3 + Section 8 trigger words. Course details → COURSE_DETAILS; Book free demo → BOOK_NAME. Hook: suggest Communication Mastery if they want to improve English itself."
+  },
+  {
+    "key": "coding_fear",
+    "title": "Coding / maths fear",
+    "node": "OBJ_CODING",
+    "keywords": [
+      "coding nahi aati",
+      "maths weak hai",
+      "technical nahi hoon",
+      "maths weak",
+      "technical nahi",
+      "non it",
+      "commerce"
+    ],
+    "en": "That's completely fine — lots of our students start with zero coding. 😊\n\nTwo options:\n• No coding at all: Generative AI & AI Agents, Digital Marketing, Data Analysis (very little code)\n• Want to learn coding: our courses teach it from scratch, step by step\n\nShall I help you pick?",
+    "hi": "Bilkul koi problem nahi — bahut students zero coding se shuru karte hain. 😊\n\nDo options:\n• Bilkul coding nahi: Generative AI & AI Agents, Digital Marketing, Data Analysis (bahut kam code)\n• Coding seekhni hai: hum zero se, step by step sikhate hain\n\nSahi course chunne mein help karun?",
+    "buttons": [
+      "Help me choose",
+      "No-code AI course"
+    ],
+    "buttonsHi": [
+      "Mujhe guide karo",
+      "No-code AI course"
+    ],
+    "notes": "Keywords = Section 3 + Section 8 trigger words. Help me choose → P_PROFILE; No-code AI course → COURSE_GREET[GENAI] (single label in PDF). Course names are Infonic catalogue-specific."
+  },
+  {
+    "key": "trust",
+    "title": "Is it genuine? (trust)",
+    "node": "OBJ_FRAUD",
+    "keywords": [
+      "fraud to nahi",
+      "genuine hai",
+      "fake",
+      "reviews",
+      "kitne saal se",
+      "pehle kisi ne join kiya",
+      "fraud",
+      "genuine",
+      "trust",
+      "real hai"
+    ],
+    "en": "Fair question — you should check before paying anyone. 🙏\n\n• Training students in Jaipur since 2012 — 3,000+ so far\n• ★ 4.9/5 on Google: {{google_reviews_link}}\n• Real centre: 2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road\n\nCome visit, sit in a free demo class, talk to students — then decide.",
+    "hi": "Bilkul sahi sawaal — kisi ko bhi paise dene se pehle check karna chahiye. 🙏\n\n• 2012 se Jaipur mein training — ab tak 3,000+ students\n• Google par ★ 4.9/5: {{google_reviews_link}}\n• Asli centre: 2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road\n\nAaiye, free demo class dekhiye, students se baat kijiye — phir decide kijiye.",
+    "buttons": [
+      "Student reviews",
+      "Book free demo",
+      "Send location"
+    ],
+    "buttonsHi": [
+      "Students ke reviews",
+      "Free demo book karo",
+      "Location bhejo"
+    ],
+    "notes": "Contains Infonic-specific facts: \"Jaipur\", \"since 2012\", \"3,000+\", \"4.9/5\", address. Needs {{google_reviews_link}}. Buttons → PROOF / BOOK_NAME / G_LOCATION. Keywords = Section 3 + Section 8 trigger words."
+  },
+  {
+    "key": "youtube",
+    "title": "Free on YouTube",
+    "node": "OBJ_YOUTUBE",
+    "keywords": [
+      "youtube pe free hai",
+      "free mein seekh lunga",
+      "google se seekh lenge",
+      "google se"
+    ],
+    "en": "YouTube is great for learning what to do — we use it too! 😊\n\nWhat it can't give you: a trainer who checks your work, live practice, a batch that keeps you going, a portfolio reviewed by experts, an internship option and placement assistance.\n\nMost of our students tried YouTube first — they join for the practice and the push.",
+    "hi": "YouTube kya karna hai seekhne ke liye badhiya hai — hum bhi use karte hain! 😊\n\nPar wo nahi de sakta: trainer jo aapka kaam check kare, live practice, batch jo aapko regular rakhe, experts se reviewed portfolio, internship option aur placement assistance.\n\nHumare zyadatar students ne pehle YouTube try kiya tha — wo practice aur guidance ke liye join karte hain.",
+    "buttons": [
+      "Book free demo",
+      "Course details"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Course ki details"
+    ],
+    "notes": "Buttons → BOOK_NAME / COURSE_DETAILS. Hook: agrees first, then shows the gap."
+  },
+  {
+    "key": "cheaper",
+    "title": "Other institute is cheaper",
+    "node": "OBJ_CHEAPER",
+    "keywords": [
+      "dusra institute sasta hai",
+      "xyz mein kam fees",
+      "compare",
+      "dusra institute sasta",
+      "cheaper",
+      "kam fees mein"
+    ],
+    "en": "Good that you're comparing! 👍 Ask every institute the same 3 questions:\n1. How many minutes will I personally practise in each class?\n2. What will I build that I can show an employer?\n3. Is there an internship option and placement assistance?\n\nCompare those, not just the fee — and sit in our free demo before you decide.",
+    "hi": "Achha hai aap compare kar rahe ho! 👍 Har institute se ye 3 sawaal poochiye:\n1. Har class mein main khud kitni der practice karunga?\n2. Main kya banaunga jo employer ko dikha sakun?\n3. Internship option aur placement assistance hai?\n\nSirf fees nahi, ye compare kijiye — aur decide karne se pehle humara free demo dekhiye.",
+    "buttons": [
+      "Why Infonic?",
+      "Book free demo",
+      "Student reviews"
+    ],
+    "buttonsHi": [
+      "Infonic kyun?",
+      "Free demo book karo",
+      "Students ke reviews"
+    ],
+    "notes": "Buttons → WHY_US / BOOK_NAME / PROOF. \"Why Infonic?\" contains the institute name. Keywords = Section 3 + Section 8 trigger words."
+  },
+  {
+    "key": "family",
+    "title": "Need to ask family",
+    "node": "OBJ_PARENTS",
+    "keywords": [
+      "papa se poochna hai",
+      "mummy ko batana hai",
+      "ghar pe baat karke batata hoon",
+      "family",
+      "papa",
+      "mummy",
+      "parents",
+      "ghar pe poochna",
+      "family se baat"
+    ],
+    "en": "That's very sensible — a good decision is a family decision. 👨‍👩‍👧\n\nHere's a short summary you can forward to your parents. They're also welcome to visit the centre with you and sit in a free demo class.",
+    "hi": "Bahut sahi soch hai — achha decision family ke saath hi hota hai. 👨‍👩‍👧\n\nYe chhota summary parents ko forward kar dijiye. Wo aapke saath centre aakar free demo class bhi dekh sakte hain.",
+    "buttons": [
+      "Get summary",
+      "Book family visit"
+    ],
+    "buttonsHi": [
+      "Summary bhejo",
+      "Family visit book"
+    ],
+    "notes": "Get summary → PARENT_CARD (see \"parent_card\" entry); Book family visit → BOOK_NAME. HANDOFF rule: hand to a human if the student is a parent asking on behalf of a child. Keywords = Section 3 + Section 8 trigger words."
+  },
+  {
+    "key": "later",
+    "title": "Will think / later",
+    "node": "OBJ_LATER",
+    "keywords": [
+      "sochke batata hoon",
+      "baad mein",
+      "later",
+      "abhi nahi",
+      "next month",
+      "will think"
+    ],
+    "en": "Of course — take your time, it's an important decision. 😊\n\nShall I send you a short summary you can read later or share with your family? I can also hold a free demo slot for you, no commitment.",
+    "hi": "Bilkul, aaram se sochiye — ye important decision hai. 😊\n\nKya main ek chhota summary bhej doon jo aap baad mein padh sako ya family ko dikha sako? Main aapke liye ek free demo slot bhi rakh sakta hoon, koi commitment nahi.",
+    "buttons": [
+      "Send summary",
+      "Student reviews",
+      "Hold a demo slot"
+    ],
+    "buttonsHi": [
+      "Summary bhejo",
+      "Students ke reviews",
+      "Demo slot rakho"
+    ],
+    "notes": "Buttons → PARENT_CARD / PROOF / BOOK_NAME. Hook: keeps the door open with something useful instead of pressure."
+  },
+  {
+    "key": "no_time",
+    "title": "No time / busy",
+    "node": "OBJ_NOTIME",
+    "keywords": [
+      "time nahi hai",
+      "job karta hoon",
+      "college hai",
+      "busy",
+      "time nahi"
+    ],
+    "en": "Totally understand — most of our students are working or in college. 😊\n\n• Weekday evening and weekend batches\n• Online live classes from home, with recordings of every class\n• Fast-track or regular options to fit your schedule",
+    "hi": "Bilkul samajh sakte hain — humare zyadatar students job ya college ke saath padhte hain. 😊\n\n• Weekday evening aur weekend batch\n• Ghar se online live classes, har class ki recording ke saath\n• Fast-track ya regular — aapke schedule ke hisaab se",
+    "buttons": [
+      "Weekend batch info",
+      "Online option"
+    ],
+    "buttonsHi": [
+      "Weekend batch info",
+      "Online option"
+    ],
+    "notes": "Weekend batch info → BOOK_NAME; Online option → F_ONLINE (FAQ online). Both buttons have a single label in the PDF (used for both languages)."
+  },
+  {
+    "key": "far",
+    "title": "Live far away",
+    "node": "OBJ_FAR",
+    "keywords": [
+      "door hai",
+      "jaipur se bahar hoon",
+      "sikar se hoon",
+      "travel nahi kar sakta",
+      "bahar hoon",
+      "jaipur se bahar",
+      "sikar",
+      "ajmer",
+      "travel"
+    ],
+    "en": "No problem at all! 😊 You can join our online live batch — same trainer, same live class, a recording of every session, and a lower fee. Many students from Sikar, Ajmer, Kota and beyond learn with us this way.",
+    "hi": "Koi dikkat nahi! 😊 Aap humara online live batch join kar sakte ho — wahi trainer, wahi live class, har session ki recording, aur fees bhi kam. Sikar, Ajmer, Kota aur bahar ke bahut students aise hi padhte hain.",
+    "buttons": [
+      "Book online demo",
+      "Course details"
+    ],
+    "buttonsHi": [
+      "Online demo book",
+      "Course ki details"
+    ],
+    "notes": "PDF note: \"Only keep the city names if true.\" Contains Infonic-specific facts: city names Sikar, Ajmer, Kota; keywords include \"jaipur\", \"sikar\", \"ajmer\". Buttons → BOOK_NAME / COURSE_DETAILS."
+  },
+  {
+    "key": "why_us",
+    "title": "Why choose us / proof",
+    "node": "WHY_US",
+    "keywords": [
+      "kya khaas hai",
+      "best kyun",
+      "why infonic",
+      "reviews dikhao",
+      "students ka feedback",
+      "proof",
+      "why you"
+    ],
+    "en": "Why students choose Infonic — in 10 seconds 👇\n✅ Small batches — your trainer knows your name\n✅ Hindi + simple English, starting from basics\n✅ Real projects → a portfolio you can show\n✅ Classroom or online live, with recordings\n✅ Internship option + placement assistance\n✅ Our own company hires — we train to that level\n✅ 3,000+ students since 2012 · ★ 4.9/5\n\nAnd you can sit in a free demo before paying anything.",
+    "hi": "Students Infonic kyun chunte hain — 10 second mein 👇\n✅ Chhote batch — trainer aapko naam se jaanta hai\n✅ Hindi + simple English, basics se shuru\n✅ Real projects → portfolio jo aap dikha sako\n✅ Classroom ya online live, recordings ke saath\n✅ Internship option + placement assistance\n✅ Humari apni company hiring karti hai — usi level ki training\n✅ 2012 se 3,000+ students · ★ 4.9/5\n\nAur paise dene se pehle free demo class dekh sakte ho.",
+    "buttons": [
+      "Student reviews",
+      "Fees & duration",
+      "Book free demo"
+    ],
+    "buttonsHi": [
+      "Students ke reviews",
+      "Fees aur duration",
+      "Free demo book karo"
+    ],
+    "notes": "Section 3 routes \"Why you / proof\" → WHY_US / PROOF; reviews/feedback requests can go to PROOF (see \"proof\" entry). Buttons → PROOF / COURSE_FEES / BOOK_NAME. Contains Infonic-specific facts: \"Infonic\", \"3,000+\", \"2012\", \"4.9/5\"; keyword \"why infonic\"."
+  },
+  {
+    "key": "which_course",
+    "title": "Which course is best?",
+    "node": "P_PROFILE",
+    "keywords": [
+      "kaunsa course best hai",
+      "konsa lu",
+      "confuse hoon",
+      "difference kya hai",
+      "google ads ya digital marketing"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → P_PROFILE (Help me choose, 3 questions: profile → goal → area → REC_[area]). P_PROFILE intro: \"Happy to help you choose! 🙌 Just 3 quick questions.\" / \"Bilkul, sahi course chunne mein help karte hain! 🙌 Bas 3 chhote sawaal.\" Keyword \"google ads ya digital marketing\" is Infonic catalogue-specific."
+  },
+  {
+    "key": "demo",
+    "title": "Free demo class",
+    "node": "BOOK_NAME",
+    "keywords": [
+      "demo class",
+      "trial",
+      "free class",
+      "ek class dekh sakte",
+      "demo"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → BOOK_NAME (intent = demo) — booking flow asks name → city → mode → time. A typed FAQ answer for demo questions exists as \"free_demo\" (Section 9) and demo timing as \"demo_timing\"."
+  },
+  {
+    "key": "talk_human",
+    "title": "Talk to a counsellor",
+    "node": "BOOK_NAME",
+    "keywords": [
+      "call karo",
+      "baat karni hai",
+      "counsellor",
+      "sir se baat",
+      "number do",
+      "phone karo"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → BOOK_NAME (intent = call). HANDOFF rule: the student asks for a person / call → hand the chat to a human counsellor after booking. BOOK_NAME text: \"Great choice! 🙌 Let's set it up — it takes 30 seconds. What's your name?\" (skip if name saved)."
+  },
+  {
+    "key": "complaint",
+    "title": "Refund / complaint",
+    "node": "HANDOFF",
+    "keywords": [
+      "refund",
+      "paise wapas",
+      "complaint",
+      "problem",
+      "cheated"
+    ],
+    "en": "",
+    "hi": "",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Routing only: → HANDOFF immediately (tag: complaint); bot goes silent. HANDOFF rules: booking complete; student asks for a person/call; refund, complaint, angry or abusive words; fee negotiation beyond the standard offer; same objection twice; two unmatched questions in a row; parent asking on behalf of a child. Refund-policy FAQ text is the \"refund\" entry."
+  },
+  {
+    "key": "guarantee",
+    "title": "Job guarantee",
+    "node": "OBJ_GUARANTEE",
+    "keywords": [
+      "job guarantee",
+      "pakka job",
+      "100% placement",
+      "guarantee hai"
+    ],
+    "en": "I'll be honest with you: no genuine institute can guarantee a job — the final decision is the company's interview. 🙏\n\nWhat we do: train you on real projects so you have a portfolio, help with your resume and LinkedIn, run mock interviews and refer you to hiring companies. Our own company also hires, so we train you to the level we hire at.",
+    "hi": "Aapse sach kahun: koi bhi genuine institute job guarantee nahi de sakta — final decision company ke interview ka hota hai. 🙏\n\nHum kya karte hain: real projects par training taaki aapka portfolio bane, resume aur LinkedIn mein help, mock interviews, aur hiring companies ko referral. Humari apni company bhi hiring karti hai, isliye hum usi level tak train karte hain.",
+    "buttons": [
+      "Student reviews",
+      "Book free demo",
+      "Talk to counsellor"
+    ],
+    "buttonsHi": [
+      "Students ke reviews",
+      "Free demo book karo",
+      "Counsellor se baat"
+    ],
+    "notes": "Section 8 objection (trigger words from Section 8). Section 3 lists \"job guarantee\"/\"100% placement\" under placement — match guarantee words here first. Buttons → PROOF / BOOK_NAME / BOOK_NAME."
+  },
+  {
+    "key": "proof",
+    "title": "Student reviews / proof",
+    "node": "PROOF",
+    "keywords": [
+      "reviews dikhao",
+      "students ka feedback",
+      "proof",
+      "reviews"
+    ],
+    "en": "Don't just take our word for it 😊\n\n⭐ 4.9/5 Google reviews: {{google_reviews_link}}\n🎥 Student stories: youtube.com/@infonictraining\n📸 Our centre & classes: instagram.com/infonic_training\n💼 Work our students built: {{student_work_link}}\n\nThe best proof? Sit in a free demo class and see for yourself.",
+    "hi": "Sirf humari baat mat maaniye 😊\n\n⭐ Google par 4.9/5 reviews: {{google_reviews_link}}\n🎥 Students ki kahaniyan: youtube.com/@infonictraining\n📸 Humara centre aur classes: instagram.com/infonic_training\n💼 Students ka banaya kaam: {{student_work_link}}\n\nSabse badi proof? Ek free demo class khud dekhiye.",
+    "buttons": [
+      "Book free demo",
+      "Talk to counsellor",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Counsellor se baat",
+      "Main menu"
+    ],
+    "notes": "Section 5 node (Convince). When: tapped Student reviews, asked for reviews, or raised a trust or \"later\" objection. Keywords derived from Section 3 \"Why you / proof\" row. Contains Infonic-specific facts: \"4.9/5\", youtube.com/@infonictraining, instagram.com/infonic_training. Needs {{google_reviews_link}}, {{student_work_link}}. PDF note: if a course has its own testimonial video or portfolio, send that link instead."
+  },
+  {
+    "key": "parent_card",
+    "title": "Summary for parents",
+    "node": "PARENT_CARD",
+    "keywords": [],
+    "en": "Here's a short summary you can forward to your family 👇\n— — —\n{{course}} at Infonic Training, Jaipur\n✅ What {{name}} will learn: {{course_learn_short}}\n✅ Classroom at Ajmer Road or online live, small batches, Hindi + simple English\n✅ Practical projects and a portfolio; internship option\n✅ Placement assistance (resume, mock interviews, referrals)\n✅ 3,000+ students trained since 2012 · ★ 4.9/5 rating\n✅ Fees: {{course_fee_line}}\n📍 2nd Floor, Krishna Tower, Heera Nagar Mode, Ajmer Road, opp. Axis Bank, DCM, Jaipur 302021\nParents are welcome to visit and sit in a free demo class.\n— — —",
+    "hi": "Ye chhota sa summary hai, aap family ko forward kar sakte ho 👇",
+    "buttons": [
+      "Book family visit",
+      "Talk to counsellor",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Family visit book",
+      "Counsellor se baat",
+      "Main menu"
+    ],
+    "notes": "Reached from OBJ_PARENTS / OBJ_LATER buttons (no keywords). Hinglish column gives only the intro line plus \"(Card wahi rahega — parents ke liye English/Hinglish jo aap chahein.)\" — the card itself stays the same. Placeholders normalised from {{course.learn_short}} → {{course_learn_short}}, {{course.fee_line}} → {{course_fee_line}}. PDF note: fee_line = three track prices for fee-page courses, otherwise \"our counsellor shares the exact fee; EMI available\". Contains Infonic-specific facts: name, Jaipur, Ajmer Road, address, 3,000+, 2012, 4.9/5."
+  },
+  {
+    "key": "free_demo",
+    "title": "Free demo (FAQ)",
+    "node": "FAQ_DEMO",
+    "keywords": [
+      "demo",
+      "trial",
+      "free class"
+    ],
+    "en": "Yes! You can attend a free demo class before joining — in the classroom or online. Shall I book one?",
+    "hi": "Haan! Join karne se pehle free demo class dekh sakte ho — classroom ya online. Book kar doon?",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Free demo\" row. Section 3 routes demo requests straight to BOOK_NAME (see \"demo\"). Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "refund",
+    "title": "Refund policy",
+    "node": "FAQ_REFUND",
+    "keywords": [
+      "refund",
+      "paise wapas",
+      "cancel"
+    ],
+    "en": "Fees are non-refundable once paid. That's why we suggest a free demo class first, so you're sure before joining.",
+    "hi": "Fees jama hone ke baad refund nahi hota. Isliye hum pehle free demo class dekhne ko kehte hain, taaki join karne se pehle aap sure ho.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Refund\" row. Section 3 routes refund/complaint → HANDOFF (tag: complaint); use this text only for policy questions. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "missed_class",
+    "title": "Missed class",
+    "node": "FAQ_MISSED_CLASS",
+    "keywords": [
+      "miss",
+      "chhut gayi",
+      "absent"
+    ],
+    "en": "Online students get a recording of every class. Missed classroom sessions are not repeated separately, so pick a batch timing you can attend regularly.",
+    "hi": "Online students ko har class ki recording milti hai. Classroom ki chhooti class alag se repeat nahi hoti, isliye aisa batch time chuniye jo regular attend kar sako.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Missed class\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "language",
+    "title": "Language of classes",
+    "node": "FAQ_LANGUAGE",
+    "keywords": [
+      "hindi",
+      "english",
+      "language"
+    ],
+    "en": "Classes are in Hindi and simple English, so Hindi-medium students are comfortable from day one.",
+    "hi": "Classes Hindi aur simple English mein hoti hain, isliye Hindi medium students pehle din se comfortable rehte hain.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Language\" row (fear of weak English → OBJ_ENGLISH). Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "trainers",
+    "title": "Trainers",
+    "node": "FAQ_TRAINERS",
+    "keywords": [
+      "trainer",
+      "teacher",
+      "sir",
+      "faculty"
+    ],
+    "en": "Our courses are taught by qualified subject experts, all working under the guidance of Priyank Dadhich, who monitors every batch so quality stays consistent and the syllabus stays up to date.",
+    "hi": "Humare courses qualified subject experts padhate hain, sab Priyank Dadhich ke guidance mein, jo har batch monitor karte hain taaki quality same rahe aur syllabus up to date rahe.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Contains Infonic-specific facts: person name \"Priyank Dadhich\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "laptop",
+    "title": "Laptop needed?",
+    "node": "FAQ_LAPTOP",
+    "keywords": [
+      "laptop",
+      "computer",
+      "system"
+    ],
+    "en": "A laptop helps you practise at home. Your counsellor will tell you what your course needs.",
+    "hi": "Ghar par practice ke liye laptop helpful hai. Aapke course ke liye kya chahiye, counsellor bata denge.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Laptop\" row. A more detailed Section 13 draft is \"laptop_lab\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "fee_range",
+    "title": "Fee range / cheapest course",
+    "node": "FAQ_FEE_RANGE",
+    "keywords": [
+      "fees range",
+      "minimum fees",
+      "sabse sasta course",
+      "kitne tak ki fees"
+    ],
+    "en": "Fees depend on the course and the option you pick — fast-track or regular, with or without internship, classroom or online (online costs less). Our counsellor will find the option that fits your goal and budget, share the exact fee and any running offer, and EMI is available above ₹15,000.",
+    "hi": "Fees course aur aapke option par depend karti hai — fast-track ya regular, internship ke saath ya bina, classroom ya online (online sasta hai). Counsellor aapke goal aur budget ke hisaab se sahi option dhoondhenge, exact fees aur chal raha offer batayenge, aur ₹15,000 se upar EMI bhi hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Fee range / cheapest course\" row. Fact: ₹15,000 EMI threshold. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "documents",
+    "title": "Documents for admission",
+    "node": "FAQ_DOCUMENTS",
+    "keywords": [
+      "documents",
+      "admission ke liye kya chahiye",
+      "photo",
+      "aadhar",
+      "id"
+    ],
+    "en": "Just bring a photo ID and two passport-size photos. A marksheet copy is needed only if your college wants the internship for credit.",
+    "hi": "Bas ek photo ID aur do passport size photo le aaiye. Marksheet ki copy tabhi chahiye agar college ko internship credit ke liye chahiye.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Documents\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "batch_size",
+    "title": "Batch size",
+    "node": "FAQ_BATCH_SIZE",
+    "keywords": [
+      "kitne students",
+      "batch mein kitne",
+      "crowd"
+    ],
+    "en": "Batches are kept small — about 12–15 students — so the trainer knows every student and checks everyone's work.",
+    "hi": "Batch chhote rakhte hain — lagbhag 12–15 students — taaki trainer har student ko jaane aur sabka kaam check kare.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Batch size\" row. Fact: 12–15 students. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "payment",
+    "title": "Payment methods",
+    "node": "FAQ_PAYMENT",
+    "keywords": [
+      "payment kaise",
+      "upi",
+      "cash",
+      "transfer",
+      "receipt"
+    ],
+    "en": "You can pay at the centre or by bank transfer; online students get the payment details by phone. You get a receipt every time.",
+    "hi": "Payment centre par ya bank transfer se kar sakte ho; online students ko payment details phone par mil jaati hain. Har baar receipt milti hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Payment\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "two_courses",
+    "title": "Two courses together",
+    "node": "FAQ_TWO_COURSES",
+    "keywords": [
+      "do course saath",
+      "combo",
+      "package",
+      "2 course"
+    ],
+    "en": "Yes! Complementary pairs work really well — Graphic Design + Video Editing, or SEO + Content Writing — and a package costs less than separate courses. Your counsellor will suggest a combination that won't overload your week.",
+    "hi": "Haan! Saath chalne wale courses best rehte hain — Graphic Design + Video Editing, ya SEO + Content Writing — aur package alag-alag se sasta padta hai. Counsellor aisa combination batayenge jo aapke hafte par zyada load na daale.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Two courses together\" row. Course names are Infonic catalogue-specific. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "switch_course",
+    "title": "Switch course / batch",
+    "node": "FAQ_SWITCH_COURSE",
+    "keywords": [
+      "course change",
+      "batch change",
+      "galat course"
+    ],
+    "en": "First, our free counselling helps you pick the right course. If you join and the course genuinely doesn't suit you, talk to us early — we'll work out a solution with you. (College internships: domain change is possible in the first week.)",
+    "hi": "Pehle free counselling se sahi course chunne mein help karte hain. Join karne ke baad course sach mein suit na kare to jaldi batao — hum saath milkar solution nikalenge. (College internship mein pehle hafte domain change ho sakta hai.)",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Switch course\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "doubts",
+    "title": "Doubts & support",
+    "node": "FAQ_DOUBTS",
+    "keywords": [
+      "doubt",
+      "samajh nahi aaya",
+      "help",
+      "support baad mein"
+    ],
+    "en": "Doubt support is part of your fee — ask in class anytime, and book one-to-one doubt sessions with your mentor. After the course, placement help continues: resume, LinkedIn, interview prep and job openings.",
+    "hi": "Doubt support fees mein included hai — class mein kabhi bhi poocho, aur mentor ke saath one-to-one doubt session lo. Course ke baad bhi placement help chalti rehti hai: resume, LinkedIn, interview prep aur job openings.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Doubts & support\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "exams",
+    "title": "Exams & assessment",
+    "node": "FAQ_EXAMS",
+    "keywords": [
+      "exam",
+      "test",
+      "pass",
+      "fail",
+      "assessment"
+    ],
+    "en": "There's no separate exam fee. You're assessed through assignments and projects, and your trainer gives detailed feedback. The final assessment also decides internship eligibility.",
+    "hi": "Alag se exam fees nahi hai. Assignments aur projects se assessment hota hai, aur trainer detailed feedback dete hain. Final assessment se internship eligibility bhi tay hoti hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Exams\" row (keywords cell reads \"exam, test, pass fail, assessment\" — split into separate words). Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "college_letter",
+    "title": "Training letter for college",
+    "node": "FAQ_COLLEGE_LETTER",
+    "keywords": [
+      "training letter",
+      "college ke liye letter",
+      "noc",
+      "letterhead",
+      "stamp"
+    ],
+    "en": "You get a completion certificate plus a training letter and attendance record on our company letterhead, with seal and signature — accepted by most Rajasthan colleges. Do check the format your department wants.",
+    "hi": "Completion certificate ke saath company letterhead par training letter aur attendance record milta hai, seal aur signature ke saath — Rajasthan ke zyadatar colleges accept karte hain. Apne department se format zaroor check kar lijiye.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Contains Infonic-specific facts: \"Rajasthan colleges\". Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "college_internship_hours",
+    "title": "College internship hours",
+    "node": "FAQ_COLLEGE_INTERNSHIP_HOURS",
+    "keywords": [
+      "internship kitne ghante",
+      "daily kitna time",
+      "winter timing"
+    ],
+    "en": "College internships run 3 weeks to 6 months. Online takes about 3–4 hours a day, offline 4–5 hours a day at the centre (winter offline slots: 10 am–2 pm or 2–6 pm). You need 75% attendance for the certificate.",
+    "hi": "College internship 3 hafte se 6 mahine tak. Online mein roz lagbhag 3–4 ghante, offline centre par 4–5 ghante (winter offline slot: 10–2 ya 2–6 baje). Certificate ke liye 75% attendance zaroori hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"College internship hours\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "homemakers",
+    "title": "Homemakers / career restart",
+    "node": "FAQ_HOMEMAKERS",
+    "keywords": [
+      "housewife",
+      "homemaker",
+      "ghar se",
+      "career restart",
+      "gap"
+    ],
+    "en": "Absolutely! Many homemakers have trained with us. Digital marketing, content writing, video editing and social media work well — timings can fit around your home, and online live is an option too. A career gap doesn't count against you.",
+    "hi": "Bilkul! Bahut si homemakers humare saath training le chuki hain. Digital marketing, content writing, video editing aur social media achhe options hain — timing ghar ke hisaab se, aur online live bhi. Career gap koi problem nahi.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 9 \"Homemakers\" row. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "weekend_open",
+    "title": "Centre open on weekends",
+    "node": "FAQ_WEEKEND_OPEN",
+    "keywords": [
+      "sunday ko khula hai",
+      "saturday aa sakte",
+      "weekend pe centre"
+    ],
+    "en": "Our office is open Monday to Friday, 9 am – 6 pm. Weekend batches run on {{weekend_days}}. {{weekend_visit}}",
+    "hi": "Humara office Monday se Friday, subah 9 se shaam 6 baje tak khula hai. Weekend batch {{weekend_days}} ko hota hai. {{weekend_visit}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Draft from \"Questions students ask that need your information\" — PDF says fill the yellow blanks (Section 13) before going live: {{weekend_days}}, {{weekend_visit}}. Office hours Mon–Fri 9–6 are Infonic-specific. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "parking_transport",
+    "title": "Parking and transport",
+    "node": "FAQ_PARKING",
+    "keywords": [
+      "parking hai",
+      "bus",
+      "metro",
+      "kaise aaye"
+    ],
+    "en": "We're opposite Axis Bank at Heera Nagar Mode, DCM, Ajmer Road — about 20–30 minutes from Vaishali Nagar, Mansarovar, Jhotwara, C-Scheme and Malviya Nagar. Walk-ins are welcome; a quick call on 97828-60519 first makes sure a counsellor is free. {{parking}} {{transport}}",
+    "hi": "Hum Ajmer Road par DCM, Heera Nagar Mode, Axis Bank ke saamne hain — Vaishali Nagar, Mansarovar, Jhotwara, C-Scheme aur Malviya Nagar se lagbhag 20–30 minute. Bina appointment aa sakte ho; pehle 97828-60519 par call kar lo to counsellor free mil jayenge. {{parking}} {{transport}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{parking}}, {{transport}} before going live. Contains Infonic-specific facts: address landmarks, Jaipur localities, phone number 97828-60519. \"kaise aaye\" also appears under location in Section 3. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "gst",
+    "title": "GST on fees",
+    "node": "FAQ_GST",
+    "keywords": [
+      "gst lagega",
+      "gst extra"
+    ],
+    "en": "{{gst_line}}",
+    "hi": "{{gst_line}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — the whole answer is a blank ({{gst_line}}) to be filled before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "seat_booking",
+    "title": "Seat-booking amount",
+    "node": "FAQ_SEAT_BOOKING",
+    "keywords": [
+      "seat book karne ke kitne",
+      "registration fees",
+      "advance kitna"
+    ],
+    "en": "You don't need to pay the full fee upfront. Your counsellor explains the seat-booking amount and gives you the full fee breakdown before you pay — nothing is added later.\n{{booking_amount}}",
+    "hi": "Poori fees ek saath dene ki zarurat nahi. Seat booking ka amount aur poora fee breakdown counsellor pay karne se pehle bata dete hain — baad mein kuch nahi judta.\n{{booking_amount}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{booking_amount}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "emi_details",
+    "title": "EMI partner and months",
+    "node": "FAQ_EMI_DETAILS",
+    "keywords": [
+      "emi kitne mahine",
+      "emi kis bank se",
+      "card chahiye"
+    ],
+    "en": "No-cost EMI is available on fees above ₹15,000. The instalment dates are agreed in writing at admission and can match your salary date. {{emi_details}}",
+    "hi": "₹15,000 se upar ki fees par no-cost EMI hai. Kist ki dates admission ke time likh kar tay hoti hain aur aapki salary date ke hisaab se rakh sakte hain. {{emi_details}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{emi_details}} before going live. Fact: ₹15,000 threshold. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "min_age",
+    "title": "Minimum age / school students",
+    "node": "FAQ_MIN_AGE",
+    "keywords": [
+      "10th mein hoon",
+      "school student",
+      "age limit",
+      "15 saal"
+    ],
+    "en": "There's no upper age limit — our batches have college students, job seekers, working professionals and business owners over 40. {{min_age}}",
+    "hi": "Upar ki koi age limit nahi — humare batch mein college students, job dhoondhne wale, working professionals aur 40+ business owners bhi hain. {{min_age}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{min_age}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "laptop_lab",
+    "title": "Laptop / lab",
+    "node": "FAQ_LAPTOP_LAB",
+    "keywords": [
+      "laptop chahiye",
+      "system milega",
+      "lab hai"
+    ],
+    "en": "It depends on the course: for Video Editing all systems and software are provided at the centre; for Digital Marketing and AI & ML you need your own normal laptop (8 GB RAM is enough for AI — heavy work runs free on Google Colab). Your counsellor will tell you for your course. {{lab_policy}}",
+    "hi": "Course par depend karta hai: Video Editing mein saare systems aur software centre par milte hain; Digital Marketing aur AI & ML ke liye apna normal laptop chahiye (AI ke liye 8 GB RAM kaafi hai — heavy kaam free Google Colab par). Aapke course ke liye counsellor bata denge. {{lab_policy}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{lab_policy}} before going live. Course-specific facts (Infonic catalogue). Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "pg_hostel",
+    "title": "PG / hostel help",
+    "node": "FAQ_PG_HOSTEL",
+    "keywords": [
+      "pg",
+      "hostel",
+      "rehne ki jagah",
+      "room",
+      "outstation"
+    ],
+    "en": "{{pg_help}} You can also join online live from home — students from Ajmer, Sikar, Jodhpur, Udaipur, Kota and Alwar already learn with us this way.",
+    "hi": "{{pg_help}} Aap ghar se online live bhi join kar sakte ho — Ajmer, Sikar, Jodhpur, Udaipur, Kota aur Alwar ke students aise hi padh rahe hain.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{pg_help}} before going live. Contains Infonic-specific facts: Rajasthan city names. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "girls_safety",
+    "title": "Safety for girls",
+    "node": "FAQ_SAFETY",
+    "keywords": [
+      "ladkiyon ke liye safe",
+      "girls batch",
+      "female trainer",
+      "safe hai"
+    ],
+    "en": "{{women_safety}} Many homemakers and young women train with us. Parents are welcome to visit the centre, meet the staff and sit in a free demo class before joining.",
+    "hi": "{{women_safety}} Bahut si homemakers aur ladkiyan humare saath training le rahi hain. Join karne se pehle parents centre aakar staff se mil sakte hain aur free demo class dekh sakte hain.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{women_safety}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "recording_access",
+    "title": "Recording access",
+    "node": "FAQ_RECORDING_ACCESS",
+    "keywords": [
+      "recording kitne din",
+      "recording kahan milegi",
+      "zoom ya meet"
+    ],
+    "en": "Online classes run live on Zoom or Google Meet, and online students get a recording of every class. Recordings stay available for {{recording_access}}. (Positive Mindset coaching sessions are private and not recorded.)",
+    "hi": "Online classes Zoom ya Google Meet par live hoti hain, aur online students ko har class ki recording milti hai. Recordings {{recording_access}} tak available rehti hain. (Positive Mindset coaching sessions private hote hain, record nahi hote.)",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{recording_access}} before going live. \"Positive Mindset\" is an Infonic course name. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "course_internship_length",
+    "title": "Course internship length",
+    "node": "FAQ_COURSE_INTERNSHIP",
+    "keywords": [
+      "internship kitne din ki",
+      "kahan hogi",
+      "office ya ghar se"
+    ],
+    "en": "Internships happen in the office or remotely, depending on the role, on real projects reviewed by our team. After a course, the internship usually runs {{course_intern_duration}}. Whether it carries a stipend depends on your interview and performance.",
+    "hi": "Internship role ke hisaab se office mein ya remote hoti hai, real projects par jinhe humari team review karti hai. Course ke baad internship aam taur par {{course_intern_duration}} ki hoti hai. Stipend milega ya nahi ye interview aur performance par depend karta hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{course_intern_duration}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "hiring_companies",
+    "title": "Hiring companies",
+    "node": "FAQ_HIRING_COMPANIES",
+    "keywords": [
+      "kaun si companies",
+      "kahan placement",
+      "kitne students placed"
+    ],
+    "en": "Our students now work as SEO executives, digital marketing managers, content writers, HR recruiters, WordPress developers and e-commerce marketers. {{company_examples}} We help with referrals; the company decides through its interview.",
+    "hi": "Humare students SEO executive, digital marketing manager, content writer, HR recruiter, WordPress developer aur e-commerce marketer ki tarah kaam kar rahe hain. {{company_examples}} Hum referral mein help karte hain; final decision company ke interview ka hota hai.",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{company_examples}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "demo_timing",
+    "title": "Demo timing",
+    "node": "FAQ_DEMO_TIMING",
+    "keywords": [
+      "demo kab hoti",
+      "demo kitni der",
+      "online demo"
+    ],
+    "en": "Our free demo is a real class with a real batch — not a sales pitch — and it's before any payment. When you visit, you also meet the staff, see the classroom and get free counselling. {{demo_schedule}}",
+    "hi": "Humara free demo ek asli class hai, asli batch ke saath — sales pitch nahi — aur paise dene se pehle. Visit par aap staff se milte ho, classroom dekhte ho aur free counselling bhi milti hai. {{demo_schedule}}",
+    "buttons": [
+      "Book free demo",
+      "Ask another",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Free demo book karo",
+      "Aur sawaal",
+      "Main menu"
+    ],
+    "notes": "Section 13 draft — fill {{demo_schedule}} before going live. Buttons are the standard FAQ buttons (Section 9: every answer is followed by Book free demo · Ask another · Main menu; Hinglish labels from FAQ_MATCH)."
+  },
+  {
+    "key": "greeting",
+    "title": "Greeting / welcome",
+    "node": "WELCOME",
+    "keywords": [
+      "hi",
+      "hello",
+      "hii",
+      "hlo",
+      "hey",
+      "namaste",
+      "sir",
+      "mam",
+      "info",
+      "details",
+      "interested",
+      "?",
+      "👍"
+    ],
+    "en": "Hi {{name}} 👋 Welcome to Infonic Training, Jaipur!\n3,000+ students trained since 2012 · ★ 4.9/5 rating\nLearn in our classroom at Ajmer Road or online live.\nWhat would you like to do?",
+    "hi": "Hi {{name}} 👋 Infonic Training, Jaipur mein aapka swagat hai!\n2012 se 3,000+ students train kiye · ★ 4.9/5 rating\nAjmer Road classroom ya online live — jaise aapko suit kare.\nBataiye, kya karna chahenge?",
+    "buttons": [
+      "Explore courses",
+      "Help me choose",
+      "Talk to counsellor"
+    ],
+    "buttonsHi": [
+      "Courses dekho",
+      "Mujhe guide karo",
+      "Counsellor se baat"
+    ],
+    "notes": "Section 3: course known → COURSE_GREET, else WELCOME (returning student with saved course → RE_ENTRY). Buttons → MENU_CAT / P_PROFILE / BOOK_NAME. Contains Infonic-specific facts: name, Jaipur, 3,000+, 2012, 4.9/5, Ajmer Road."
+  },
+  {
+    "key": "fallback",
+    "title": "No match fallback",
+    "node": "FALLBACK",
+    "keywords": [],
+    "en": "Good question! Our counsellor can answer that exactly for you. Shall I arrange a quick call?",
+    "hi": "Achha sawaal hai! Iska sahi jawab humare counsellor denge. Ek quick call arrange karun?",
+    "buttons": [
+      "Yes, call me",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Haan, call karo",
+      "Main menu"
+    ],
+    "notes": "When no match and the AI isn't sure (or 2nd unmatched message). Yes, call me → BOOK_NAME. PDF note: log unmatched questions weekly and add them to the FAQ. Two unmatched in a row also triggers HANDOFF."
+  },
+  {
+    "key": "media",
+    "title": "Voice note / image / sticker",
+    "node": "MEDIA",
+    "keywords": [],
+    "en": "Thanks! 🙏 I can't listen to voice notes or read images yet. Please type your question, or our counsellor can call you.",
+    "hi": "Thank you! 🙏 Main abhi voice note ya photo nahi samajh pata. Please apna sawaal type karein, ya counsellor aapko call kar sakte hain.",
+    "buttons": [
+      "Call me",
+      "Main menu"
+    ],
+    "buttonsHi": [
+      "Mujhe call karo",
+      "Main menu"
+    ],
+    "notes": "Triggered by non-text messages (voice note, image, sticker, video), not keywords. Call me → BOOK_NAME."
+  },
+  {
+    "key": "stop",
+    "title": "Stop / unsubscribe",
+    "node": "G_STOP",
+    "keywords": [
+      "stop",
+      "mat bhejo",
+      "unsubscribe",
+      "don't message"
+    ],
+    "en": "Done — we won't message you again. If you need us later, just send \"Hi\". All the best! 🙏",
+    "hi": "Theek hai — hum aapko aur message nahi karenge. Kabhi zarurat ho to bas \"Hi\" bhej dijiye. All the best! 🙏",
+    "buttons": [],
+    "buttonsHi": [],
+    "notes": "Text only. PDF note: mark opted_out = yes; never send templates to opted-out numbers."
+  }
+]

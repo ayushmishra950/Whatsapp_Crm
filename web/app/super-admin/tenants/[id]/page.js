@@ -10,6 +10,8 @@ import { useAuth } from "@/lib/auth";
 import { fmtDate, fmtDateTime, fmtNum, fmtPhone } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
+import { BUSINESS_TYPES } from "@/lib/business";
+import { LogoUpload } from "@/components/logo-upload";
 import {
   Badge, Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, PageLoader, PasswordInput, Select, StatusBadge, Table,
 } from "@/components/ui";
@@ -56,7 +58,7 @@ export default function TenantDetailPage() {
 
   const openEdit = () => {
     const admin = data.users.find((u) => u.role === "admin");
-    setEdit({ name: tenant.name, email: tenant.email || "", phone: tenant.phone || "", adminName: admin?.name || "", adminEmail: admin?.email || "", hasAdmin: !!admin });
+    setEdit({ name: tenant.name, email: tenant.email || "", phone: tenant.phone || "", adminName: admin?.name || "", adminEmail: admin?.email || "", adminPassword: "", adminPassword2: "", hasAdmin: !!admin });
     setModal("edit");
   };
   const saveEdit = () =>
@@ -66,8 +68,30 @@ export default function TenantDetailPage() {
       if (admin && (edit.adminName.trim() !== admin.name || edit.adminEmail.trim().toLowerCase() !== admin.email)) {
         await api(`/superadmin/tenants/${id}/admin`, { method: "PATCH", body: { name: edit.adminName.trim(), email: edit.adminEmail.trim() } });
       }
-    }, "Business details saved");
+      // Optional: new login password for the admin (emergency, e.g. admin is locked out)
+      if (admin && edit.adminPassword) {
+        await api(`/superadmin/tenants/${id}/reset-admin-password`, { method: "POST", body: { password: edit.adminPassword } });
+      }
+    }, edit?.adminPassword ? "Business details and admin password saved" : "Business details saved");
+  // New admin password: Save waits until it is valid; a mismatch is shown only after typing in "Confirm"
+  const pw = edit?.adminPassword || "";
+  const pw2 = edit?.adminPassword2 || "";
+  const passwordError = pw && (pw.length < 8 || pw !== pw2) ? "invalid" : "";
+  const passwordHint = !pw
+    ? null
+    : pw.length < 8
+    ? { tone: "text-slate-500", text: `At least 8 characters (${pw.length}/8)` }
+    : !pw2
+    ? { tone: "text-slate-500", text: "Now type the same password in “Confirm new password”." }
+    : pw !== pw2
+    ? { tone: "text-red-600", text: "Passwords do not match" }
+    : { tone: "text-green-700", text: "✓ Passwords match. The admin must log in with the new password from now on; tell them safely." };
 
+  const changeType = (businessType) =>
+    run(
+      () => api(`/superadmin/tenants/${id}`, { method: "PATCH", body: { businessType } }),
+      businessType === "coaching" ? "Coaching institute: courses and the lead playbook are switched on" : "Switched to general business"
+    );
   const changePlan = (planId) =>
     run(() => api(`/superadmin/tenants/${id}`, { method: "PATCH", body: { planId } }), "Plan updated");
   const toggleStatus = () =>
@@ -129,6 +153,23 @@ export default function TenantDetailPage() {
               {plans.map((p) => <option key={p._id} value={p._id}>{p.name} (₹{p.priceMonthly}/mo){!p.isActive ? " — inactive" : ""}</option>)}
             </Select>
           </Field>
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-medium text-slate-700">Logo</p>
+            <LogoUpload
+              value={tenant.logo}
+              onError={toast.error}
+              onSave={async (logo) => {
+                await api(`/superadmin/tenants/${id}/logo`, { method: "PUT", body: { logo } });
+                await load();
+                toast.success(logo ? "Logo saved" : "Logo removed");
+              }}
+            />
+          </div>
+          <Field label="Business type" className="mt-4" hint={tenant.businessType === "coaching" ? "Courses page, Hinglish templates, 19-status playbook" : "Coaching format is hidden for this business"}>
+            <Select value={tenant.businessType || "general"} onChange={(e) => changeType(e.target.value)} disabled={busy}>
+              {BUSINESS_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </Select>
+          </Field>
           <Button className="mt-4 w-full justify-center" onClick={() => setModal("renew")}>
             <RefreshCw className="h-4 w-4" /> Record payment / Renew
           </Button>
@@ -174,7 +215,7 @@ export default function TenantDetailPage() {
       </Card>
 
       <Modal open={modal === "edit"} onClose={() => setModal(null)} title="Edit business" size="md"
-        footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button onClick={saveEdit} loading={busy} disabled={!edit || edit.name.trim().length < 2 || (edit.hasAdmin && edit.adminName.trim().length < 2)}>Save</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button><Button onClick={saveEdit} loading={busy} disabled={!edit || edit.name.trim().length < 2 || (edit.hasAdmin && edit.adminName.trim().length < 2) || !!passwordError}>Save</Button></>}>
         {edit && (
           <div className="space-y-4">
             <Field label="Business name"><Input value={edit.name} maxLength={100} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
@@ -187,10 +228,17 @@ export default function TenantDetailPage() {
                 <p className="mb-3 text-sm font-medium text-slate-800">Business admin</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Admin name"><Input value={edit.adminName} maxLength={80} onChange={(e) => setEdit({ ...edit, adminName: e.target.value })} /></Field>
-                  <Field label="Admin email (login)" hint="The admin logs in with this email; password stays the same.">
+                  <Field label="Admin email (login)" hint="The admin logs in with this email.">
                     <Input type="email" value={edit.adminEmail} onChange={(e) => setEdit({ ...edit, adminEmail: e.target.value })} />
                   </Field>
+                  <Field label="New password (optional)" hint="Leave empty to keep the current password">
+                    <PasswordInput autoComplete="new-password" value={edit.adminPassword} onChange={(e) => setEdit({ ...edit, adminPassword: e.target.value, ...(!e.target.value && { adminPassword2: "" }) })} />
+                  </Field>
+                  <Field label="Confirm new password">
+                    <PasswordInput autoComplete="new-password" value={edit.adminPassword2} disabled={!edit.adminPassword} onChange={(e) => setEdit({ ...edit, adminPassword2: e.target.value })} />
+                  </Field>
                 </div>
+                {passwordHint && <p className={`mt-2 text-xs ${passwordHint.tone}`}>{passwordHint.text}</p>}
               </div>
             )}
           </div>

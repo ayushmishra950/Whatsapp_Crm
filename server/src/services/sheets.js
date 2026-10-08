@@ -78,6 +78,11 @@ const GUESS = {
   email: /^(e-?mail|email ?id|mail)$/i,
   tags: /^(tags?|labels?|group)$/i,
   leadStatus: /^(status|lead ?status|stage)$/i,
+  course: /^(course|course ?name|interested ?in|program(me)?|course ?interested)$/i,
+  counsellor: /^(counsell?or|assigned ?to|owner|agent|caller|handled ?by)$/i,
+  followUp: /^(follow ?-?up|follow ?-?up ?date|next ?follow ?-?up|call ?back|next ?call|next ?action)$/i,
+  notes: /^(notes?|remarks?|comments?|query|enquiry ?details|requirement|feedback)$/i,
+  enquiryDate: /^(date|enquiry ?date|inquiry ?date|lead ?date|created|created ?on|query ?date|received ?on)$/i,
 };
 
 // Best guess of which column holds what, from the header names

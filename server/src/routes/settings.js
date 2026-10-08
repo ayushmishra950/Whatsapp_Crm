@@ -1,14 +1,17 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import mongoose from 'mongoose';
 import { Tenant, User, Contact, Template, Campaign, Chatbot, Drip } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
 import { validate, conflict, normalizePhone, badRequest } from '../utils/http.js';
-import { STATUS_COLORS, getLeadStatuses, statusKeyFromLabel } from '../services/leadStatuses.js';
+import { STATUS_COLORS, STAGE_KEYS, getLeadStatuses, statusKeyFromLabel } from '../services/leadStatuses.js';
+import { applyCoachingPreset, checkLogo, requireCoaching } from '../services/coaching.js';
+import { loadCoachingContent } from '../services/coachingContent.js';
 import { encrypt } from '../utils/crypto.js';
 import { verifyCredentials } from '../services/whatsapp.js';
 import { audit } from '../services/audit.js';
 import { emitToSuperAdmins, emitToTenant } from '../services/socket.js';
-import { BUILTIN_CONTACT_FIELDS, fieldKeyFromLabel, getContactFields, isReservedFieldKey } from '../services/contactFields.js';
+import { BUILTIN_CONTACT_FIELDS, FIELD_TYPES, fieldKeyFromLabel, getContactFields, isReservedFieldKey } from '../services/contactFields.js';
 import { isSubscriptionActive, messagesUsedThisMonth } from '../services/subscription.js';
 import { env } from '../config/env.js';
 
@@ -58,6 +61,13 @@ router.patch('/', authorize('admin'), async (req, res) => {
               quietStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:MM'),
               quietEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:MM'),
               maxPerContactPerDay: z.coerce.number().int().min(0).max(10),
+              oneDripAtATime: z.boolean(),
+              alertOnReply: z.boolean(),
+              overdueAlertMinutes: z.coerce.number().int().min(0).max(1440),
+              feeReminders: z.boolean(),
+              walkInTemplateId: z.string().refine((v) => !v || mongoose.isValidObjectId(v), 'Invalid template').transform((v) => v || null).nullable(),
+              dailyReportTime: z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d)?$/, 'Time must be HH:MM'),
+              returningLead: z.object({ enabled: z.boolean(), fromStatuses: z.array(z.string()).max(20), toStatus: z.string() }),
             })
             .partial()
             .optional(),
@@ -71,16 +81,41 @@ router.patch('/', authorize('admin'), async (req, res) => {
             })
             .partial()
             .optional(),
+          waRates: z
+            .object({ marketing: z.coerce.number().min(0).max(100), utility: z.coerce.number().min(0).max(100), authentication: z.coerce.number().min(0).max(100) })
+            .partial()
+            .optional(),
+          messageInfo: z
+            .object({
+              reviewLink: z.string().trim().max(300),
+              proofLink: z.string().trim().max(300),
+              offerEnd: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, 'Offer end must be a date'),
+              address: z.string().trim().max(300),
+              mapsLink: z.string().trim().max(300),
+              paymentDetails: z.string().trim().max(500),
+              city: z.string().trim().max(60),
+              studentsTrained: z.string().trim().max(20),
+              sinceYear: z.string().trim().max(10),
+              rating: z.string().trim().max(20),
+            })
+            .partial()
+            .optional(),
         })
         .optional(),
     }),
     req.body
   );
+  const rl = data.settings?.automation?.returningLead;
+  if (rl?.enabled) {
+    const keys = new Set(getLeadStatuses(req.tenant).map((s) => s.key));
+    if (!keys.has(rl.toStatus)) throw badRequest('Choose the status a returning lead moves to');
+    rl.fromStatuses = rl.fromStatuses.filter((k) => keys.has(k));
+  }
   const set = {};
   for (const k of ['name', 'email', 'phone']) if (data[k] !== undefined) set[k] = data[k];
   for (const [k, v] of Object.entries(data.settings || {})) {
     // Nested groups are merged field by field so a partial update keeps the other values
-    if (k === 'automation' || k === 'referral') for (const [kk, vv] of Object.entries(v)) set[`settings.${k}.${kk}`] = vv;
+    if (k === 'automation' || k === 'referral' || k === 'messageInfo' || k === 'waRates') for (const [kk, vv] of Object.entries(v)) set[`settings.${k}.${kk}`] = vv;
     else set[`settings.${k}`] = k === 'optOutKeywords' ? v.map((w) => w.toUpperCase()) : v;
   }
   const before = { name: req.tenant.name, email: req.tenant.email || '', phone: req.tenant.phone || '' };
@@ -147,18 +182,31 @@ router.get('/contact-fields', async (req, res) => {
  */
 router.put('/contact-fields', authorize('admin'), async (req, res) => {
   const { fields } = validate(
-    z.object({ fields: z.array(z.object({ key: z.string().trim().optional(), label: z.string().trim().min(1).max(40), type: z.enum(['text', 'date']).default('text') })).max(50) }),
+    z.object({
+      fields: z
+        .array(
+          z.object({
+            key: z.string().trim().optional(),
+            label: z.string().trim().min(1).max(40),
+            type: z.enum(FIELD_TYPES).default('text'),
+            options: z.array(z.string().trim().min(1).max(60)).max(100).default([]),
+          })
+        )
+        .max(50),
+    }),
     req.body
   );
   const current = getContactFields(req.tenant);
   const used = new Set();
-  const next = fields.map(({ key, label, type }) => {
+  const next = fields.map(({ key, label, type, options }) => {
     let k = key && current.some((f) => f.key === key) ? key : fieldKeyFromLabel(label);
     if (!key && isReservedFieldKey(k)) throw badRequest(`"${label}" is already a built-in field`);
     if (!key) for (let n = 2; used.has(k) || current.some((f) => f.key === k && !fields.some((x) => x.key === k)); n += 1) k = `${fieldKeyFromLabel(label)}_${n}`;
     if (used.has(k)) throw badRequest(`Two fields are called "${label}"`);
     used.add(k);
-    return { key: k, label, type };
+    const opts = options.filter((o, i) => options.findIndex((x) => x.toLowerCase() === o.toLowerCase()) === i);
+    if ((type === 'select' || type === 'multiselect') && !opts.length) throw badRequest(`"${label}" is a dropdown: add at least one option`);
+    return { key: k, label, type, options: type === 'select' || type === 'multiselect' ? opts : [] };
   });
   if (new Set(next.map((f) => f.label.toLowerCase())).size !== next.length) throw badRequest('Field names must be different');
 
@@ -189,6 +237,13 @@ router.put('/lead-statuses', authorize('admin'), async (req, res) => {
             key: z.string().trim().optional(),
             label: z.string().trim().min(1, 'Status name is required').max(30),
             color: z.enum(STATUS_COLORS).default('gray'),
+            stage: z.enum(['', ...STAGE_KEYS]).default(''),
+            timeLimit: z
+              .object({ amount: z.coerce.number().int().min(0).max(10000).default(0), unit: z.enum(['minutes', 'hours', 'days']).default('days') })
+              .default({ amount: 0, unit: 'days' }),
+            onTimeout: z
+              .object({ moveTo: z.string().trim().default(''), task: z.string().trim().max(120).default(''), alert: z.boolean().default(false) })
+              .default({ moveTo: '', task: '', alert: false }),
           })
         )
         .min(2, 'Keep at least 2 statuses')
@@ -208,8 +263,26 @@ router.put('/lead-statuses', authorize('admin'), async (req, res) => {
       key = `${key}_${n}`;
     }
     used.add(key);
-    return { key, label: s.label, color: s.color };
+    return { key, label: s.label, color: s.color, stage: s.stage, timeLimit: s.timeLimit, onTimeout: s.onTimeout };
   });
+  // "When time runs out → move to" may point at an existing key or at a new status by its label
+  const byLabel = Object.fromEntries(next.map((s) => [s.label.toLowerCase(), s.key]));
+  for (const s of next) {
+    const to = s.onTimeout.moveTo;
+    if (!to) continue;
+    const key = used.has(to) ? to : byLabel[to.toLowerCase()];
+    if (!key) throw badRequest(`"${s.label}": the status to move to after the time limit no longer exists`);
+    if (key === s.key) throw badRequest(`"${s.label}" can not move to itself after the time limit`);
+    s.onTimeout.moveTo = key;
+  }
+  const now = new Date();
+  const limitKey = (s) => JSON.stringify([s.timeLimit.amount, s.timeLimit.unit]);
+  for (const s of next) {
+    if (!s.timeLimit.amount && (s.onTimeout.moveTo || s.onTimeout.task || s.onTimeout.alert)) s.onTimeout = { moveTo: '', task: '', alert: false };
+    // A new / changed limit starts counting now for leads already in the status
+    const old = current.find((c) => c.key === s.key);
+    if (s.timeLimit.amount) s.limitSince = old && old.limitSince && limitKey(old) === limitKey(s) ? old.limitSince : now;
+  }
   if (!next.some((s) => s.key === 'new')) throw badRequest('"New" status can not be removed (new leads get it automatically). You can rename it.');
   const labels = next.map((s) => s.label.toLowerCase());
   if (new Set(labels).size !== labels.length) throw badRequest('Two statuses have the same name');
@@ -221,6 +294,66 @@ router.put('/lead-statuses', authorize('admin'), async (req, res) => {
   await Tenant.updateOne({ _id: req.tenantId }, { $set: { 'settings.leadStatuses': next } });
   await audit(req, 'settings.lead_statuses', { meta: { statuses: next.map((s) => s.label), removed, moved } });
   res.json({ leadStatuses: next, movedToNew: moved });
+});
+
+/**
+ * One click: the Infonic "19 statuses" (Lead Stages Playbook) with stages and time limits, plus the
+ * hot-word / objection keyword rules and the "returning lead → Hot" rule. Leads in a status that no
+ * longer exists move to "New".
+ */
+router.post('/lead-statuses/preset', authorize('admin'), requireCoaching, async (req, res) => {
+  const { removed, moved } = await applyCoachingPreset(req.tenantId, { rules: req.body?.rules !== false });
+  await audit(req, 'settings.lead_statuses_preset', { meta: { removed, moved } });
+  const tenant = await Tenant.findById(req.tenantId);
+  res.json({ leadStatuses: getLeadStatuses(tenant), automationRules: tenant.settings.automationRules, movedToNew: moved });
+});
+
+/** Business logo (sidebar). Empty string removes it. */
+router.put('/logo', authorize('admin'), async (req, res) => {
+  const logo = checkLogo(req.body?.logo);
+  await Tenant.updateOne({ _id: req.tenantId }, { $set: { logo } });
+  await audit(req, 'settings.logo', { meta: { removed: !logo } });
+  emitToTenant(req.tenantId, 'tenant:profile', { tenantId: String(req.tenantId), logo: !!logo });
+  res.json({ logo });
+});
+
+/** Coaching playbook content: courses, contact fields, template drafts (EN + Hinglish) and drip drafts. Adds only what is missing. */
+router.post('/coaching-content', authorize('admin'), requireCoaching, async (req, res) => {
+  const added = await loadCoachingContent(req.tenantId, { sampleCourses: req.body?.sampleCourses === true });
+  await audit(req, 'settings.coaching_content', { meta: added });
+  res.json(added);
+});
+
+/** A3/A4 keyword rules: words in a customer's message -> status / tags / alert / task */
+router.put('/automation-rules', authorize('admin'), async (req, res) => {
+  const { rules } = validate(
+    z.object({
+      rules: z
+        .array(
+          z.object({
+            name: z.string().trim().min(1, 'Rule name is required').max(60),
+            enabled: z.boolean().default(true),
+            keywords: z.array(z.string().trim().toLowerCase().min(1)).min(1, 'Add at least one keyword').max(50),
+            onlyIfStatusIn: z.array(z.string()).default([]),
+            setStatus: z.string().default(''),
+            addTags: z.array(z.string().trim().toLowerCase().min(1)).max(10).default([]),
+            alert: z.boolean().default(false),
+            task: z.string().trim().max(120).default(''),
+          })
+        )
+        .max(30),
+    }),
+    req.body
+  );
+  const keys = new Set(getLeadStatuses(req.tenant).map((s) => s.key));
+  for (const r of rules) {
+    if (r.setStatus && !keys.has(r.setStatus)) throw badRequest(`Rule "${r.name}": unknown status`);
+    if (!r.setStatus && !r.addTags.length && !r.alert && !r.task) throw badRequest(`Rule "${r.name}" does nothing: choose a status, tag, alert or task`);
+    r.onlyIfStatusIn = r.onlyIfStatusIn.filter((k) => keys.has(k));
+  }
+  await Tenant.updateOne({ _id: req.tenantId }, { $set: { 'settings.automationRules': rules } });
+  await audit(req, 'settings.automation_rules', { meta: { rules: rules.map((r) => r.name) } });
+  res.json({ automationRules: rules });
 });
 
 // Connect the business's single WhatsApp number (Cloud API credentials)

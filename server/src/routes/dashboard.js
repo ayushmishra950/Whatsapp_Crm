@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AdSource, Contact, Conversation, Message, Campaign, User } from '../models/index.js';
+import { AdSource, Contact, Conversation, Message, Campaign, Task, Template, User } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
 import { validate } from '../utils/http.js';
 import { messagesUsedThisMonth } from '../services/subscription.js';
+import { needsAttention } from '../services/automation.js';
 import { DEFAULT_TZ, safeTimeZone, dayKey, startOfDayIn } from '../utils/time.js';
 
 const router = Router();
@@ -143,6 +144,120 @@ router.get('/team', authorize('admin'), async (req, res) => {
     }),
     bot: { chatsStarted: botStarted, ended: Object.fromEntries(botEnded.map((b) => [b._id || 'other', b.n])) },
   });
+});
+
+/** A11 "Needs attention" (admins: whole business, agents: their own leads and tasks) */
+router.get('/attention', async (req, res) => {
+  res.json(await needsAttention(req.tenant, { userId: req.user.role === 'agent' ? req.user._id : undefined }));
+});
+
+/**
+ * Messages per day: customers who wrote (new = first message that day, returning = known before),
+ * messages in / out, and the WhatsApp cost of template messages (estimate: Settings → WhatsApp rates).
+ */
+router.get('/messages', authorize('admin'), async (req, res) => {
+  const { days, tz: rawTz } = validate(z.object({ days: z.coerce.number().int().min(1).max(90).default(14), tz: z.string().optional() }), req.query);
+  const tz = safeTimeZone(rawTz || DEFAULT_TZ);
+  const tenantId = req.tenantId;
+  const since = new Date(startOfDayIn(tz).getTime() - (days - 1) * 864e5);
+  const dayOf = (field) => ({ $dateToString: { format: '%Y-%m-%d', date: field, timezone: tz } });
+  const [byContact, msgs, templates] = await Promise.all([
+    // One row per (day, customer who wrote that day), with when the customer was first seen
+    Message.aggregate([
+      { $match: { tenantId, direction: 'inbound', createdAt: { $gte: since } } },
+      { $group: { _id: { day: dayOf('$createdAt'), contactId: '$contactId' }, n: { $sum: 1 } } },
+      { $lookup: { from: 'contacts', localField: '_id.contactId', foreignField: '_id', as: 'c', pipeline: [{ $project: { createdAt: 1 } }] } },
+      { $project: { day: '$_id.day', n: 1, firstDay: { $cond: [{ $gt: [{ $size: '$c' }, 0] }, dayOf({ $arrayElemAt: ['$c.createdAt', 0] }), null] } } },
+    ]),
+    Message.aggregate([
+      { $match: { tenantId, direction: 'outbound', createdAt: { $gte: since }, status: { $ne: 'failed' } } },
+      { $group: { _id: { day: dayOf('$createdAt'), template: '$template.name', type: '$type' }, n: { $sum: 1 } } },
+    ]),
+    Template.find({ tenantId }).select('name category').lean(),
+  ]);
+  const category = Object.fromEntries(templates.map((t) => [t.name, t.category]));
+  const rates = { MARKETING: 0.86, UTILITY: 0.115, AUTHENTICATION: 0.115 };
+  const r = req.tenant.settings?.waRates || {};
+  if (r.marketing != null) rates.MARKETING = r.marketing;
+  if (r.utility != null) rates.UTILITY = r.utility;
+  if (r.authentication != null) rates.AUTHENTICATION = r.authentication;
+
+  const list = Array.from({ length: days }, (_, i) => {
+    const day = dayKey(new Date(since.getTime() + i * 864e5 + 12 * 3600e3), tz);
+    const rows = byContact.filter((x) => x.day === day);
+    const out = msgs.filter((x) => x._id.day === day);
+    const tpl = out.filter((x) => x._id.type === 'template' && x._id.template);
+    const count = (cat) => tpl.filter((x) => (category[x._id.template] || 'MARKETING') === cat).reduce((s, x) => s + x.n, 0);
+    const marketing = count('MARKETING');
+    const utility = count('UTILITY');
+    const authentication = count('AUTHENTICATION');
+    return {
+      day,
+      newCustomers: rows.filter((x) => x.firstDay === day).length,
+      returningCustomers: rows.filter((x) => x.firstDay !== day).length,
+      inbound: rows.reduce((s, x) => s + x.n, 0),
+      outbound: out.reduce((s, x) => s + x.n, 0),
+      templates: { marketing, utility, authentication },
+      cost: Math.round((marketing * rates.MARKETING + utility * rates.UTILITY + authentication * rates.AUTHENTICATION) * 100) / 100,
+    };
+  });
+  const sum = (k) => list.reduce((s, d) => s + (typeof k === 'function' ? k(d) : d[k]), 0);
+  res.json({
+    days: list,
+    rates: { marketing: rates.MARKETING, utility: rates.UTILITY, authentication: rates.AUTHENTICATION },
+    totals: {
+      newCustomers: sum('newCustomers'),
+      returningCustomers: sum('returningCustomers'),
+      inbound: sum('inbound'),
+      outbound: sum('outbound'),
+      marketing: sum((d) => d.templates.marketing),
+      utility: sum((d) => d.templates.utility),
+      cost: Math.round(sum('cost') * 100) / 100,
+    },
+  });
+});
+
+/** Sidebar badges: what needs doing now (agents: their own) */
+router.get('/counts', async (req, res) => {
+  const tenantId = req.tenantId;
+  const isAgent = req.user.role === 'agent';
+  const now = new Date();
+  const endOfToday = new Date(startOfDayIn(safeTimeZone(req.query.tz || DEFAULT_TZ)).getTime() + 864e5);
+  const mine = isAgent ? { $or: [{ assignedTo: req.user._id }, { assignedTo: null }] } : {};
+  const today = dayKey(now, safeTimeZone(req.query.tz || DEFAULT_TZ));
+  const [unreadChats, tasksDue, newLeads, feesDue] = await Promise.all([
+    Conversation.countDocuments({ tenantId, unreadCount: { $gt: 0 }, status: { $ne: 'resolved' }, ...(isAgent && { assignedTo: { $in: [req.user._id, null] } }) }),
+    Task.countDocuments({ tenantId, status: 'open', dueAt: { $lt: endOfToday }, ...(isAgent && { assignedTo: req.user._id }) }),
+    Contact.countDocuments({ tenantId, leadStatus: { $in: ['new', 'call_pending'] }, callAttempts: { $in: [0, null] }, optedOut: false, ...mine }),
+    Contact.countDocuments({ tenantId, 'fees.balance': { $gt: 0 }, 'fees.nextDue': { $ne: '', $lte: today }, ...mine }),
+  ]);
+  res.json({ unreadChats, tasksDue, newLeads, feesDue });
+});
+
+/**
+ * Today: everything to act on now, in priority order (agents: their own + unassigned leads).
+ * call = new leads never called · hot · tasks (overdue / today) · waiting for a reply · fees due · follow-ups
+ */
+router.get('/today', async (req, res) => {
+  const tenantId = req.tenantId;
+  const isAgent = req.user.role === 'agent';
+  const tz = safeTimeZone(req.query.tz || DEFAULT_TZ);
+  const now = new Date();
+  const endOfToday = new Date(startOfDayIn(tz).getTime() + 864e5);
+  const today = dayKey(now, tz);
+  const mine = isAgent ? { $or: [{ assignedTo: req.user._id }, { assignedTo: null }] } : {};
+  const lead = 'name phone course leadStatus assignedTo callAttempts lastCallAt lastInboundAt createdAt nextActionAt fees.balance fees.nextDue fees.nextAmount';
+  const pop = { path: 'assignedTo', select: 'name' };
+  const [call, hot, tasks, followUps, fees, waiting] = await Promise.all([
+    Contact.find({ tenantId, leadStatus: { $in: ['new', 'call_pending'] }, callAttempts: { $in: [0, null] }, optedOut: false, ...mine }).sort({ leadStatus: 1, createdAt: -1 }).limit(30).select(lead).populate(pop).lean(),
+    Contact.find({ tenantId, leadStatus: 'hot', optedOut: false, ...mine }).sort({ statusUpdatedAt: 1 }).limit(30).select(lead).populate(pop).lean(),
+    Task.find({ tenantId, status: 'open', dueAt: { $lt: endOfToday }, ...(isAgent && { assignedTo: req.user._id }) }).sort({ dueAt: 1 }).limit(50).populate({ path: 'contactId', select: lead }).populate(pop).lean(),
+    Contact.find({ tenantId, followUpAt: { $lt: endOfToday }, ...mine }).sort({ followUpAt: 1 }).limit(30).select(`${lead} followUpAt followUpNote`).populate(pop).lean(),
+    Contact.find({ tenantId, 'fees.balance': { $gt: 0 }, 'fees.nextDue': { $ne: '', $lte: today }, ...mine }).sort({ 'fees.nextDue': 1 }).limit(30).select(lead).populate(pop).lean(),
+    Conversation.find({ tenantId, status: { $ne: 'resolved' }, lastInboundAt: { $lte: new Date(now.getTime() - 30 * 6e4) }, $expr: { $gte: ['$lastInboundAt', '$lastMessageAt'] }, 'bot.active': { $ne: true }, ...(isAgent && { assignedTo: { $in: [req.user._id, null] } }) })
+      .sort({ lastInboundAt: 1 }).limit(30).populate({ path: 'contactId', select: lead }).populate(pop).select('contactId assignedTo lastInboundAt lastMessagePreview').lean(),
+  ]);
+  res.json({ today, call, hot, tasks, followUps, fees, waiting });
 });
 
 export default router;

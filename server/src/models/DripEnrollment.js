@@ -11,7 +11,7 @@ const dripEnrollmentSchema = new mongoose.Schema(
     stepIndex: { type: Number, default: 0 }, // next step to send
     nextRunAt: Date,
     enrolledAt: { type: Date, default: Date.now },
-    stoppedReason: String, // replied | status | opted_out | removed | drip_deleted | contact_deleted
+    stoppedReason: String, // replied | status | status_changed | other_drip | opted_out | removed | drip_deleted | contact_deleted
     lastError: String,
     history: [
       {

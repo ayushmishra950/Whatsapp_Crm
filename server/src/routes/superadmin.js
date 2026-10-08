@@ -4,11 +4,13 @@ import { z } from 'zod';
 import {
   Plan, Tenant, User, Contact, Conversation, Message, Template, Campaign, CampaignRecipient, AuditLog,
 } from '../models/index.js';
-import { authenticate, authorize, signToken } from '../middleware/auth.js';
+import { authenticate, authorize, clearPlanCache, signToken } from '../middleware/auth.js';
 import { validate, notFound, conflict, paginate, escapeRegex, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { emitToSuperAdmins, emitToTenant } from '../services/socket.js';
 import { addMonths, currentMonth } from '../services/subscription.js';
+import { BUSINESS_TYPES, applyCoachingPreset, checkLogo, hasPlaybookStatuses } from '../services/coaching.js';
+import { loadCoachingContent } from '../services/coachingContent.js';
 import { sessionPayload } from './auth.js';
 
 const router = Router();
@@ -87,6 +89,7 @@ router.patch('/plans/:id', async (req, res) => {
   const data = validate(updatePlanSchema, req.body);
   const plan = await Plan.findByIdAndUpdate(req.params.id, data, { returnDocument: 'after', runValidators: true });
   if (!plan) throw notFound('Plan not found');
+  clearPlanCache(); // businesses see the new limits / modules right away
   if (data.modules?.chatbot === false) {
     const tenantIds = (await Tenant.find({ plan: plan._id }).select('_id')).map((t) => t._id);
     await Conversation.updateMany(
@@ -147,6 +150,8 @@ const createTenantSchema = z.object({
   planId: objectId,
   subscriptionStatus: z.enum(['trial', 'active']).default('trial'),
   months: z.coerce.number().int().min(1).max(36).default(1),
+  businessType: z.enum(BUSINESS_TYPES).default('general'),
+  sampleCourses: z.boolean().default(false), // coaching: also add the 51-course sample catalog
   admin: z.object({
     name: z.string().min(2),
     email: z.string().email(),
@@ -168,6 +173,7 @@ router.post('/tenants', async (req, res) => {
     plan: plan._id,
     subscription: { status: data.subscriptionStatus, currentPeriodStart: now, currentPeriodEnd: addMonths(now, data.months) },
     usage: { month: currentMonth(), messagesSent: 0 },
+    businessType: data.businessType,
   });
   try {
     await User.create({ ...data.admin, tenantId: tenant._id, role: 'admin' });
@@ -175,7 +181,12 @@ router.post('/tenants', async (req, res) => {
     await Tenant.deleteOne({ _id: tenant._id });
     throw err;
   }
-  await audit(req, 'tenant.create', { tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id });
+  // A new coaching institute starts with the playbook format ready (statuses, keyword rules, "came back" rule)
+  if (data.businessType === 'coaching') {
+    await applyCoachingPreset(tenant._id);
+    await loadCoachingContent(tenant._id, { sampleCourses: data.sampleCourses }); // contact fields, template + drip drafts
+  }
+  await audit(req, 'tenant.create', { tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id, meta: { businessType: data.businessType } });
   res.status(201).json(tenant);
 });
 
@@ -199,29 +210,51 @@ const updateTenantSchema = z.object({
   phone: z.string().optional(),
   status: z.enum(['active', 'suspended']).optional(),
   planId: objectId.optional(),
+  businessType: z.enum(BUSINESS_TYPES).optional(),
+  // Switching to coaching: also set up the playbook statuses / rules (skipped if the business already has them)
+  applyPreset: z.boolean().default(true),
 });
 
 router.patch('/tenants/:id', async (req, res) => {
-  const { planId, ...data } = validate(updateTenantSchema, req.body);
+  const { planId, applyPreset, ...data } = validate(updateTenantSchema, req.body);
   if (planId) {
     if (!(await Plan.exists({ _id: planId }))) throw badRequest('Plan not found');
     data.plan = planId;
   }
-  const prev = await Tenant.findById(req.params.id).select('name email phone').lean();
+  const prev = await Tenant.findById(req.params.id).select('name email phone businessType settings.leadStatuses').lean();
   const tenant = await Tenant.findByIdAndUpdate(req.params.id, data, { returnDocument: 'after' }).populate('plan');
   if (!tenant) throw notFound('Business not found');
   const changes = Object.fromEntries(
     ['name', 'email', 'phone'].filter((k) => data[k] !== undefined && String(data[k] || '') !== String(prev?.[k] || '')).map((k) => [k, { from: prev?.[k] || '', to: data[k] || '' }])
   );
+  let presetApplied = false;
+  const typeChanged = data.businessType && data.businessType !== (prev?.businessType || 'general');
+  if (typeChanged && data.businessType === 'coaching' && applyPreset && !hasPlaybookStatuses(prev)) {
+    await applyCoachingPreset(tenant._id);
+    presetApplied = true;
+  }
+  if (typeChanged && data.businessType === 'coaching' && applyPreset) await loadCoachingContent(tenant._id); // adds only what is missing
+  if (typeChanged) emitToTenant(tenant._id, 'tenant:profile', { tenantId: String(tenant._id), businessType: data.businessType }); // menus change live
   if (Object.keys(changes).length) {
     const payload = { tenantId: String(tenant._id), name: tenant.name, email: tenant.email, phone: tenant.phone, changes, by: { name: req.user.name, role: 'super_admin' }, at: new Date() };
     emitToSuperAdmins('tenant:updated', payload); // other Super Admin screens
     emitToTenant(tenant._id, 'tenant:profile', payload); // the business's own screens show the new name
   }
   await audit(req, data.status ? `tenant.${data.status === 'suspended' ? 'suspend' : 'activate'}` : 'tenant.update', {
-    tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id, meta: { ...data, planId },
+    tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id, meta: { ...data, planId, presetApplied },
   });
-  res.json(tenant);
+  res.json(presetApplied ? await Tenant.findById(tenant._id).populate('plan') : tenant);
+});
+
+/** Set the business's logo while onboarding a client (empty string removes it) */
+router.put('/tenants/:id/logo', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) throw notFound('Business not found');
+  const logo = checkLogo(req.body?.logo);
+  const tenant = await Tenant.findByIdAndUpdate(req.params.id, { $set: { logo } }, { returnDocument: 'after' });
+  if (!tenant) throw notFound('Business not found');
+  await audit(req, 'tenant.logo', { tenantId: tenant._id, targetType: 'Tenant', targetId: tenant._id, meta: { removed: !logo } });
+  emitToTenant(tenant._id, 'tenant:profile', { tenantId: String(tenant._id), logo: !!logo });
+  res.json({ logo });
 });
 
 /** Edit the business admin's name / login email (password: reset-admin-password) */

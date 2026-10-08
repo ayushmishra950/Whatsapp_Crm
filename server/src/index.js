@@ -13,6 +13,7 @@ import { connectDB, disconnectDB } from './config/db.js';
 import { authenticate, requireTenant } from './middleware/auth.js';
 import { initSocket } from './services/socket.js';
 import { startCampaignWorker } from './services/campaigns.js';
+import { startAutomationWorker } from './services/automation.js';
 import { startDripWorker } from './services/drips.js';
 import { HttpError } from './utils/http.js';
 import { User } from './models/index.js';
@@ -33,6 +34,13 @@ import dripRoutes from './routes/drips.js';
 import segmentRoutes from './routes/segments.js';
 import adRoutes from './routes/ads.js';
 import referralRoutes from './routes/referrals.js';
+import courseRoutes from './routes/courses.js';
+import { requireCoaching } from './services/coaching.js';
+import { syncContactOwners } from './models/Conversation.js';
+import taskRoutes from './routes/tasks.js';
+import notificationRoutes from './routes/notifications.js';
+import viewRoutes from './routes/views.js';
+import feeRoutes from './routes/fees.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -64,6 +72,11 @@ tenantRouter.use('/drips', dripRoutes);
 tenantRouter.use('/segments', segmentRoutes);
 tenantRouter.use('/ads', adRoutes);
 tenantRouter.use('/referrals', referralRoutes);
+tenantRouter.use('/courses', requireCoaching, courseRoutes);
+tenantRouter.use('/tasks', taskRoutes);
+tenantRouter.use('/notifications', notificationRoutes);
+tenantRouter.use('/views', viewRoutes);
+tenantRouter.use('/fees', feeRoutes);
 tenantRouter.use('/', miscRoutes);
 app.use('/api', tenantRouter);
 
@@ -131,6 +144,9 @@ async function start() {
   initSocket(server);
   startCampaignWorker();
   startDripWorker();
+  // Leads take their chat's counsellor as owner (older data had it only on the chat)
+  syncContactOwners().then((n) => n && console.log(`[db] lead owners synced from chats: ${n}`)).catch((err) => console.error('[db] owner sync', err.message));
+  startAutomationWorker();
   server.listen(env.port, () => console.log(`[server] App running on http://localhost:${env.port}`));
 
   const shutdown = async () => {

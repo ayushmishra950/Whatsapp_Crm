@@ -5,6 +5,9 @@ import { authorize } from '../middleware/auth.js';
 import { validate, forbidden, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { chatbotAllowed, isWithinBusinessHours } from '../services/chatbot.js';
+import { isCoaching } from '../services/coaching.js';
+import { DEFAULT_COURSE_QUESTIONS } from '../services/courseBot.js';
+import { defaultFaqs } from '../services/coachingContent.js';
 import { registerContactFields } from '../services/contactFields.js';
 
 const router = Router();
@@ -53,7 +56,7 @@ const botSchema = z.object({
         _id: z.string().optional(),
         title: z.string().trim().min(1, 'Option title is required').max(24, 'Option title can be max 24 characters'),
         description: z.string().trim().max(72).default(''),
-        action: z.enum(['reply', 'lead', 'handoff']),
+        action: z.enum(['reply', 'lead', 'handoff', 'courses']),
         replyText: z.string().max(4096).default(''),
         tag: z.string().trim().max(40).default(''),
       })
@@ -81,6 +84,37 @@ const botSchema = z.object({
       })
     )
     .max(10),
+  // Coaching course flow: admission questions and answers to typed questions (FAQ)
+  courseQuestions: z
+    .array(
+      z.object({
+        key: z.string().trim().regex(/^[a-z0-9_]{1,30}$/, 'Question key: lowercase letters, numbers, _'),
+        field: z.string().trim().refine((f) => f === 'name' || /^custom\.[a-z0-9_]{1,30}$/.test(f), 'Saved in: name or custom.<key>'),
+        enabled: z.boolean().default(true),
+        en: z.string().trim().max(500).default(''),
+        hi: z.string().trim().max(500).default(''),
+        options: z
+          .array(z.object({ value: z.string().trim().max(100).default(''), en: z.string().trim().min(1, 'Option text is required').max(24, 'Option text: max 24 characters'), hi: z.string().trim().max(24).default('') }))
+          .max(10, 'Max 10 options'),
+        skipIfKnown: z.boolean().default(false),
+      }).refine((q) => q.en || q.hi, 'Write the question')
+    )
+    .max(15)
+    .optional(),
+  faqs: z
+    .array(
+      z.object({
+        key: z.string().trim().regex(/^[a-z0-9_]{1,40}$/, 'FAQ key: lowercase letters, numbers, _'),
+        title: z.string().trim().max(60).default(''),
+        enabled: z.boolean().default(true),
+        keywords: z.array(z.string().trim().toLowerCase().min(2).max(60)).max(60).default([]),
+        en: z.string().trim().max(1000).default(''),
+        hi: z.string().trim().max(1000).default(''),
+        action: z.enum(['answer', 'fees', 'details', 'book', 'courses', 'handoff']).default('answer'),
+      })
+    )
+    .max(80)
+    .optional(),
   leadCompleteText: z.string().trim().max(1024),
   leadTag: z.string().trim().max(40),
   fallbackText: z.string().trim().min(1).max(1024),
@@ -109,6 +143,8 @@ router.get('/', async (req, res) => {
   const bot = await getOrCreate(req.tenantId);
   res.json({
     bot,
+    // Defaults the Chatbot page shows / can restore (coaching)
+    defaults: isCoaching(req.tenant) ? { courseQuestions: DEFAULT_COURSE_QUESTIONS, faqs: defaultFaqs() } : null,
     planAllows: chatbotAllowed(req.tenant),
     openNow: isWithinBusinessHours(bot.businessHours),
     whatsappMode: req.tenant.whatsapp?.mode || 'mock',
@@ -118,6 +154,11 @@ router.get('/', async (req, res) => {
 router.put('/', async (req, res) => {
   if (!chatbotAllowed(req.tenant)) throw forbidden('Chatbot is not included in your plan. Ask your provider to upgrade.');
   const data = validate(botSchema, req.body);
+  const keys = (data.courseQuestions || []).map((q) => q.key);
+  if (new Set(keys).size !== keys.length) throw badRequest('Two admission questions have the same key');
+  if (data.menu.some((o) => o.action === 'courses') && !isCoaching(req.tenant)) {
+    throw badRequest('"Show course list" is for coaching institutes');
+  }
   if (data.enabled && !data.menu.length && !data.keywordRules.length) {
     throw badRequest('Add at least one menu option or keyword reply before turning the bot on');
   }
@@ -128,7 +169,9 @@ router.put('/', async (req, res) => {
   // Lead questions that save to a custom field: add it to Settings → Contact fields
   await registerContactFields(
     req.tenantId,
-    Object.fromEntries((data.leadQuestions || []).filter((q) => q.field?.startsWith('custom.')).map((q) => [q.field.slice(7), null]))
+    Object.fromEntries(
+      [...(data.leadQuestions || []), ...(data.courseQuestions || [])].filter((q) => q.field?.startsWith('custom.')).map((q) => [q.field.slice(7), null])
+    )
   );
   if (wasEnabled && !data.enabled) {
     // Bot turned off: chats it was handling go back to the team's unassigned queue

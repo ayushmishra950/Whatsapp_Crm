@@ -31,10 +31,13 @@ export async function buildRecipients(campaign) {
       contactId: c._id,
       phone: c.phone,
     }));
-    try {
-      await CampaignRecipient.insertMany(docs, { ordered: false });
-    } catch (err) {
-      if (err.code !== 11000 && !err.writeErrors) throw err; // ignore duplicates on retry
+    // In batches of 1000 so no single DB call runs long (see the socket timeout in config/db.js)
+    for (let i = 0; i < docs.length; i += 1000) {
+      try {
+        await CampaignRecipient.insertMany(docs.slice(i, i + 1000), { ordered: false });
+      } catch (err) {
+        if (err.code !== 11000 && !err.writeErrors) throw err; // ignore duplicates on retry
+      }
     }
   }
   const total = await CampaignRecipient.countDocuments({ campaignId: campaign._id });

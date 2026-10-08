@@ -8,12 +8,13 @@ import { api } from "@/lib/api";
 import { useSocketEvent } from "@/lib/socket";
 import { fmtDateTime, fmtPhone } from "@/lib/format";
 import { useLeadStatuses } from "@/lib/lead-statuses";
-import { useContactFields } from "@/lib/contact-fields";
+import { LEAD_SOURCES, useContactFields } from "@/lib/contact-fields";
+import { useIsCoaching } from "@/lib/business";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { ContactFieldSelect, TagInput, TemplatePreview, campaignVariablesFrom, variableExample } from "@/components/shared";
 import { SegmentBuilder } from "@/components/segment-builder";
-import { draftFromIdea, triggerSummary } from "@/components/drips";
+import { draftFromIdea, newStep, triggerSummary } from "@/components/drips";
 import { Badge, Button, Card, ConfirmModal, Field, Input, Modal, PageHeader, PageLoader, Pagination, Select, StatusBadge, Table, Toggle, cx } from "@/components/ui";
 
 const TRIGGERS = [
@@ -25,9 +26,11 @@ const TRIGGERS = [
   ["manual", "I add people myself (from Contacts or a filter)"],
 ];
 const OFFSETS = [[0, "On the day"], [-1, "1 day before"], [-2, "2 days before"], [-3, "3 days before"], [-7, "7 days before"], [1, "1 day after"]];
-const SOURCES = [["whatsapp", "WhatsApp"], ["ad", "Ad"], ["import", "Sheet import"], ["manual", "Added by hand"]];
-const STOP_REASONS = { replied: "Replied", status: "Status changed", opted_out: "Opted out", removed: "Removed", contact_deleted: "Contact deleted", drip_deleted: "Drip deleted" };
+const SOURCES = LEAD_SOURCES;
+const STEP_KINDS = [["message", "💬 Send a WhatsApp template"], ["task", "📝 Create a task for the counsellor"], ["alert", "🔔 Alert the counsellor"], ["status", "🔀 Change the lead status"]];
+const STOP_REASONS = { replied: "Replied", status: "Status changed", status_changed: "Moved to another status", other_drip: "Started another drip", opted_out: "Opted out", removed: "Removed", contact_deleted: "Contact deleted", drip_deleted: "Drip deleted" };
 
+const waitText = (s) => [s.delayDays ? `${s.delayDays} day(s)` : "", s.delayMinutes ? (s.delayMinutes % 60 ? `${s.delayMinutes} min` : `${s.delayMinutes / 60} hour(s)`) : ""].filter(Boolean).join(" + ") || "0 days";
 const chip = (on) => cx("rounded-full border px-2.5 py-0.5 text-xs", on ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-600 hover:bg-slate-50");
 const toggleIn = (list = [], v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
@@ -47,6 +50,7 @@ function DripEditor() {
   const toast = useToast();
   const { list: statuses, label: statusLabel } = useLeadStatuses();
   const { dateFields, label: fieldLabel } = useContactFields();
+  const coaching = useIsCoaching();
   const [drip, setDrip] = useState(null); // saved drip (existing)
   const [form, setForm] = useState(() => (isNew ? draftFromIdea(idea, { dateFields, statuses }) : null));
   const [templates, setTemplates] = useState(null);
@@ -61,7 +65,11 @@ function DripEditor() {
     api(`/drips/${id}`)
       .then((d) => {
         setDrip(d);
-        setForm((f) => f || { name: d.name, trigger: d.trigger, condition: d.condition || {}, steps: d.steps.map(({ templateId, variables, delayDays, sendTime }) => ({ templateId: templateId?._id || templateId, variables, delayDays, sendTime })), stopOnReply: d.stopOnReply, stopStatuses: d.stopStatuses });
+        setForm((f) => f || {
+          name: d.name, trigger: d.trigger, condition: d.condition || {}, stopOnReply: d.stopOnReply, stopStatuses: d.stopStatuses,
+          stopOnStatusChange: d.stopOnStatusChange !== false, onComplete: { setStatus: d.onComplete?.setStatus || "", addTag: d.onComplete?.addTag || "" },
+          steps: d.steps.map((s) => ({ ...newStep(), ...s, kind: s.kind || "message", templateId: s.templateId?._id || s.templateId || "", templateIdHi: s.templateIdHi?._id || s.templateIdHi || "", variablesHi: s.variablesHi || [] })),
+        });
         setShowCondition((s) => s || Object.keys(d.condition || {}).some((k) => JSON.stringify(d.condition[k]) !== JSON.stringify(k === "tagMatch" ? "any" : Array.isArray(d.condition[k]) ? [] : {})));
       })
       .catch((err) => {
@@ -96,7 +104,11 @@ function DripEditor() {
   const save = async () => {
     setSaving(true);
     try {
-      const body = { ...form, condition: showCondition ? form.condition : {} };
+      const body = {
+        ...form,
+        condition: showCondition ? form.condition : {},
+        steps: form.steps.map((s) => ({ ...s, templateId: s.templateId || null, templateIdHi: s.templateIdHi || null })),
+      };
       const saved = await api(isNew ? "/drips" : `/drips/${id}`, { method: isNew ? "POST" : "PUT", body });
       toast.success(isNew ? "Drip saved. Turn it on when you are ready." : "Drip saved");
       if (isNew) router.replace(`/app/drips/${saved._id}`);
@@ -209,63 +221,102 @@ function DripEditor() {
 
           <Card className="space-y-4 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-medium text-slate-900">2. Messages</h2>
-              <Button size="sm" variant="secondary" disabled={form.steps.length >= 20} onClick={() => set({ steps: [...form.steps, { templateId: "", variables: [], delayDays: 2, sendTime: "11:00" }] })}><Plus className="h-4 w-4" /> Add message</Button>
+              <h2 className="font-medium text-slate-900">2. Steps</h2>
+              <Button size="sm" variant="secondary" disabled={form.steps.length >= 30} onClick={() => set({ steps: [...form.steps, newStep(2, "11:00")] })}><Plus className="h-4 w-4" /> Add step</Button>
             </div>
             {!approved.length && <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">No approved templates yet. Create one in Templates and get it approved first.</p>}
             {form.steps.map((s, i) => {
               const tpl = templates.find((x) => x._id === s.templateId);
+              const tplHi = templates.find((x) => x._id === s.templateIdHi);
+              const kind = s.kind || "message";
+              const pickTemplate = (key, varsKey) => (e) => {
+                const nt = templates.find((x) => x._id === e.target.value);
+                setStep(i, { [key]: e.target.value, [varsKey]: nt ? campaignVariablesFrom(nt) : [] });
+              };
               return (
                 <div key={i} className="rounded-lg border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-700">Message {i + 1}</span>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="shrink-0 text-sm font-medium text-slate-700">Step {i + 1}</span>
+                      <Select className="h-8 max-w-72 text-sm" value={kind} onChange={(e) => setStep(i, { kind: e.target.value })} aria-label={`Step ${i + 1} type`}>
+                        {STEP_KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </Select>
+                    </div>
                     <div className="flex items-center gap-0.5">
                       <Button size="icon" variant="ghost" className="!w-7" disabled={i === 0} onClick={() => moveStep(i, -1)} aria-label="Move up"><ArrowUp className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="!w-7" disabled={i === form.steps.length - 1} onClick={() => moveStep(i, 1)} aria-label="Move down"><ArrowDown className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" className="!w-7" disabled={form.steps.length === 1} onClick={() => set({ steps: form.steps.filter((_, j) => j !== i) })} aria-label="Remove message"><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                      <Button size="icon" variant="ghost" className="!w-7" disabled={form.steps.length === 1} onClick={() => set({ steps: form.steps.filter((_, j) => j !== i) })} aria-label="Remove step"><Trash2 className="h-4 w-4 text-red-500" /></Button>
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Template" className="sm:col-span-2">
-                      <Select value={s.templateId} onChange={(e) => { const nt = templates.find((x) => x._id === e.target.value); setStep(i, { templateId: e.target.value, variables: nt ? campaignVariablesFrom(nt) : [] }); }}>
-                        <option value="">Choose an approved template…</option>
-                        {approved.map((x) => <option key={x._id} value={x._id}>{x.name} ({x.language})</option>)}
-                        {tpl && tpl.status !== "approved" && <option value={tpl._id}>{tpl.name} (not approved)</option>}
-                      </Select>
-                    </Field>
-                    <Field label={i === 0 ? (t.type === "date" ? "Days after the date" : "Wait (days)") : "Days after previous"}>
-                      <Input type="number" min={0} max={365} value={s.delayDays} onChange={(e) => setStep(i, { delayDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })} />
+                    {kind === "message" && (
+                      <Field label="Template" className="sm:col-span-2">
+                        <Select value={s.templateId} onChange={pickTemplate("templateId", "variables")}>
+                          <option value="">Choose an approved template…</option>
+                          {approved.map((x) => <option key={x._id} value={x._id}>{x.name} ({x.language})</option>)}
+                          {tpl && tpl.status !== "approved" && <option value={tpl._id}>{tpl.name} (not approved)</option>}
+                        </Select>
+                      </Field>
+                    )}
+                    {kind === "task" && (
+                      <>
+                        <Field label="Task" hint="{name} = the lead's name">
+                          <Input maxLength={200} value={s.text} placeholder="e.g. Call {name} – hot lead" onChange={(e) => setStep(i, { text: e.target.value })} />
+                        </Field>
+                        <Field label="Due in (minutes)">
+                          <Input type="number" min={0} value={s.dueMinutes} onChange={(e) => setStep(i, { dueMinutes: Math.max(0, Number(e.target.value) || 0) })} />
+                        </Field>
+                      </>
+                    )}
+                    {kind === "alert" && (
+                      <Field label="Alert text" hint="Shown in the counsellor's 🔔 (admins if nobody is assigned)" className="sm:col-span-2">
+                        <Input maxLength={200} value={s.text} placeholder="e.g. {name} did not reply for 2 days – call now" onChange={(e) => setStep(i, { text: e.target.value })} />
+                      </Field>
+                    )}
+                    {kind === "status" && (
+                      <Field label="Move the lead to" className="sm:col-span-2" hint="This drip keeps going; the new status may start its own drip.">
+                        <Select value={s.setStatus} onChange={(e) => setStep(i, { setStatus: e.target.value })}>
+                          <option value="">Choose…</option>
+                          {statuses.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+                        </Select>
+                      </Field>
+                    )}
+                    <Field label={i === 0 ? (t.type === "date" ? "Days after the date" : "Wait (days + hours)") : "Wait after previous (days + hours)"}>
+                      <div className="flex gap-2">
+                        <Input type="number" min={0} max={365} value={s.delayDays} onChange={(e) => setStep(i, { delayDays: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })} aria-label="Days" title="Days" />
+                        <Select value={s.delayMinutes || 0} onChange={(e) => setStep(i, { delayMinutes: Number(e.target.value) })} aria-label="Extra hours / minutes">
+                          {[[0, "+0"], [10, "+10 min"], [30, "+30 min"], [60, "+1 hour"], [120, "+2 hours"], [240, "+4 hours"], [360, "+6 hours"], [720, "+12 hours"]]
+                            .concat(![0, 10, 30, 60, 120, 240, 360, 720].includes(s.delayMinutes || 0) ? [[s.delayMinutes, `+${s.delayMinutes} min`]] : [])
+                            .map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </Select>
+                      </div>
                     </Field>
                     <Field label="At time">
-                      <Input type="time" value={s.sendTime} onChange={(e) => setStep(i, { sendTime: e.target.value })} title="Leave empty to send as soon as it is due" />
+                      <Input type="time" value={s.sendTime} onChange={(e) => setStep(i, { sendTime: e.target.value })} title="Leave empty to run as soon as it is due" />
                     </Field>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
                     {i === 0 && t.type === "date"
-                      ? `Sent ${s.delayDays ? `${s.delayDays} day(s) after the date` : "on the date"} at ${s.sendTime || "10:00"}.`
+                      ? `Runs ${s.delayDays ? `${s.delayDays} day(s) after the date` : "on the date"} at ${s.sendTime || "10:00"}.`
                       : i === 0
-                      ? s.delayDays ? `Sent ${s.delayDays} day(s) after the contact enters${s.sendTime ? `, at ${s.sendTime}` : ""}.` : `Sent right away${s.sendTime ? ` (at ${s.sendTime} if that time has not passed today)` : ""}.`
-                      : `Sent ${s.delayDays} day(s) after message ${i}${s.sendTime ? `, at ${s.sendTime}` : ""}.`}
+                      ? s.delayDays || s.delayMinutes ? `Runs ${waitText(s)} after the contact enters${s.sendTime ? `, at ${s.sendTime}` : ""}.` : `Runs right away${s.sendTime ? ` (at ${s.sendTime} if that time has not passed today)` : ""}.`
+                      : `Runs ${waitText(s)} after step ${i}${s.sendTime ? `, at ${s.sendTime}` : ""}.`}
+                    {kind !== "message" && " No quiet hours or daily limit (nothing is sent to the customer)."}
                   </p>
-                  {tpl && s.variables.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      {s.variables.map((v, k) => (
-                        <div key={k} className="grid items-center gap-2 sm:grid-cols-[2.5rem_11rem_1fr]">
-                          <span className="font-mono text-sm text-slate-600">{`{{${k + 1}}}`}</span>
-                          <Select className="h-9 text-sm" value={v.source} onChange={(e) => setStep(i, { variables: s.variables.map((x, j) => (j === k ? { source: e.target.value, value: e.target.value === "field" ? "name" : "" } : x)) })}>
-                            <option value="field">Contact field</option>
-                            <option value="static">Same text for all</option>
-                          </Select>
-                          {v.source === "field" ? (
-                            <ContactFieldSelect className="h-9 text-sm" value={v.value} onChange={(val) => setStep(i, { variables: s.variables.map((x, j) => (j === k ? { ...x, value: val } : x)) })} ariaLabel={`Variable ${k + 1}`} />
-                          ) : (
-                            <Input className="text-sm" value={v.value} placeholder="Text" onChange={(e) => setStep(i, { variables: s.variables.map((x, j) => (j === k ? { ...x, value: e.target.value } : x)) })} />
-                          )}
-                        </div>
-                      ))}
+                  {kind === "message" && tpl && <VariableRows vars={s.variables} onChange={(variables) => setStep(i, { variables })} />}
+                  {kind === "message" && tpl && <div className="mt-3 max-w-sm"><TemplatePreview {...tpl} params={s.variables.map((v, k) => variableExample({ ...v, example: "" }, k))} /></div>}
+                  {kind === "message" && coaching && (
+                    <div className="mt-3 rounded-md bg-slate-50 p-3">
+                      <Field label="Hinglish version (optional)" hint="Leads whose language is Hinglish get this template instead">
+                        <Select value={s.templateIdHi || ""} onChange={pickTemplate("templateIdHi", "variablesHi")}>
+                          <option value="">Same template for everyone</option>
+                          {approved.map((x) => <option key={x._id} value={x._id}>{x.name} ({x.language})</option>)}
+                          {tplHi && tplHi.status !== "approved" && <option value={tplHi._id}>{tplHi.name} (not approved)</option>}
+                        </Select>
+                      </Field>
+                      {tplHi && <VariableRows vars={s.variablesHi} onChange={(variablesHi) => setStep(i, { variablesHi })} />}
                     </div>
                   )}
-                  {tpl && <div className="mt-3 max-w-sm"><TemplatePreview {...tpl} params={s.variables.map((v, k) => variableExample({ ...v, example: "" }, k))} /></div>}
                 </div>
               );
             })}
@@ -277,11 +328,22 @@ function DripEditor() {
             <Field label="Stop when the lead status becomes">
               <div className="flex flex-wrap gap-1.5">{statuses.map((s) => <button key={s.key} type="button" className={chip(form.stopStatuses?.includes(s.key))} onClick={() => set({ stopStatuses: toggleIn(form.stopStatuses, s.key) })}>{s.label}</button>)}</div>
             </Field>
+            <Toggle checked={form.stopOnStatusChange ?? !["date", "manual"].includes(t.type)} onChange={(v) => set({ stopOnStatusChange: v })} label="One status = one drip"
+              description="Stop when the lead moves to any other status, and stop the lead's other drips when this one starts. Turn off for birthday / refer drips that run beside the others." />
+            <Field label="When the last step is done" hint="e.g. move to Nurture – Later after the 10-day Warm series">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Select value={form.onComplete?.setStatus || ""} onChange={(e) => set({ onComplete: { ...form.onComplete, setStatus: e.target.value } })} aria-label="Status when finished">
+                  <option value="">Keep the status</option>
+                  {statuses.map((x) => <option key={x.key} value={x.key}>Move to {x.label}</option>)}
+                </Select>
+                <Input maxLength={40} placeholder="Add tag (optional)" value={form.onComplete?.addTag || ""} onChange={(e) => set({ onComplete: { ...form.onComplete, addTag: e.target.value.toLowerCase() } })} aria-label="Tag when finished" />
+              </div>
+            </Field>
             <p className="text-xs text-slate-500">Always: opted-out contacts are never messaged, nothing is sent during quiet hours, and each contact gets at most the daily limit of automatic messages (Settings → Automation).</p>
           </Card>
 
           <div className="flex justify-end">
-            <Button onClick={save} loading={saving} disabled={form.name.trim().length < 2 || form.steps.some((s) => !s.templateId)}><Save className="h-4 w-4" /> {isNew ? "Save drip" : "Save changes"}</Button>
+            <Button onClick={save} loading={saving} disabled={form.name.trim().length < 2 || form.steps.some((s) => (s.kind || "message") === "message" && !s.templateId)}><Save className="h-4 w-4" /> {isNew ? "Save drip" : "Save changes"}</Button>
           </div>
         </div>
 
@@ -371,8 +433,8 @@ function Enrollments({ dripId }) {
         columns={[
           { key: "contact", label: "Contact", render: (e) => <div><p className="font-medium text-slate-900">{e.contactId?.name || "Unknown"}</p><p className="text-xs text-slate-500">{fmtPhone(e.contactId?.phone)}</p></div> },
           { key: "status", label: "Status", render: (e) => <div className="space-y-0.5"><StatusBadge status={e.status === "sending" ? "active" : e.status} />{e.stoppedReason && <p className="text-xs text-slate-500">{STOP_REASONS[e.stoppedReason] || e.stoppedReason}</p>}</div> },
-          { key: "progress", label: "Messages sent", render: (e) => `${e.history.filter((h) => h.status === "sent").length}` },
-          { key: "next", label: "Next message", className: "whitespace-nowrap", render: (e) => (["active", "sending"].includes(e.status) && e.nextRunAt ? fmtDateTime(e.nextRunAt) : "—") },
+          { key: "progress", label: "Steps done", render: (e) => `${e.history.filter((h) => h.status === "sent").length}` },
+          { key: "next", label: "Next step", className: "whitespace-nowrap", render: (e) => (["active", "sending"].includes(e.status) && e.nextRunAt ? fmtDateTime(e.nextRunAt) : "—") },
           { key: "note", label: "Note", render: (e) => <span className="text-xs text-slate-500">{e.lastError || (e.history.at(-1)?.status === "skipped" ? e.history.at(-1).error : "")}</span> },
           { key: "x", label: "", render: (e) => ["active", "sending"].includes(e.status) && <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-red-600" onClick={() => setRemoving(e)} aria-label="Remove from drip"><X className="h-4 w-4" /></button> },
         ]}
@@ -383,5 +445,29 @@ function Enrollments({ dripId }) {
       <ConfirmModal open={!!removing} onClose={() => setRemoving(null)} onConfirm={remove} title="Remove from drip?" confirmText="Remove"
         message={`${removing?.contactId?.name || "This contact"} will not get the remaining messages.`} />
     </Card>
+  );
+}
+
+/** {{1}}, {{2}}… of a template step: contact / course / business field or fixed text */
+function VariableRows({ vars, onChange }) {
+  if (!vars?.length) return null;
+  const setVar = (k, patch) => onChange(vars.map((x, j) => (j === k ? { ...x, ...patch } : x)));
+  return (
+    <div className="mt-3 space-y-2">
+      {vars.map((v, k) => (
+        <div key={k} className="grid items-center gap-2 sm:grid-cols-[2.5rem_11rem_1fr]">
+          <span className="font-mono text-sm text-slate-600">{`{{${k + 1}}}`}</span>
+          <Select className="h-9 text-sm" value={v.source} onChange={(e) => setVar(k, { source: e.target.value, value: e.target.value === "field" ? "name" : "" })}>
+            <option value="field">Contact field</option>
+            <option value="static">Same text for all</option>
+          </Select>
+          {v.source === "field" ? (
+            <ContactFieldSelect className="h-9 text-sm" value={v.value} onChange={(val) => setVar(k, { value: val })} ariaLabel={`Variable ${k + 1}`} />
+          ) : (
+            <Input className="text-sm" value={v.value} placeholder="Text" onChange={(e) => setVar(k, { value: e.target.value })} />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

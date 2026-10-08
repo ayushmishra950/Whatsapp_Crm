@@ -11,7 +11,9 @@ import { PageContainer } from "@/components/shell";
 import { TemplatePreview, VariableDefaultsEditor, fitVariableDefaults, variableExample } from "@/components/shared";
 import { Badge, Button, Card, ConfirmModal, EmptyState, Field, Input, Modal, PageHeader, PageLoader, Select, StatusBadge, Textarea } from "@/components/ui";
 
-const empty = { name: "", language: "en", category: "MARKETING", header: "", body: "", footer: "", variableDefaults: [] };
+const empty = { name: "", language: "en", category: "MARKETING", header: "", body: "", footer: "", variableDefaults: [], buttons: [] };
+const BUTTON_TYPES = [["QUICK_REPLY", "Quick reply"], ["URL", "Link"], ["PHONE_NUMBER", "Call"]];
+const cleanButtons = (list = []) => list.map(({ type, text, url, phone }) => ({ type, text: text.trim(), url: type === "URL" ? (url || "").trim() : "", phone: type === "PHONE_NUMBER" ? (phone || "").trim() : "" }));
 const LANGS = [["en", "English"], ["en_US", "English (US)"], ["hi", "Hindi"], ["gu", "Gujarati"], ["mr", "Marathi"], ["ta", "Tamil"], ["te", "Telugu"], ["bn", "Bengali"]];
 
 export default function TemplatesPage() {
@@ -32,6 +34,7 @@ export default function TemplatesPage() {
     e.preventDefault();
     setBusy("save");
     const { _id, name, language, category, header, body, footer } = editing;
+    const buttons = cleanButtons(editing.buttons);
     const variableDefaults = fitVariableDefaults(editing.variableDefaults, body);
     try {
       if (onlyVariables) {
@@ -39,10 +42,10 @@ export default function TemplatesPage() {
         await api(`/templates/${_id}/variables`, { method: "PUT", body: { variableDefaults } });
         toast.success("Variables saved. New campaigns and chats will use them.");
       } else if (approvedEdit) {
-        await api(`/templates/${_id}/edit-approved`, { method: "POST", body: { header, body, footer, variableDefaults } });
+        await api(`/templates/${_id}/edit-approved`, { method: "POST", body: { header, body, footer, variableDefaults, buttons } });
         toast.success("Edit sent to WhatsApp for review. The template can be used again once it is approved.");
       } else {
-        await api(_id ? `/templates/${_id}` : "/templates", { method: _id ? "PATCH" : "POST", body: { name, language, category, header, body, footer, variableDefaults } });
+        await api(_id ? `/templates/${_id}` : "/templates", { method: _id ? "PATCH" : "POST", body: { name, language, category, header, body, footer, variableDefaults, buttons } });
         toast.success("Template saved as draft. Submit it for WhatsApp approval.");
       }
       setEditing(null);
@@ -54,7 +57,9 @@ export default function TemplatesPage() {
     }
   };
 
+  const [submitAsk, setSubmitAsk] = useState(null);
   const submit = async (t) => {
+    setSubmitAsk(null);
     setBusy(t._id);
     try {
       await api(`/templates/${t._id}/submit`, { method: "POST" });
@@ -85,7 +90,7 @@ export default function TemplatesPage() {
   const original = editing?._id ? items.find((x) => x._id === editing._id) : null;
   // Text can't change while WhatsApp reviews it, or when the approved-edit limit is used up; variables always can
   const textLocked = editing?.status === "pending" || (approvedEdit && !!original?.editLimits?.nextAllowedAt);
-  const textChanged = !!original && ["header", "body", "footer"].some((k) => (editing[k] || "") !== (original[k] || ""));
+  const textChanged = !!original && (["header", "body", "footer"].some((k) => (editing[k] || "") !== (original[k] || "")) || JSON.stringify(cleanButtons(editing.buttons)) !== JSON.stringify(cleanButtons(original.buttons)));
   const onlyVariables = !!original && ["approved", "pending"].includes(editing.status) && !textChanged;
   const previewParams = editing ? fitVariableDefaults(editing.variableDefaults, editing.body).map(variableExample) : [];
   const lockedHint = "WhatsApp does not allow changing this after the template is approved";
@@ -108,7 +113,7 @@ export default function TemplatesPage() {
               </div>
               <StatusBadge status={t.status} />
             </div>
-            <TemplatePreview {...t} />
+            <TemplatePreview {...t} params={fitVariableDefaults(t.variableDefaults, t.body).map(variableExample)} />
             {t.status === "rejected" && t.rejectionReason && <p className="mt-2 text-xs text-red-600">Rejected: {t.rejectionReason}</p>}
             {t.status === "pending" && t.previousVersion?.body && (
               <p className="mt-2 text-xs text-amber-700">✏️ Your edit is in WhatsApp review. The template can be used again once it is approved.</p>
@@ -139,7 +144,7 @@ export default function TemplatesPage() {
                 {["draft", "rejected"].includes(t.status) && (
                   <>
                     <Button size="sm" variant="secondary" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-                    <Button size="sm" onClick={() => submit(t)} loading={busy === t._id}><Send className="h-3.5 w-3.5" /> Submit</Button>
+                    <Button size="sm" onClick={() => setSubmitAsk(t)} loading={busy === t._id}><Send className="h-3.5 w-3.5" /> Submit</Button>
                   </>
                 )}
                 <Button size="icon" variant="ghost" onClick={() => setDeleting(t)} aria-label="Delete template"><Trash2 className="h-4 w-4 text-red-500" /></Button>
@@ -194,6 +199,7 @@ export default function TemplatesPage() {
                 <Textarea required rows={5} maxLength={1024} disabled={textLocked} value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} />
               </Field>
               <Field label="Footer (optional)"><Input maxLength={60} disabled={textLocked} value={editing.footer} onChange={(e) => setEditing({ ...editing, footer: e.target.value })} placeholder="Reply STOP to unsubscribe" /></Field>
+              <ButtonsEditor value={editing.buttons || []} disabled={textLocked} onChange={(buttons) => setEditing({ ...editing, buttons })} />
             </form>
             <div>
               <p className="mb-2 text-sm font-medium text-slate-700">Preview</p>
@@ -207,8 +213,40 @@ export default function TemplatesPage() {
         )}
       </Modal>
 
+      <ConfirmModal open={!!submitAsk} onClose={() => setSubmitAsk(null)} onConfirm={() => submit(submitAsk)} loading={busy === submitAsk?._id} title={`Submit “${submitAsk?.name}” to WhatsApp?`} confirmText="Submit for approval"
+        message={`WhatsApp reviews it (usually minutes to a few hours) as a ${submitAsk?.category?.toLowerCase()} template. After approval only the header, body, footer and buttons can be edited (max 1 edit a day, 10 a month), and every edit goes back to review — so check the text and variables first.`} />
       <ConfirmModal open={!!deleting} onClose={() => setDeleting(null)} onConfirm={remove} danger title="Delete template?" confirmText="Delete"
         message={`"${deleting?.name}" will also be deleted from WhatsApp.`} />
     </PageContainer>
+  );
+}
+
+/** Template buttons: quick replies (tap = customer's reply), link and call buttons (Meta: max 10, 2 links, 1 call) */
+function ButtonsEditor({ value, onChange, disabled }) {
+  const set = (i, patch) => onChange(value.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  return (
+    <div className="space-y-2 rounded-md border border-slate-200 p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-700">Buttons (optional)</p>
+          <p className="text-xs text-slate-500">Quick reply = the customer taps it instead of typing. Max 25 characters each.</p>
+        </div>
+        <Button type="button" size="sm" variant="secondary" disabled={disabled || value.length >= 10} onClick={() => onChange([...value, { type: "QUICK_REPLY", text: "", url: "", phone: "" }])}><Plus className="h-3.5 w-3.5" /> Add</Button>
+      </div>
+      {value.map((b, i) => (
+        <div key={i} className="grid gap-2 sm:grid-cols-[8rem_1fr_1fr_auto]">
+          <Select className="h-9 text-sm" disabled={disabled} value={b.type} onChange={(e) => set(i, { type: e.target.value })} aria-label="Button type">
+            {BUTTON_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <Input className="text-sm" maxLength={25} disabled={disabled} value={b.text} placeholder="e.g. Book free demo" onChange={(e) => set(i, { text: e.target.value })} aria-label="Button text" />
+          {b.type === "URL" ? (
+            <Input className="text-sm" disabled={disabled} value={b.url} placeholder="https://…" onChange={(e) => set(i, { url: e.target.value })} aria-label="Link" />
+          ) : b.type === "PHONE_NUMBER" ? (
+            <Input className="text-sm" disabled={disabled} value={b.phone} placeholder="+919876543210" onChange={(e) => set(i, { phone: e.target.value })} aria-label="Phone" />
+          ) : <span />}
+          <Button type="button" size="icon" variant="ghost" disabled={disabled} onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label="Remove button"><Trash2 className="h-4 w-4 text-red-500" /></Button>
+        </div>
+      ))}
+    </div>
   );
 }

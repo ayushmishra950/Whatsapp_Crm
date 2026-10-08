@@ -165,7 +165,8 @@ export async function addInternalNote({ tenant, conversation, user, text }) {
     type: 'note',
     text,
     status: 'sent',
-    sentBy: user._id,
+    sentBy: user?._id,
+    isBot: !user?._id, // automation note
   });
   await message.populate(MESSAGE_POPULATE);
   await emitMessage(conversation._id, message);

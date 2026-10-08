@@ -10,7 +10,8 @@ const menuOptionSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true, maxlength: 24 },
     description: { type: String, trim: true, maxlength: 72, default: '' },
     // reply = send replyText; lead = ask the lead questions then hand off; handoff = straight to a human
-    action: { type: String, enum: ['reply', 'lead', 'handoff'], default: 'reply' },
+    // courses = show the course list (Courses page) -> course details, fees, admission questions, booking
+    action: { type: String, enum: ['reply', 'lead', 'handoff', 'courses'], default: 'reply' },
     replyText: { type: String, default: '' },
     tag: { type: String, trim: true, default: '' }, // optional tag added to the contact when chosen
   },
@@ -39,6 +40,39 @@ const leadQuestionSchema = new mongoose.Schema(
   { _id: true }
 );
 
+// Course flow (coaching): admission questions asked after "Yes, interested" / "Free demo"
+const courseQuestionSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true, trim: true }, // profile, goal, mode, start, name, city, call, or your own
+    field: { type: String, required: true, trim: true }, // where the answer is saved: name | custom.<key>
+    enabled: { type: Boolean, default: true },
+    en: { type: String, default: '' }, // question in English
+    hi: { type: String, default: '' }, // question in Hinglish
+    // Buttons / list rows (max 10). Empty = the customer types the answer.
+    options: { type: [{ _id: false, value: { type: String, default: '' }, en: { type: String, default: '' }, hi: { type: String, default: '' } }], default: [] },
+    skipIfKnown: { type: Boolean, default: false }, // e.g. name / city already on the lead
+  },
+  { _id: false }
+);
+
+// Answers to the questions students type ("emi hai?", "online hai kya", "address"), in English and Hinglish.
+// Placeholders: {{name}} {{course}} {{duration}} {{batch_date}} {{internship}} {{business_name}} {{address}}
+// {{maps_link}} {{city}} {{students_trained}} {{since_year}} {{rating}} {{review_link}} {{proof_link}} {{per_day}}
+const faqSchema = new mongoose.Schema(
+  {
+    key: { type: String, required: true, trim: true },
+    title: { type: String, default: '' },
+    enabled: { type: Boolean, default: true },
+    keywords: { type: [String], default: [] },
+    en: { type: String, default: '' },
+    hi: { type: String, default: '' },
+    // answer = send the text · fees / details = the course's fees / details · book = admission questions
+    // courses = the course list · handoff = connect to the team (e.g. complaints)
+    action: { type: String, enum: ['answer', 'fees', 'details', 'book', 'courses', 'handoff'], default: 'answer' },
+  },
+  { _id: false }
+);
+
 const daySchema = { open: { type: Boolean, default: true }, start: { type: String, default: '10:00' }, end: { type: String, default: '19:00' } };
 
 const chatbotSchema = new mongoose.Schema(
@@ -61,6 +95,9 @@ const chatbotSchema = new mongoose.Schema(
     menu: { type: [menuOptionSchema], default: [] },
 
     keywordRules: { type: [keywordRuleSchema], default: [] },
+
+    courseQuestions: { type: [courseQuestionSchema], default: [] },
+    faqs: { type: [faqSchema], default: [] },
 
     leadQuestions: { type: [leadQuestionSchema], default: [] },
     leadCompleteText: { type: String, default: 'Thank you! Our team will contact you shortly. 🙏' },

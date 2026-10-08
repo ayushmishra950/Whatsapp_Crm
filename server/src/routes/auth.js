@@ -18,6 +18,8 @@ export function sessionPayload(user, tenant, impersonatedBy) {
       _id: tenant._id,
       name: tenant.name,
       status: tenant.status,
+      businessType: tenant.businessType || 'general',
+      logo: tenant.logo || '',
       plan: tenant.plan && { _id: tenant.plan._id, name: tenant.plan.name, limits: tenant.plan.limits, modules: tenant.plan.modules },
       subscription: tenant.subscription,
       subscriptionActive: isSubscriptionActive(tenant),
