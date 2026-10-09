@@ -11,6 +11,7 @@ import { triggerDrips, automationSettings } from './drips.js';
 import { automationNote, createTask, notify } from './alerts.js';
 import { runFeeReminders } from './fees.js';
 import { addDays, dayKey, hhmmToMinutes, localMinutes, zonedTime } from '../utils/time.js';
+import { displayName } from '../utils/contact.js';
 
 const TICK_MS = 60 * 1000;
 const BATCH = 200;
@@ -110,13 +111,13 @@ export async function beforeInbound({ tenant, contact, text, isNewContact, statu
   // A8: a Nurture / Lost lead writes again -> back to Hot + alert
   const rl = tenant.settings?.automation?.returningLead;
   if (!isNewContact && rl?.enabled && rl.fromStatuses?.includes(statusBefore) && setStatus(rl.toStatus, 'lead came back')) {
-    const who = contact.name || `+${contact.phone}`;
+    const who = displayName(contact);
     effects.alerts.push({ to: 'both', kind: 'hot', title: `${who} came back`, body: `Was "${statusLabel(tenant, statusBefore)}" – wrote: ${String(text).slice(0, 80)}` });
   }
 
   // Fee reminders: "Need more time" / "Already paid" (button or typed) -> a task for the accounts follow-up
   if ((contact.fees?.balance || 0) > 0) {
-    const who = contact.name || `+${contact.phone}`;
+    const who = displayName(contact);
     if (/\b(need more time|more time|time chahiye|thoda time|baad mein dunga|next week)\b/i.test(lower)) {
       effects.tasks.push({ title: `Agree a new fee date with ${who} (asked for more time)`, sourceName: 'Fee reminder reply' });
     } else if (/^(paid|already paid|paid ✅|pay kar diya|de diya|jama kar diya|payment done)\b/i.test(lower.trim())) {
@@ -137,7 +138,7 @@ export async function beforeInbound({ tenant, contact, text, isNewContact, statu
       contact.tags.push(...newTags);
       effects.notes.push(`Tag ${newTags.join(', ')} added (${reason})`);
     }
-    const who = contact.name || `+${contact.phone}`;
+    const who = displayName(contact);
     if (rule.alert) effects.alerts.push({ to: 'both', kind: 'hot', title: `${rule.name}: ${who}`, body: `Wrote: ${String(text).slice(0, 100)}` });
     if (rule.task) effects.tasks.push({ title: rule.task, sourceName: rule.name });
   }
@@ -151,7 +152,7 @@ export async function afterInbound({ tenant, contact, effects, dripsInterrupted 
   for (const t of effects.tasks) await createTask({ tenantId: tenant._id, contact, title: t.title, kind: 'call', dueAt: new Date(Date.now() + 15 * 6e4), source: 'automation', sourceName: t.sourceName });
   // A reply while a drip was running: a human should take over now
   if (dripsInterrupted.length && tenant.settings?.automation?.alertOnReply !== false) {
-    const who = contact.name || `+${contact.phone}`;
+    const who = displayName(contact);
     await notify(tenant._id, { to: 'counsellor', contact, kind: 'reply', title: `${who} replied`, body: `During drip "${dripsInterrupted.join(', ')}" – please answer` });
   }
 }
@@ -180,7 +181,7 @@ async function statusTimeouts(now) {
         // Claim it so two workers never handle the same time-out
         const claimed = await Contact.updateOne({ _id: contact._id, leadStatus: s.key, statusTimeoutMark: { $ne: mark } }, { $set: { statusTimeoutMark: mark } });
         if (!claimed.modifiedCount) continue;
-        const who = contact.name || `+${contact.phone}`;
+        const who = displayName(contact);
         const limitText = `${s.timeLimit.amount} ${s.timeLimit.unit}`;
         try {
           if (s.onTimeout.task) {
@@ -218,7 +219,7 @@ async function overdueTasks(now) {
       contact,
       kind: 'overdue',
       title: `Overdue: ${task.title}`,
-      body: `${contact.name || `+${contact.phone}`} · was due ${Math.round((now - task.dueAt) / 6e4)} min ago`,
+      body: `${displayName(contact)} · was due ${Math.round((now - task.dueAt) / 6e4)} min ago`,
       taskId: task._id,
     });
   }

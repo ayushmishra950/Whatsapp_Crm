@@ -8,7 +8,8 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useIsCoaching } from "@/lib/business";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtDate, fmtDateTime, fmtPhone, fmtRelative } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtPhone, fmtRelative, displayName } from "@/lib/format";
+import { ChannelBadge, instagramUrl } from "@/components/channel";
 import { LEAD_SOURCES } from "@/lib/contact-fields";
 import { useToast } from "@/components/toast";
 import { LeadStatusBadge } from "@/components/shared";
@@ -70,6 +71,11 @@ export default function LeadPage() {
   const courses = useCourses(coaching);
   const [contact, setContact] = useState(null);
   const [conversation, setConversation] = useState(null);
+  const [chats, setChats] = useState([]); // one per channel: [{ _id, channel }]
+  const openChatId = useRef(null); // the chat on screen, kept when the lead reloads
+  useEffect(() => {
+    openChatId.current = conversation?._id || null;
+  }, [conversation]);
   const [history, setHistory] = useState(null);
   const [withChat, setWithChat] = useState(false);
   const [filter, setFilter] = useState("all");
@@ -79,12 +85,19 @@ export default function LeadPage() {
   const [next, setNext] = useState(false);
   const [error, setError] = useState("");
 
+  const openChat = (convId) =>
+    api(`/conversations/${convId}`).then((c) => setConversation(c.conversation)).catch(() => setConversation({ _id: convId, locked: true }));
   const loadContact = useCallback(
     () =>
       api(`/contacts/${id}`)
         .then((r) => {
           setContact(r.contact);
-          if (r.conversation?._id) api(`/conversations/${r.conversation._id}`).then((c) => setConversation(c.conversation)).catch(() => setConversation({ _id: r.conversation._id, locked: true }));
+          const list = r.conversations || (r.conversation ? [r.conversation] : []);
+          setChats(list);
+          // Keep the chat that is open (WhatsApp / Instagram), else the most recent one
+          const pick = list.find((c) => c._id === openChatId.current) || list[0];
+          if (pick?._id) openChat(pick._id);
+          else setConversation(null);
         })
         .catch((err) => setError(err.message)),
     [id]
@@ -105,7 +118,8 @@ export default function LeadPage() {
   useSocketEvent("task:update", refresh);
   useSocketEvent("message:new", ({ conversation: c }) => {
     if (String(c.contactId?._id || c.contactId) !== id) return;
-    setConversation((cur) => (cur && !cur.locked ? c : cur));
+    setConversation((cur) => (cur && !cur.locked && cur._id === c._id ? c : cur));
+    if (!chats.some((x) => x._id === c._id)) loadContact(); // first message on another app
     refresh();
   });
 
@@ -139,9 +153,11 @@ export default function LeadPage() {
       setBotBusy(false);
     }
   };
-  const startChat = async () => {
+  const startChat = async (channel) => {
     try {
-      setConversation(await api("/conversations/start", { method: "POST", body: { contactId: id } }));
+      const c = await api("/conversations/start", { method: "POST", body: { contactId: id, channel } });
+      setConversation(c);
+      setChats((list) => (list.some((x) => x._id === c._id) ? list : [...list, { _id: c._id, channel: c.channel }]));
       setTab("chat");
     } catch (err) {
       toast.error(err);
@@ -184,13 +200,14 @@ export default function LeadPage() {
         <Avatar name={contact.name || contact.phone} className="h-11 w-11" />
         <div className="min-w-0 flex-1">
           <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-slate-900">
-            {contact.name || fmtPhone(contact.phone)}
+            {displayName(contact)}
             <LeadStatusBadge status={contact.leadStatus} />
             {contact.course && coaching && <Badge tone="purple">{contact.course}</Badge>}
             {contact.optedOut && <Badge tone="red">opted out</Badge>}
           </h1>
           <p className="text-sm text-slate-500">
-            <a href={`tel:+${contact.phone}`} className="hover:text-brand-700">{fmtPhone(contact.phone)}</a>
+            {contact.phone && <a href={`tel:+${contact.phone}`} className="hover:text-brand-700">{fmtPhone(contact.phone)}</a>}
+            {contact.instagram?.username && <>{contact.phone ? " · " : ""}<a href={instagramUrl(contact)} target="_blank" rel="noreferrer" className="text-pink-700 hover:underline">@{contact.instagram.username}</a></>}
             {contact.email ? ` · ${contact.email}` : ""}
             {` · ${contact.assignedTo?.name ? `Counsellor: ${contact.assignedTo.name}` : "Not assigned"}`}
             {(contact.tags || []).length > 0 && <> · {contact.tags.slice(0, 4).map((t) => <Badge key={t} className="ml-1">{t}</Badge>)}</>}
@@ -283,11 +300,20 @@ export default function LeadPage() {
 
         {/* Chat */}
         <Card className={cx("flex flex-col overflow-hidden xl:flex", tab === "chat" ? "h-[75dvh]" : "hidden", "xl:h-[calc(100dvh-230px)]")}>
+          <ChatSwitcher contact={contact} chats={chats} current={conversation} onOpen={openChat} onStart={startChat} />
           {!conversation ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
               <MessageCircle className="h-8 w-8 text-slate-300" />
-              <p className="text-sm text-slate-500">No WhatsApp chat with this lead yet.</p>
-              <Button onClick={startChat}><MessageCircle className="h-4 w-4" /> Start chat</Button>
+              {chats.length ? (
+                <Spinner />
+              ) : contact.phone ? (
+                <>
+                  <p className="text-sm text-slate-500">No WhatsApp chat with this lead yet.</p>
+                  <Button onClick={() => startChat("whatsapp")}><MessageCircle className="h-4 w-4" /> Start chat</Button>
+                </>
+              ) : (
+                <p className="text-sm text-slate-500">No chat yet. Add the WhatsApp number in Details to start one.</p>
+              )}
             </div>
           ) : conversation.locked ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm text-slate-500">
@@ -387,9 +413,9 @@ function LeadChat({ conversation, contact, me, isAdmin, onBot, botBusy, onSent }
   return (
     <>
       <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 text-sm">
-        <MessageCircle className="h-4 w-4 text-brand-600" />
-        <span className="flex-1 font-medium text-slate-800">WhatsApp chat</span>
-        <span className={cx("text-xs", conversation.windowOpen ? "text-green-700" : "text-amber-700")}>{conversation.windowOpen ? "24h window open" : "Window closed: template only"}</span>
+        <MessageCircle className={cx("h-4 w-4", conversation.channel === "instagram" ? "text-pink-600" : "text-brand-600")} />
+        <span className="flex-1 font-medium text-slate-800">{conversation.channel === "instagram" ? "Instagram chat" : "WhatsApp chat"}</span>
+        <span className={cx("text-xs", conversation.windowOpen ? "text-green-700" : "text-amber-700")}>{conversation.windowOpen ? "24h window open" : conversation.channel === "instagram" ? "Window closed: wait for the customer" : "Window closed: template only"}</span>
         <Button size="sm" variant="ghost" className="!h-7 !px-2 text-xs" onClick={openInInbox}>Inbox ↗</Button>
       </div>
       {!messages ? (
@@ -401,7 +427,7 @@ function LeadChat({ conversation, contact, me, isAdmin, onBot, botBusy, onSent }
           onLoadOlder={loadOlder}
           me={me}
           isAdmin={isAdmin}
-          contactName={contact.name || fmtPhone(contact.phone)}
+          contactName={displayName(contact)}
           windowOpen={conversation.windowOpen}
           onReply={setReplyTo}
           onCorrect={(m) => { setReplyTo(m); setDraftSeed({ nonce: Date.now(), text: m.text }); }}
@@ -428,5 +454,33 @@ function LeadChat({ conversation, contact, me, isAdmin, onBot, botBusy, onSent }
         onCancelReply={() => setReplyTo(null)}
       />
     </>
+  );
+}
+
+/** WhatsApp / Instagram tabs when a lead has (or can have) chats on both apps */
+function ChatSwitcher({ contact, chats, current, onOpen, onStart }) {
+  const has = (ch) => chats.find((c) => (c.channel || "whatsapp") === ch);
+  const canWa = !!contact.phone;
+  const canIg = !!contact.instagram?.igsid;
+  if (!(canWa && canIg) && chats.length < 2) return null;
+  const tab = (ch, label) => {
+    const chat = has(ch);
+    const on = chat && current?._id === chat._id;
+    return (
+      <button
+        key={ch}
+        type="button"
+        onClick={() => (chat ? onOpen(chat._id) : onStart(ch))}
+        className={cx("flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium", on ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100")}
+      >
+        <ChannelBadge channel={ch} /> {chat ? label : `Start ${label} chat`}
+      </button>
+    );
+  };
+  return (
+    <div className="flex gap-1 border-b border-slate-200 px-2 py-1.5">
+      {canWa && tab("whatsapp", "WhatsApp")}
+      {canIg && tab("instagram", "Instagram")}
+    </div>
   );
 }

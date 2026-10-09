@@ -8,6 +8,7 @@ import { automationNote, createTask, notify } from './alerts.js';
 import { sendAutomatedTemplate, automationSettings } from './drips.js';
 import { getLeadStatuses } from './leadStatuses.js';
 import { addDays, dayKey, localMinutes } from '../utils/time.js';
+import { displayName } from '../utils/contact.js';
 
 const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -79,9 +80,10 @@ export async function approvedTemplate(tenantId, base, lang) {
   return names.map((n) => list.find((t) => t.name === n)).find(Boolean) || null;
 }
 
-/** Send one of the fee templates (if the business has it approved). Returns 'sent' | 'no_template' | 'failed' | 'opted_out' */
+/** Send one of the fee templates (if the business has it approved). Returns 'sent' | 'no_template' | 'no_whatsapp' | 'failed' | 'opted_out' */
 export async function sendFeeMessage(tenant, contact, base) {
   if (contact.optedOut) return 'opted_out';
+  if (!contact.phone) return 'no_whatsapp'; // fee messages are WhatsApp templates
   const template = await approvedTemplate(tenant._id, base, contact.language);
   if (!template) return 'no_template';
   try {
@@ -144,8 +146,8 @@ async function remindersForTenant(tenant, now) {
     contact.markModified('fees.installments');
     await contact.save();
     const result = await sendFeeMessage(tenant, contact, { soon: 'fee_due_soon', due: 'fee_due_today', overdue: 'fee_overdue' }[kind]);
-    const who = contact.name || `+${contact.phone}`;
-    await automationNote(tenant, contact, `⏰ Fee ${kind === 'soon' ? 'due soon' : kind === 'due' ? 'due today' : 'overdue'}: ${money(inst.remaining)} (due ${prettyDay(inst.dueDate)})${result === 'sent' ? ' · WhatsApp reminder sent' : result === 'no_template' ? ' · no approved reminder template' : ''}`);
+    const who = displayName(contact);
+    await automationNote(tenant, contact, `⏰ Fee ${kind === 'soon' ? 'due soon' : kind === 'due' ? 'due today' : 'overdue'}: ${money(inst.remaining)} (due ${prettyDay(inst.dueDate)})${result === 'sent' ? ' · WhatsApp reminder sent' : result === 'no_template' ? ' · no approved reminder template' : result === 'no_whatsapp' ? ' · no WhatsApp number, call them' : ''}`);
     if (kind === 'overdue') {
       await createTask({ tenantId: tenant._id, contact, title: `Collect fee ${money(inst.remaining)} from ${who} (due ${prettyDay(inst.dueDate)})`, kind: 'followup', dueAt: now, source: 'automation', sourceName: 'Fee overdue' });
       await notify(tenant._id, { to: 'both', contact, kind: 'overdue', title: `Fee overdue: ${who}`, body: `${money(inst.remaining)} was due on ${prettyDay(inst.dueDate)}` });

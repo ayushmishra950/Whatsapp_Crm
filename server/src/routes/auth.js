@@ -6,6 +6,7 @@ import { authenticate, signToken } from '../middleware/auth.js';
 import { validate, unauthorized, forbidden, badRequest } from '../utils/http.js';
 import { audit } from '../services/audit.js';
 import { businessesOf, ensureAccountForUser, linkAccounts, normEmail, pickMembership } from '../services/accounts.js';
+import { registerPushToken, removePushToken } from '../services/push.js';
 import { isSubscriptionActive, messagesUsedThisMonth } from '../services/subscription.js';
 
 const router = Router();
@@ -26,6 +27,8 @@ export function sessionPayload(user, tenant, impersonatedBy) {
       subscriptionActive: isSubscriptionActive(tenant),
       messagesUsed: messagesUsedThisMonth(tenant),
       whatsappMode: tenant.whatsapp?.mode || 'mock',
+      instagramMode: tenant.instagram?.mode || 'mock',
+      instagramUsername: tenant.instagram?.username || '',
       settings: tenant.settings,
     },
     impersonating: !!impersonatedBy,
@@ -104,6 +107,21 @@ router.post('/link', authenticate, async (req, res) => {
   const result = await linkAccounts(account, data);
   await audit(req, 'auth.link_login', { meta: { removedEmail: result.removedEmail, businesses: result.businesses } });
   res.json({ ...result, items: await businessesOf(account._id, { counts: true }) });
+});
+
+/** Mobile app: this phone's Expo push token, saved on the login (alerts of all its businesses) */
+router.post('/push-token', authenticate, async (req, res) => {
+  const data = validate(z.object({ token: z.string().min(10).max(200), platform: z.string().max(20).default(''), device: z.string().max(80).default('') }), req.body);
+  if (req.impersonatedBy) return res.json({ ok: false }); // Super Admin viewing a business: no phone alerts
+  const account = await ensureAccountForUser(req.user);
+  res.json({ ok: await registerPushToken(account._id, data) });
+});
+
+/** Logout on the phone: stop alerts there */
+router.delete('/push-token', authenticate, async (req, res) => {
+  const { token } = validate(z.object({ token: z.string().min(10).max(200) }), req.body || {});
+  if (req.user.accountId) await removePushToken(req.user.accountId, token);
+  res.json({ ok: true });
 });
 
 router.get('/me', authenticate, async (req, res) => {

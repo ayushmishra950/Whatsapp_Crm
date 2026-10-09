@@ -17,6 +17,7 @@ import { emitToTenantAdmins } from './socket.js';
 import { createTask, notify } from './alerts.js';
 import { setStatusByAutomation } from './automation.js';
 import { DEFAULT_TZ, addDays, dayKey, hhmmToMinutes, localMinutes, safeTimeZone, zonedTime } from '../utils/time.js';
+import { displayName } from '../utils/contact.js';
 
 const TICK_MS = 20 * 1000;
 const BATCH = 50;
@@ -67,6 +68,9 @@ export function scheduleStep(base, step, tz) {
  */
 export async function enrollContacts(drip, contactIds, { cycle = '', base = new Date(), tz = DEFAULT_TZ } = {}) {
   if (!drip.steps?.length || !contactIds.length) return 0;
+  // Drip steps are WhatsApp templates: leads without a WhatsApp number (Instagram-only) are not enrolled
+  contactIds = (await Contact.find({ _id: { $in: contactIds }, phone: { $type: 'string' } }).select('_id').lean()).map((c) => c._id);
+  if (!contactIds.length) return 0;
   const first = drip.steps[0];
   const nextRunAt = scheduleStep(base, first, tz);
   const docs = contactIds.map((contactId) => ({ tenantId: drip.tenantId, dripId: drip._id, contactId, cycle, nextRunAt, enrolledAt: new Date() }));
@@ -323,11 +327,11 @@ async function advance(drip, enrollment, entry, now, s, tenant, contact) {
   emitToTenantAdmins(drip.tenantId, 'drip:update', { _id: drip._id });
 }
 
-const stepText = (text, contact) => String(text || '').replace(/\{name\}/gi, contact.name || `+${contact.phone}`);
+const stepText = (text, contact) => String(text || '').replace(/\{name\}/gi, displayName(contact));
 
 /** Task / alert / status step */
 async function runActionStep(drip, step, tenant, contact, now) {
-  const who = contact.name || `+${contact.phone}`;
+  const who = displayName(contact);
   if (step.kind === 'task') {
     await createTask({
       tenantId: tenant._id, contact, title: stepText(step.text, contact) || 'Call this lead', kind: 'call',
@@ -366,7 +370,7 @@ async function processFollowUps(now) {
     );
     if (!contact) break;
     const tenant = await loadTenant(contact.tenantId);
-    const conversation = await getOrCreateConversation(contact.tenantId, contact._id);
+    const conversation = await getOrCreateConversation(contact.tenantId, contact._id, contact.phone ? 'whatsapp' : undefined);
     const note = (text) => addInternalNote({ tenant, conversation, user: { _id: contact.followUpBy }, text }).catch(() => {});
     const blocked = canSendNow(tenant);
     const template = await Template.findOne({ _id: contact.followUpTemplateId, tenantId: contact.tenantId });

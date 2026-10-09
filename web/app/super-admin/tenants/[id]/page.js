@@ -193,6 +193,7 @@ export default function TenantDetailPage() {
             <div className="flex justify-between"><dt className="text-slate-500">Mode</dt><dd>{tenant.whatsapp?.mode === "live" ? <Badge tone="green">Live</Badge> : <Badge tone="yellow">Sandbox</Badge>}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Number</dt><dd>{fmtPhone(tenant.whatsapp?.displayPhoneNumber) || "—"}</dd></div>
             <div className="flex justify-between"><dt className="text-slate-500">Connected</dt><dd>{fmtDate(tenant.whatsapp?.connectedAt)}</dd></div>
+            <div className="flex justify-between"><dt className="text-slate-500">Instagram</dt><dd>{tenant.instagram?.mode === "live" ? <Badge tone="green">@{tenant.instagram.username}</Badge> : <Badge tone="yellow">Not connected</Badge>}</dd></div>
           </dl>
           <div className="mt-6 space-y-2 border-t border-slate-100 pt-4">
             <Button variant="secondary" className="w-full justify-center" onClick={() => setModal("password")}><KeyRound className="h-4 w-4" /> Reset admin password</Button>

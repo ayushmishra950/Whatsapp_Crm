@@ -18,6 +18,7 @@ export const clearPlanCache = () => planCache.clear();
 
 export function signToken(user, { impersonatedBy } = {}) {
   const payload = { sub: String(user._id) };
+  if (user.tenantId) payload.t = String(user.tenantId); // lets each request load the user and the business together
   if (impersonatedBy) payload.imp = String(impersonatedBy);
   return jwt.sign(payload, env.jwtSecret, { expiresIn: impersonatedBy ? '2h' : env.jwtExpiresIn });
 }
@@ -32,12 +33,13 @@ export async function resolveSession(token) {
     throw unauthorized('Session expired, please login again');
   }
 
-  const user = await User.findById(payload.sub);
+  // One database round trip instead of two: the business id is in the token (older tokens: user first)
+  let [user, tenant] = await Promise.all([User.findById(payload.sub), payload.t ? Tenant.findById(payload.t) : null]);
   if (!user || !user.isActive) throw unauthorized('Account is disabled');
+  if (String(user.tenantId || '') !== String(tenant?._id || '')) tenant = null; // token's business must still be the user's
 
-  let tenant = null;
   if (user.tenantId) {
-    tenant = await Tenant.findById(user.tenantId);
+    tenant ||= await Tenant.findById(user.tenantId);
     if (tenant?.plan) tenant.plan = await cachedPlan(tenant.plan); // same as populate('plan'), one DB call less
     if (!tenant) throw unauthorized('Business not found');
     // Super admin can still enter a suspended business while impersonating

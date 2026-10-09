@@ -5,10 +5,12 @@
  */
 import { Contact, Conversation, Notification, Task, User } from '../models/index.js';
 import { emitToUser, emitToTenantAdmins } from './socket.js';
+import { pushToUsers } from './push.js';
 import { addInternalNote, getOrCreateConversation } from './messaging.js';
+import { displayName } from '../utils/contact.js';
 
 export async function counsellorOf(contact) {
-  const conversation = await Conversation.findOne({ tenantId: contact.tenantId, contactId: contact._id }).select('assignedTo').lean();
+  const conversation = await Conversation.findOne({ tenantId: contact.tenantId, contactId: contact._id }).sort({ lastMessageAt: -1 }).select('assignedTo').lean();
   return conversation?.assignedTo || contact.assignedTo || null;
 }
 
@@ -20,7 +22,7 @@ async function adminIds(tenantId) {
  * Notify people. to = 'counsellor' (falls back to admins) | 'admins' | 'both' | [userIds]
  * Never throws.
  */
-export async function notify(tenantId, { to = 'counsellor', contact, kind = 'info', title, body = '', taskId }) {
+export async function notify(tenantId, { to = 'counsellor', contact, kind = 'info', title, body = '', taskId, url, key }) {
   try {
     let ids = [];
     if (Array.isArray(to)) ids = to;
@@ -32,9 +34,11 @@ export async function notify(tenantId, { to = 'counsellor', contact, kind = 'inf
     const unique = [...new Set(ids.filter(Boolean).map(String))];
     if (!unique.length) return [];
     const docs = await Notification.insertMany(
-      unique.map((userId) => ({ tenantId, userId, kind, title, body, contactId: contact?._id, taskId }))
+      unique.map((userId) => ({ tenantId, userId, kind, title, body, contactId: contact?._id, taskId, ...(key && { key }) }))
     );
     for (const n of docs) emitToUser(n.userId, 'notification:new', n);
+    // Phone alert (mobile app): opens the lead, or Tasks for task alerts without a lead
+    pushToUsers(unique, { tenantId, title, body: body || (contact ? displayName(contact) : ''), url: url || (contact?._id ? `/lead/${contact._id}` : '/tasks') });
     return docs;
   } catch (err) {
     console.error('[alerts] notify error', err.message);
@@ -63,7 +67,7 @@ export async function createTask({ tenantId, contact, title, kind = 'call', dueA
   const owner = assignedTo || (await counsellorOf(contact));
   const task = await Task.create({ tenantId, contactId: contact._id, title, kind, dueAt, assignedTo: owner || undefined, note, source, sourceName, createdBy });
   await refreshNextAction(contact._id);
-  const who = contact.name || `+${contact.phone}`;
+  const who = displayName(contact);
   if (!silent) {
     await notify(tenantId, { to: owner ? [owner] : 'admins', contact, kind: 'task', title: `New task: ${title}`, body: `${who}${sourceName ? ` · ${sourceName}` : ''}`, taskId: task._id });
   }

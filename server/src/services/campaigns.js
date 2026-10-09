@@ -12,8 +12,9 @@ import { isSubscriptionActive, messagesUsedThisMonth } from './subscription.js';
 
 export function audienceFilter(tenantId, audience, tz) {
   // Smart filter: date ranges + status + tags + ads + fields together (services/segments.js)
-  if (audience.type === 'filter') return { $and: [segmentQuery(tenantId, audience.filter || {}, tz), { optedOut: false }] };
-  const filter = { tenantId, optedOut: false };
+  // Campaigns send WhatsApp templates: only leads with a WhatsApp number (Instagram-only leads are left out)
+  if (audience.type === 'filter') return { $and: [segmentQuery(tenantId, audience.filter || {}, tz), { optedOut: false, phone: { $type: 'string' } }] };
+  const filter = { tenantId, optedOut: false, phone: { $type: 'string' } };
   if (audience.type === 'tags') filter.tags = { $in: audience.tags || [] };
   if (audience.type === 'status') filter.leadStatus = { $in: audience.leadStatuses || [] };
   if (audience.type === 'ads') filter['adSource.sourceId'] = { $in: audience.adIds || [] };

@@ -15,6 +15,7 @@ const messageSchema = new mongoose.Schema(
       fileName: String,
       caption: String,
       waMediaId: String,
+      removed: Boolean, // the admin deleted the kept copy (Settings → Disk files)
     },
     template: {
       name: String,
@@ -28,6 +29,10 @@ const messageSchema = new mongoose.Schema(
     },
     error: String,
     waMessageId: { type: String, index: true },
+    // Instagram message id (mid). WhatsApp messages use waMessageId.
+    igMessageId: { type: String, index: { sparse: true } },
+    // Inbound only: when the customer sent it and when Meta delivered it to us (createdAt = saved). Shows where a delay was.
+    timing: { sentAt: Date, webhookAt: Date },
     sentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     campaignId: { type: mongoose.Schema.Types.ObjectId, ref: 'Campaign' },
     // Sent automatically by the chatbot

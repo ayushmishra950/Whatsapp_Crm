@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Bot, Hand, X } from "lucide-react";
 import { fmtPhone, fmtRelative, toLocalInput } from "@/lib/format";
+import { instagramUrl } from "@/components/channel";
 import { useIsCoaching } from "@/lib/business";
 import { CustomFieldInputs, FollowUpChip, FollowUpMessage, LeadStatusSelect, ReferralBox, TagInput } from "@/components/shared";
 import { Avatar, Badge, Button, Field, Input, Select, Textarea, cx } from "@/components/ui";
@@ -35,8 +36,11 @@ export function ContactPanel({ contact, conversation, team, me, tags, onClose, o
           </div>
           <div className="mb-5 flex flex-col items-center text-center">
             <Avatar name={contact.name || contact.phone} className="mb-2 h-14 w-14 text-base" />
-            <p className="text-sm text-slate-500">{fmtPhone(contact.phone)}</p>
-            <p className="text-xs text-slate-400">Source: {contact.source === "ad" ? "Facebook / Instagram ad" : contact.source}</p>
+            {contact.phone && <p className="text-sm text-slate-500">{fmtPhone(contact.phone)}</p>}
+            {contact.instagram?.username && (
+              <a href={instagramUrl(contact)} target="_blank" rel="noreferrer" className="text-sm text-pink-700 hover:underline">@{contact.instagram.username}</a>
+            )}
+            <p className="text-xs text-slate-400">Source: {contact.source === "ad" ? "Facebook / Instagram ad" : contact.source === "instagram" ? "Instagram DM" : contact.source}</p>
           </div>
         </>
       )}

@@ -18,8 +18,8 @@ async function canSeeContact(req, contactId) {
   const c = await Contact.findOne({ _id: contactId, tenantId: req.tenantId }).select('assignedTo').lean();
   if (!c) return false;
   if (!c.assignedTo || String(c.assignedTo) === String(req.user._id)) return true;
-  const conv = await Conversation.findOne({ tenantId: req.tenantId, contactId }).select('assignedTo').lean();
-  return !conv?.assignedTo || String(conv.assignedTo) === String(req.user._id);
+  const convs = await Conversation.find({ tenantId: req.tenantId, contactId }).select('assignedTo').lean();
+  return !convs.length || convs.some((conv) => !conv.assignedTo || String(conv.assignedTo) === String(req.user._id));
 }
 
 router.get('/', async (req, res) => {

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, BellOff } from "lucide-react";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, displayName } from "@/lib/format";
 import { cx } from "./ui";
 
 const PREF_KEY = "crm_notifications"; // "on" | "off" (per browser)
@@ -63,7 +63,7 @@ export function NewMessageNotifier() {
 
     ding();
     if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-      const who = conversation.contactId?.name || fmtPhone(conversation.contactId?.phone) || "Customer";
+      const who = displayName(conversation.contactId) || "Customer";
       const n = new Notification(`💬 ${who}`, { body: message.text || "New message", tag: conversation._id });
       n.onclick = () => {
         window.focus();

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { cleanUploadName } from '../utils/uploadName.js';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { AdSource, Contact, Conversation, Course, DripEnrollment, Message, Task, Template, Tenant, User } from '../models/index.js';
@@ -19,9 +20,10 @@ import { approvedTemplate } from '../services/fees.js';
 import { createTask, notify, refreshNextAction } from '../services/alerts.js';
 import { isCoaching } from '../services/coaching.js';
 import { readSheet, guessMapping, sheetPhone, writeSheet } from '../services/sheets.js';
+import { displayName } from '../utils/contact.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: cleanUploadName });
 
 const phoneField = z
   .string()
@@ -79,7 +81,7 @@ export function contactFilter(tenantId, query = {}) {
   }
   if (query.search) {
     const rx = { $regex: escapeRegex(query.search), $options: 'i' };
-    filter.$or = [{ name: rx }, { phone: rx }, { email: rx }];
+    filter.$or = [{ name: rx }, { phone: rx }, { email: rx }, { 'instagram.username': rx }];
   }
   if (query.tag) filter.tags = query.tag;
   if (query.leadStatus) {
@@ -89,6 +91,9 @@ export function contactFilter(tenantId, query = {}) {
   if (query.source === 'ad') filter['adSource.sourceId'] = { $exists: true, $ne: null };
   else if (query.source) filter.source = query.source;
   if (query.adId) filter['adSource.sourceId'] = String(query.adId);
+  // Channel: leads we can reach on WhatsApp (have a number) / that wrote on Instagram
+  if (query.channel === 'whatsapp') filter.phone = { $type: 'string' };
+  else if (query.channel === 'instagram') filter['instagram.igsid'] = { $type: 'string' };
   if (query.course) filter.course = query.course === 'none' ? '' : String(query.course).toUpperCase();
   if (query.language) filter.language = query.language === 'none' ? '' : query.language;
   // Counsellor (the lead's owner = its chat's counsellor). "me" is turned into the user id by the routes.
@@ -125,6 +130,7 @@ const filterSchema = z
     leadStatus: z.string().optional(),
     source: z.string().optional(),
     adId: z.string().optional(),
+    channel: z.enum(['', 'whatsapp', 'instagram']).optional(),
     course: z.string().optional(),
     language: z.string().optional(),
     nextAction: z.enum(['', 'none', 'overdue', 'set']).optional(),
@@ -360,6 +366,7 @@ router.post('/quick', async (req, res) => {
   await checkCourse(req, data);
   let contact = await Contact.findOne({ tenantId: req.tenantId, phone: data.phone });
   const created = !contact;
+  let courseChange = '';
   const tag = data.source === 'walkin' ? 'walk-in' : data.source;
   if (created) {
     await assertContactLimit(req.tenant);
@@ -378,12 +385,13 @@ router.post('/quick', async (req, res) => {
     const set = {};
     if (!contact.name || contact.name === contact.phone) set.name = data.name;
     if (data.course) set.course = data.course;
+    if (data.course && contact.course && contact.course !== data.course) courseChange = `📘 Course changed: ${contact.course} → ${data.course} (said at the visit)`;
     if (data.language) Object.assign(set, { language: data.language, languageLocked: true });
     if (Object.keys(set).length) await Contact.updateOne({ _id: contact._id }, { $set: set });
     await Contact.updateOne({ _id: contact._id }, { $addToSet: { tags: tag } });
     contact = await Contact.findById(contact._id);
   }
-  const conversation = await getOrCreateConversation(req.tenantId, contact._id);
+  const conversation = await getOrCreateConversation(req.tenantId, contact._id, 'whatsapp'); // walk-in = WhatsApp number
   if (req.user.role === 'agent' && !conversation.assignedTo) {
     conversation.assignedTo = req.user._id;
     await conversation.save();
@@ -415,6 +423,7 @@ router.post('/quick', async (req, res) => {
     user: req.user,
     text: [`${where}${created ? '' : ' (came again)'} — added by ${req.user.name}`, data.course && `Interested in: ${data.course}`, data.note, welcome === 'sent' && '✅ Welcome message sent on WhatsApp'].filter(Boolean).join('\n'),
   });
+  if (courseChange) await addInternalNote({ tenant: req.tenant, conversation, user: req.user, text: courseChange });
   await audit(req, 'contact.quick_add', { targetType: 'Contact', targetId: contact._id, meta: { created, source: data.source, welcome } });
   if (created) triggerDrips(req.tenantId, { type: 'new_lead', contactIds: [contact._id], source: contact.source });
   if (created || !contact.tags.includes(tag)) triggerDrips(req.tenantId, { type: 'tag_added', contactIds: [contact._id], tags: [tag] });
@@ -427,8 +436,9 @@ router.get('/:id', async (req, res) => {
     .populate('assignedTo', 'name')
     .populate('followUpBy', 'name');
   if (!contact) throw notFound('Contact not found');
-  const conversation = await Conversation.findOne({ tenantId: req.tenantId, contactId: contact._id }).select('_id status assignedTo');
-  res.json({ contact, conversation });
+  // conversation = the most recent chat (older clients); conversations = one per channel
+  const conversations = await Conversation.find({ tenantId: req.tenantId, contactId: contact._id }).sort({ lastMessageAt: -1 }).select('_id channel status assignedTo lastInboundAt lastMessageAt');
+  res.json({ contact, conversation: conversations[0] || null, conversations });
 });
 
 /**
@@ -467,7 +477,7 @@ router.get('/:id/history', async (req, res) => {
   ]);
   const events = [];
   const push = (e) => events.push({ ...e, at: e.at || new Date(0) });
-  const source = { whatsapp: 'messaged on WhatsApp', ad: 'came from an ad', import: 'imported from a sheet', manual: 'added by the team', walkin: 'visited the institute', referral: 'was referred', website: 'enquired on the website', call: 'called' }[contact.source] || `came via ${contact.source}`;
+  const source = { whatsapp: 'messaged on WhatsApp', instagram: 'messaged on Instagram', ad: 'came from an ad', import: 'imported from a sheet', manual: 'added by the team', walkin: 'visited the institute', referral: 'was referred', website: 'enquired on the website', call: 'called' }[contact.source] || `came via ${contact.source}`;
   push({ kind: 'start', at: contact.createdAt, title: `First enquiry — ${source}`, text: [contact.adSource?.headline && `Ad: ${contact.adSource.headline}`, firstIn?.text && `First message: “${firstIn.text.slice(0, 160)}”`].filter(Boolean).join('\n') });
   for (const m of messages) {
     const by = m.sentBy?.name || (m.isBot ? 'Chatbot' : m.automation?.name || '');
@@ -599,7 +609,7 @@ router.post('/:id/calls', async (req, res) => {
   // 3 calls without reaching the lead -> tell the admins (re-assign / try WhatsApp)
   const UNREACHED = ['no_answer', 'busy', 'switched_off'];
   if (UNREACHED.includes(data.outcome) && contact.callAttempts + 1 >= 3 && (!contact.lastCallOutcome || UNREACHED.includes(contact.lastCallOutcome))) {
-    await notify(req.tenantId, { to: 'admins', contact, kind: 'alert', title: `${contact.name || `+${contact.phone}`}: ${contact.callAttempts + 1} calls, not reached`, body: `Last: ${CALL_OUTCOMES[data.outcome]} by ${req.user.name}. Re-assign or try WhatsApp.` });
+    await notify(req.tenantId, { to: 'admins', contact, kind: 'alert', title: `${displayName(contact)}: ${contact.callAttempts + 1} calls, not reached`, body: `Last: ${CALL_OUTCOMES[data.outcome]} by ${req.user.name}. Re-assign or try WhatsApp.` });
   }
   await audit(req, 'contact.call', { targetType: 'Contact', targetId: contact._id, meta: { outcome: data.outcome } });
   const fresh = await Contact.findById(contact._id).populate('assignedTo', 'name').populate('followUpBy', 'name');
@@ -609,8 +619,10 @@ router.post('/:id/calls', async (req, res) => {
 router.delete('/:id', authorize('admin'), async (req, res) => {
   const contact = await Contact.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
   if (!contact) throw notFound('Contact not found');
-  const conversation = await Conversation.findOneAndDelete({ tenantId: req.tenantId, contactId: contact._id });
-  if (conversation) await Message.deleteMany({ conversationId: conversation._id });
+  // Every chat of the lead (WhatsApp and Instagram) goes with it
+  const convs = await Conversation.find({ tenantId: req.tenantId, contactId: contact._id }).select('_id');
+  await Message.deleteMany({ conversationId: { $in: convs.map((c) => c._id) } });
+  await Conversation.deleteMany({ _id: { $in: convs.map((c) => c._id) } });
   await Task.deleteMany({ contactId: contact._id });
   await audit(req, 'contact.delete', { targetType: 'Contact', targetId: contact._id, meta: { phone: contact.phone } });
   res.json({ ok: true });

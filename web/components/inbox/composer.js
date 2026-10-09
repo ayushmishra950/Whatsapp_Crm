@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock, FileText, Lock, Paperclip, Reply, Send, StickyNote, X } from "lucide-react";
 import { api } from "@/lib/api";
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, displayName } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { TemplatePreview, paramsForContact } from "@/components/shared";
 import { Button, Field, Input, Modal, Select, Textarea, cx } from "@/components/ui";
@@ -34,6 +34,8 @@ export function Composer({ conversation, templates, contact, onSent, replyTo, on
   const fileRef = useRef(null);
   const windowOpen = conversation.windowOpen;
   const canReply = mode === "note" || windowOpen;
+  // Instagram: no templates, Instagram's own file types
+  const instagram = conversation.channel === "instagram";
 
   const send = async () => {
     if (sending || (!text.trim() && !file)) return;
@@ -71,7 +73,7 @@ export function Composer({ conversation, templates, contact, onSent, replyTo, on
         </button>
         {mode === "reply" && (
           <span className={cx("ml-auto flex items-center gap-1", windowOpen ? "text-slate-400" : "text-amber-700")}>
-            {windowOpen ? <><Clock className="h-3 w-3" /> 24h reply window open</> : <><Lock className="h-3 w-3" /> Window closed — send a template</>}
+            {windowOpen ? <><Clock className="h-3 w-3" /> 24h reply window open</> : instagram ? <><Lock className="h-3 w-3" /> Window closed — Instagram allows replies only within 24 h of the customer&apos;s last message</> : <><Lock className="h-3 w-3" /> Window closed — send a template</>}
           </span>
         )}
       </div>
@@ -79,7 +81,7 @@ export function Composer({ conversation, templates, contact, onSent, replyTo, on
       {replyTo && (
         <div className="mb-2 flex items-start gap-2">
           <Reply className="mt-2 h-4 w-4 shrink-0 text-slate-400" />
-          <QuoteBlock message={replyTo} contactName={contact?.name || fmtPhone(contact?.phone)} className="flex-1" />
+          <QuoteBlock message={replyTo} contactName={displayName(contact)} className="flex-1" />
           <button onClick={cancelReply} className="mt-1.5 rounded p-1 text-slate-400 hover:bg-slate-100" aria-label="Cancel reply"><X className="h-4 w-4" /></button>
         </div>
       )}
@@ -87,23 +89,30 @@ export function Composer({ conversation, templates, contact, onSent, replyTo, on
       {file && (
         <div className="mb-2 flex items-center gap-2 rounded-md bg-slate-100 px-3 py-1.5 text-xs text-slate-700">
           <Paperclip className="h-3.5 w-3.5" /> <span className="flex-1 truncate">{file.name}</span>
-          <button onClick={() => setFile(null)} aria-label="Remove file"><X className="h-3.5 w-3.5" /></button>
+          {sending ? <span className="font-medium text-brand-700">Sending…</span> : <button onClick={() => setFile(null)} aria-label="Remove file"><X className="h-3.5 w-3.5" /></button>}
         </div>
       )}
 
       <div className="flex items-end gap-2">
         {mode === "reply" && (
           <>
-            <input ref={fileRef} type="file" className="hidden" onChange={(e) => { setFile(e.target.files?.[0] || null); e.target.value = ""; }} />
-            <Button size="icon" variant="ghost" disabled={!windowOpen} onClick={() => fileRef.current?.click()} title="Attach file" aria-label="Attach file"><Paperclip className="h-4.5 w-4.5" /></Button>
-            <Button size="icon" variant={windowOpen ? "ghost" : "primary"} onClick={() => setTemplateOpen(true)} title="Send template" aria-label="Send template"><FileText className="h-4.5 w-4.5" /></Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={instagram ? "image/jpeg,image/png,image/gif,video/mp4,video/quicktime,video/webm,audio/aac,audio/mp4,audio/mpeg,audio/wav,.pdf" : "image/jpeg,image/png,video/mp4,video/3gpp,audio/aac,audio/mpeg,audio/mp4,audio/amr,audio/ogg,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"}
+              title={instagram ? "Photo (8 MB), video or audio (25 MB), or a PDF (25 MB)" : "JPG/PNG photo (5 MB), MP4 video, audio, or PDF/Word/Excel/PowerPoint/TXT (16 MB)"}
+              className="hidden"
+              onChange={(e) => { setFile(e.target.files?.[0] || null); e.target.value = ""; }}
+            />
+            <Button size="icon" variant="ghost" disabled={!windowOpen || sending} onClick={() => fileRef.current?.click()} title="Attach file" aria-label="Attach file"><Paperclip className="h-4.5 w-4.5" /></Button>
+            {!instagram && <Button size="icon" variant={windowOpen ? "ghost" : "primary"} disabled={sending} onClick={() => setTemplateOpen(true)} title="Send template" aria-label="Send template"><FileText className="h-4.5 w-4.5" /></Button>}
           </>
         )}
         <Textarea
           ref={textRef}
           rows={1}
           className={cx("max-h-40 min-h-9 flex-1 resize-none", mode === "note" && "border-amber-300 bg-amber-50/50")}
-          placeholder={mode === "note" ? "Write a private note for your team…" : windowOpen ? "Type a message…" : "Free-form replies are locked. Use a template."}
+          placeholder={mode === "note" ? "Write a private note for your team…" : windowOpen ? (instagram ? "Reply on Instagram…" : "Type a message…") : instagram ? "Wait for the customer to message you again on Instagram." : "Free-form replies are locked. Use a template."}
           disabled={!canReply}
           value={text}
           onChange={(e) => setText(e.target.value)}

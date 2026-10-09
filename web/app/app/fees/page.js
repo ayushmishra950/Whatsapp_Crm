@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { IndianRupee, Search } from "lucide-react";
 import { api } from "@/lib/api";
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, displayName } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { LeadActions } from "@/components/actions";
@@ -53,7 +53,7 @@ export default function FeesPage() {
         </div>
         <Table
           columns={[
-            { key: "s", label: "Student", render: (c) => <div><Link href={`/app/contacts/${c._id}`} className="font-medium text-slate-900 hover:text-brand-700">{c.name || fmtPhone(c.phone)}</Link><p className="text-xs text-slate-500">{fmtPhone(c.phone)}{c.course ? ` · ${c.course}` : ""}{c.assignedTo?.name ? ` · ${c.assignedTo.name}` : ""}</p></div> },
+            { key: "s", label: "Student", render: (c) => <div><Link href={`/app/contacts/${c._id}`} className="font-medium text-slate-900 hover:text-brand-700">{displayName(c)}</Link><p className="text-xs text-slate-500">{fmtPhone(c.phone)}{c.course ? ` · ${c.course}` : ""}{c.assignedTo?.name ? ` · ${c.assignedTo.name}` : ""}</p></div> },
             { key: "next", label: "Next due", className: "whitespace-nowrap", render: (c) => <span className={cx(c.fees.nextDue < data.today && "font-medium text-red-600")}>{c.fees.nextDue < data.today && <Badge tone="red" className="mr-1">overdue</Badge>}<b>{money(c.fees.nextAmount)}</b> · {prettyDay(c.fees.nextDue)}</span> },
             { key: "paid", label: "Paid / fee", render: (c) => <span>{money(c.fees.paid)} <span className="text-xs text-slate-400">/ {money((c.fees.total || 0) - (c.fees.discount || 0))}</span></span> },
             { key: "bal", label: "Balance", render: (c) => <b className="text-amber-700">{money(c.fees.balance)}</b> },
@@ -63,7 +63,7 @@ export default function FeesPage() {
           empty={<EmptyState icon={IndianRupee} title="Nothing due here" description="Students with a fee plan and a balance show here. Set a plan from the student's contact." />}
         />
       </Card>
-      <Modal open={!!open} onClose={() => { setOpen(null); load(); }} title={`Fees · ${open?.name || fmtPhone(open?.phone)}`} size="md">
+      <Modal open={!!open} onClose={() => { setOpen(null); load(); }} title={`Fees · ${displayName(open)}`} size="md">
         {open && <FeesPanel contactId={open._id} />}
       </Modal>
     </PageContainer>

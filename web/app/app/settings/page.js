@@ -5,6 +5,8 @@ import { CheckCircle2, FlaskConical, Link2, Unplug, Send, Plus, Trash2, ArrowUp,
 import { STAGES, STATUS_COLORS } from "@/lib/lead-statuses";
 import { KeywordRulesEditor, LeadFlowSettings, MessageInfoSettings, WaRatesSettings } from "@/components/lead-settings";
 import { LogoUpload } from "@/components/logo-upload";
+import { DiskFiles } from "@/components/disk-files";
+import { InstagramSettings } from "@/components/instagram-settings";
 import { api, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDate, fmtNum, fmtPhone } from "@/lib/format";
@@ -591,6 +593,20 @@ export default function SettingsPage() {
           <Section title="Refer & earn" description="Old students share their own code; a friend who messages with it is linked to them. You give a fee discount for each friend who joins (report: Refer & earn page).">
             <ReferralSettings key={JSON.stringify(s.settings.referral || {})} settings={s.settings} connectedNumber={s.whatsapp.displayPhoneNumber} onSave={updateSetting} busy={busy === "settings"} />
           </Section>
+        )}
+
+        <div id="instagram" className="scroll-mt-20">
+          <Section title="Instagram" description="Instagram DMs come into the same inbox as WhatsApp. Reply within 24 hours of the customer's message; templates, bulk campaigns and drips stay on WhatsApp.">
+            <InstagramSettings ig={s.instagram} isAdmin={isAdmin} onChanged={load} />
+          </Section>
+        </div>
+
+        {isAdmin && (
+          <div id="disk-files" className="scroll-mt-20">
+            <Section title="Files waiting on the server disk" description="When a chat file can not be saved to Cloudinary, it is kept on this server for a while so the chat still works. It uploads again by itself and is then removed from the disk. Open, retry or delete them here.">
+              <DiskFiles />
+            </Section>
+          </div>
         )}
 
         {!live && (

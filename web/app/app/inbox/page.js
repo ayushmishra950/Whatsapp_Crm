@@ -6,7 +6,8 @@ import { ArrowLeft, Bot, Check, Search, Info, MessagesSquare, Hand } from "lucid
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtPhone, fmtRelative } from "@/lib/format";
+import { fmtPhone, fmtRelative, displayName } from "@/lib/format";
+import { ChannelBadge, channelOf, contactHandle } from "@/components/channel";
 import { useToast } from "@/components/toast";
 import { LeadStatusBadge, LeadStatusSelect } from "@/components/shared";
 import { Avatar, Badge, Button, ConfirmModal, EmptyState, Input, Modal, Select, Spinner, Textarea, cx } from "@/components/ui";
@@ -36,6 +37,7 @@ function Inbox() {
   const [assigned, setAssigned] = useState("all");
   const [leadStatus, setLeadStatus] = useState(""); // filter chats by the contact's lead status
   const [source, setSource] = useState(""); // "ad" = only leads from Facebook / Instagram ads
+  const [channel, setChannel] = useState(""); // "" = all, "whatsapp", "instagram"
   const [search, setSearch] = useState("");
   const [conversations, setConversations] = useState(null);
   // ?c=<conversation id> opens that chat (links from notifications, dashboard, contacts)
@@ -90,8 +92,8 @@ function Inbox() {
 
   // ----- data loading -----
   const loadList = useCallback(() => {
-    api("/conversations", { query: { status, assigned, search, leadStatus, source } }).then(setConversations).catch(toast.error);
-  }, [status, assigned, search, leadStatus, source]); // eslint-disable-line react-hooks/exhaustive-deps
+    api("/conversations", { query: { status, assigned, search, leadStatus, source, channel } }).then(setConversations).catch(toast.error);
+  }, [status, assigned, search, leadStatus, source, channel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const t = setTimeout(loadList, search ? 300 : 0);
@@ -146,6 +148,7 @@ function Inbox() {
     if (!isAdmin && assignee && assignee !== me._id) return false;
     if (leadStatus && c.contactId?.leadStatus !== leadStatus) return false;
     if (source === "ad" && !c.contactId?.adSource?.sourceId) return false;
+    if (channel && channelOf(c) !== channel) return false;
     return true;
   };
 
@@ -326,10 +329,22 @@ function Inbox() {
             <option value="bot">🤖 Bot handling</option>
             {isAdmin && team.filter((t) => t.role === "agent").map((t) => <option key={t._id} value={t._id}>{t.name}</option>)}
           </Select>
-          <div className="flex gap-2">
-            <LeadStatusSelect value={leadStatus} onChange={setLeadStatus} includeAll allLabel="All lead statuses" className="flex-1" />
-            <Select value={source} onChange={(e) => setSource(e.target.value)} className="h-8 w-28 text-xs" aria-label="Lead source">
-              <option value="">All sources</option>
+          <div className="grid grid-cols-2 gap-2">
+            <LeadStatusSelect value={leadStatus} onChange={setLeadStatus} includeAll allLabel="All lead statuses" className="w-full min-w-0" />
+            {/* One box for "where from": ads, or only WhatsApp / only Instagram chats */}
+            <Select
+              value={source || channel}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSource(v === "ad" ? "ad" : "");
+                setChannel(v === "whatsapp" || v === "instagram" ? v : "");
+              }}
+              className="h-8 w-full min-w-0 text-xs"
+              aria-label="Where from"
+            >
+              <option value="">All chats</option>
+              <option value="whatsapp">WhatsApp only</option>
+              <option value="instagram">Instagram only</option>
               <option value="ad">📣 From ads</option>
             </Select>
           </div>
@@ -338,7 +353,7 @@ function Inbox() {
           {!conversations ? (
             <div className="flex justify-center p-6"><Spinner /></div>
           ) : !conversations.length ? (
-            <EmptyState icon={MessagesSquare} title="No chats here" description="New WhatsApp messages from customers will appear here." />
+            <EmptyState icon={MessagesSquare} title="No chats here" description="New WhatsApp and Instagram messages from customers will appear here." />
           ) : (
             conversations.map((c) => (
               <button
@@ -346,10 +361,10 @@ function Inbox() {
                 onClick={() => selectConversation(c._id)}
                 className={cx("flex w-full items-start gap-3 border-b border-slate-100 px-3 py-3 text-left hover:bg-slate-50", activeId === c._id && "bg-brand-50/60")}
               >
-                <Avatar name={c.contactId?.name || c.contactId?.phone} />
+                <Avatar name={displayName(c.contactId).replace(/^[@+]/, "")} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="truncate text-sm font-medium text-slate-900">{c.contactId?.name || fmtPhone(c.contactId?.phone)}</p>
+                    <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-slate-900"><span className="truncate">{displayName(c.contactId)}</span><ChannelBadge channel={channelOf(c)} /></p>
                     <span className={cx("shrink-0 text-xs", c.unreadCount ? "font-medium text-brand-600" : "text-slate-400")}>{fmtRelative(c.lastMessageAt)}</span>
                   </div>
                   <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -383,10 +398,10 @@ function Inbox() {
           <>
             <header className="flex items-center gap-2 border-b border-slate-200 px-3 py-2.5 sm:gap-3">
               <button className="rounded p-1 text-slate-500 hover:bg-slate-100 md:hidden" onClick={() => selectConversation(null)} aria-label="Back to chats"><ArrowLeft className="h-5 w-5" /></button>
-              <Avatar name={contact?.name || contact?.phone} />
+              <Avatar name={displayName(contact).replace(/^[@+]/, "")} />
               <div className="min-w-16 flex-1">
-                <p className="truncate text-sm font-semibold text-slate-900">{contact?.name || "Unknown"}</p>
-                <p className="truncate text-xs text-slate-500">{fmtPhone(contact?.phone)} {contact?.optedOut && <Badge tone="red" className="ml-1">opted out</Badge>}</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{displayName(contact)}</p>
+                <p className="flex items-center gap-1.5 truncate text-xs text-slate-500"><ChannelBadge channel={channelOf(active)} full /> {contactHandle(contact)} {contact?.optedOut && <Badge tone="red" className="ml-1">opted out</Badge>}</p>
               </div>
               {contact && (
                 <LeadStatusSelect
@@ -413,7 +428,7 @@ function Inbox() {
                 aria-label="Contact details"
                 title="Contact details: lead status, follow-up, tags, notes"
               >
-                <Info className="h-4 w-4" /> <span className="hidden lg:inline">Details</span>
+                <Info className="h-4 w-4" /> <span className="hidden 2xl:inline">Details</span>
               </Button>
             </header>
 
@@ -423,7 +438,7 @@ function Inbox() {
               onLoadOlder={loadOlder}
               me={me}
               isAdmin={isAdmin}
-              contactName={contact?.name || fmtPhone(contact?.phone)}
+              contactName={displayName(contact)}
               windowOpen={active.windowOpen}
               onReply={setReplyTo}
               onCorrect={(m) => {

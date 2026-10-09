@@ -17,8 +17,10 @@ import { isDateField } from './contactFields.js';
 import { checkAnswer } from './answerTypes.js';
 import { handleCourseFlow, openCourseIfKnown } from './courseBot.js';
 import { sendTypingIndicator } from './whatsapp.js';
+import { sendTypingIndicator as igTyping } from './instagram.js';
 import { automationNote, createTask, notify } from './alerts.js';
 import { statusLabel } from './leadStatuses.js';
+import { displayName } from '../utils/contact.js';
 
 // Button / row ids that belong to the course flow (also taps on older messages)
 const COURSE_IDS = /^(nav_courses|cat_|crs_|cf_|aq_)/;
@@ -254,10 +256,11 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
       const freshChat = !hadPreviousInbound && !conv.assignedTo && !humanStarted;
       const returning = wasResolved && bot.restartOnResolved;
 
-      // The bot handed this chat to the team but nobody has replied yet, and the customer asks for the menu ("hi", "menu"):
-      // answer instead of leaving them waiting. Once a person has replied, the chat is theirs and the bot stays out.
+      // The bot handed this chat to the team (or stopped on an error, e.g. a database hiccup) but nobody has replied yet,
+      // and the customer asks for the menu ("hi", "menu"): answer instead of leaving them waiting.
+      // Once a person has replied, the chat is theirs and the bot stays out.
       const waitingAfterHandoff =
-        ['handoff', 'lead_complete'].includes(state.endReason) &&
+        ['handoff', 'lead_complete', 'error'].includes(state.endReason) &&
         (parsed.interactiveReplyId === MAIN_MENU_ID || matchesAny(bot.menuKeywords, parsed.text)) &&
         !(await Message.exists({
           conversationId: conv._id, direction: 'outbound', isBot: { $ne: true }, campaignId: { $exists: false },
@@ -278,7 +281,11 @@ export async function runChatbot({ tenant, conversation, parsed, hadPreviousInbo
     }
 
     // The bot answers this message: show "typing…" on the customer's phone until the reply arrives
-    if (waMessageId && bot.typingIndicator !== false) await sendTypingIndicator(fullTenant._id, waMessageId);
+    if (bot.typingIndicator !== false) {
+      // Instagram: "typing…" goes out alongside the answer instead of before it (a call to Meta from here can take a while)
+      if (conv.channel === 'instagram') igTyping(fullTenant._id, contact.instagram?.igsid).catch(() => {});
+      else if (waMessageId) await sendTypingIndicator(fullTenant._id, waMessageId);
+    }
 
     // ---- course flow (coaching institutes with a "Courses" menu option) ----
     const courseFlow = fullTenant.businessType === 'coaching' && bot.menu.some((o) => o.action === 'courses');
@@ -475,7 +482,7 @@ export async function setBotForConversation({ tenant, conversation, contact, act
 /** Booked through the chatbot: a call task for the counsellor (after assignment), an alert and a summary note */
 async function afterBooking(tenant, contact, b, now) {
   try {
-    const who = contact.name?.trim() || `+${contact.phone}`;
+    const who = displayName(contact);
     const details = [b.course, b.mode, b.start, b.call && `call ${b.call}`].filter(Boolean).join(' · ');
     await automationNote(tenant, contact, `🤖 Booked free counselling via chatbot\n📘 ${b.course}\n👤 ${[b.profile, b.goal].filter(Boolean).join(' · ') || '—'}\n🏫 ${b.mode || 'mode not decided'} · 🗓 ${b.start || '—'}${b.city ? ` · 📍 ${b.city}` : ''}\n📞 Call: ${b.call || 'any time'}`);
     await createTask({

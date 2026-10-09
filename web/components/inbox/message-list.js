@@ -30,11 +30,13 @@ function MediaContent({ message }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [error, setError] = useState(false);
   const media = message.media || {};
-  const localUrl = media.url ? `${API_URL}${media.url}` : null;
+  // Cloud storage gives a full https:// link; files kept on this server are /uploads/…
+  const localUrl = media.url ? (/^https?:\/\//.test(media.url) ? media.url : `${API_URL}${media.url}`) : null;
   const src = localUrl || blobUrl;
 
   const load = () => fetchBlobUrl(`/media/${message._id}`).then(setBlobUrl).catch(() => setError(true));
 
+  if (media.removed) return <p className="rounded-md bg-black/5 px-3 py-2 text-xs text-slate-500 italic">📎 {media.fileName || message.type} — file removed by admin</p>;
   if (!src) {
     return (
       <button onClick={load} className="flex items-center gap-2 rounded-md bg-black/5 px-3 py-2 text-xs text-slate-600">
@@ -242,7 +244,7 @@ export function MessageList({ messages, hasOlder, onLoadOlder, me, isAdmin, cont
     const note = m.direction === "internal";
     const own = m.sentBy?._id === me._id;
     const list = [];
-    if (!note && m.waMessageId && m.status !== "failed") list.push({ label: "Reply", icon: Reply, onClick: () => onReply(m) });
+    if (!note && (m.waMessageId || m.igMessageId) && m.status !== "failed") list.push({ label: "Reply", icon: Reply, onClick: () => onReply(m) });
     if (m.text || m.media?.caption) list.push({ label: "Copy text", icon: Copy, onClick: () => onCopy(m) });
     if (note && (own || isAdmin)) {
       list.push({ label: "Edit note", icon: Pencil, onClick: () => onEditNote(m) });
@@ -250,7 +252,7 @@ export function MessageList({ messages, hasOlder, onLoadOlder, me, isAdmin, cont
     }
     if (!note && m.direction === "outbound" && own) {
       // WhatsApp can not edit a sent message, so "edit" = send a corrected copy that quotes the original
-      if (m.type === "text" && m.waMessageId && m.status !== "failed" && windowOpen) {
+      if (m.type === "text" && (m.waMessageId || m.igMessageId) && m.status !== "failed" && windowOpen) {
         list.push({ label: "Send correction", icon: PencilLine, onClick: () => onCorrect(m) });
       }
       if (isAdmin || canDeleteOwn(m)) list.push({ label: "Delete", icon: Trash2, onClick: () => onDelete(m), danger: true });

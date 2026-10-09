@@ -7,6 +7,8 @@ import { validate, conflict, normalizePhone, badRequest } from '../utils/http.js
 import { STATUS_COLORS, STAGE_KEYS, getLeadStatuses, statusKeyFromLabel } from '../services/leadStatuses.js';
 import { applyCoachingPreset, checkLogo, requireCoaching } from '../services/coaching.js';
 import { loadCoachingContent } from '../services/coachingContent.js';
+import { DiskFile } from '../models/index.js';
+import { deleteDiskFiles, diskUsage, storageDriver, wantedDriver } from '../services/storage.js';
 import { encrypt } from '../utils/crypto.js';
 import { verifyCredentials } from '../services/whatsapp.js';
 import { audit } from '../services/audit.js';
@@ -14,6 +16,7 @@ import { emitToSuperAdmins, emitToTenant } from '../services/socket.js';
 import { BUILTIN_CONTACT_FIELDS, FIELD_TYPES, fieldKeyFromLabel, getContactFields, isReservedFieldKey } from '../services/contactFields.js';
 import { isSubscriptionActive, messagesUsedThisMonth } from '../services/subscription.js';
 import { env } from '../config/env.js';
+import { channelsReady } from '../services/channelMigration.js';
 
 const router = Router();
 
@@ -40,6 +43,19 @@ router.get('/', async (req, res) => {
       connectedAt: t.whatsapp?.connectedAt,
     },
     webhook: { path: '/api/webhook/whatsapp', verifyToken: req.user.role === 'admin' ? env.whatsapp.webhookVerifyToken : undefined },
+    instagram: {
+      mode: t.instagram?.mode || 'mock',
+      username: t.instagram?.username,
+      name: t.instagram?.name,
+      profilePic: t.instagram?.profilePic,
+      connectedAt: t.instagram?.connectedAt,
+      tokenExpiresAt: t.instagram?.tokenExpiresAt,
+      tokenError: t.instagram?.tokenError,
+      inPlan: t.plan?.modules?.instagram !== false,
+      ready: channelsReady(), // database update for Instagram done
+      canConnect: !!(env.instagram.appId && env.instagram.redirectUrl), // Meta App keys filled in .env
+      webhook: req.user.role === 'admin' ? { path: '/api/webhook/instagram', verifyToken: env.instagram.webhookVerifyToken } : undefined,
+    },
     settings: t.settings,
   });
 });
@@ -403,6 +419,45 @@ router.delete('/whatsapp', authorize('admin'), async (req, res) => {
     }
   );
   await audit(req, 'whatsapp.disconnect');
+  res.json({ ok: true });
+});
+
+/**
+ * Disk files (admin): chat files kept on this server because the Cloudinary upload failed.
+ * The worker retries them; here the admin sees them, opens them, retries now or deletes them.
+ */
+router.get('/disk-files', authorize('admin'), async (req, res) => {
+  const items = await DiskFile.find({ tenantId: req.tenantId }).sort({ status: -1, createdAt: -1 }).limit(500).populate('contactId', 'name phone').lean();
+  res.json({
+    items: items.map((f) => ({ ...f, url: `/uploads/${f.path}` })),
+    usage: await diskUsage(req.tenantId),
+    storage: { wanted: wantedDriver(), active: storageDriver() },
+    limits: { files: Number(process.env.DISK_ALERT_FILES) || 100, mb: Number(process.env.DISK_ALERT_MB) || 500 },
+  });
+});
+
+router.post('/disk-files/retry', authorize('admin'), async (req, res) => {
+  const { ids } = validate(z.object({ ids: z.array(z.string().refine(mongoose.isValidObjectId)).max(500).optional() }), req.body || {});
+  const filter = { tenantId: req.tenantId, ...(ids?.length && { _id: { $in: ids } }) };
+  const r = await DiskFile.updateMany(filter, { $set: { status: 'pending', nextTryAt: new Date(), attempts: 0 } });
+  const { retryDiskFiles } = await import('../services/storage.js');
+  const result = await retryDiskFiles(new Date(), { limit: 50, tenantId: req.tenantId });
+  await audit(req, 'storage.retry', { meta: { files: r.modifiedCount, uploaded: result.done } });
+  res.json({ queued: r.modifiedCount, ...result, usage: await diskUsage(req.tenantId) });
+});
+
+router.delete('/disk-files', authorize('admin'), async (req, res) => {
+  const { ids } = validate(z.object({ ids: z.array(z.string().refine(mongoose.isValidObjectId)).min(1).max(500) }), req.body || {});
+  const deleted = await deleteDiskFiles(req.tenantId, ids);
+  await audit(req, 'storage.delete', { meta: { deleted } });
+  res.json({ deleted, usage: await diskUsage(req.tenantId) });
+});
+
+// Disconnect Instagram (admin): DMs stop, chats and leads stay
+router.delete('/instagram', authorize('admin'), async (req, res) => {
+  const { disconnectInstagram } = await import('../services/instagramConnect.js');
+  await disconnectInstagram(req.tenantId);
+  await audit(req, 'instagram.disconnect', {});
   res.json({ ok: true });
 });
 

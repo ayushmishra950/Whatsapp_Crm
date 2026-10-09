@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MessageCircle, Clock, Inbox, UserPlus, ArrowDownLeft, ArrowUpRight, Contact, BellRing, Megaphone, Users, Cake, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { fmtDateTime, fmtNum, fmtPhone } from "@/lib/format";
+import { fmtDateTime, fmtNum, fmtPhone, displayName } from "@/lib/format";
 import { useLeadStatuses } from "@/lib/lead-statuses";
 import { useContactFields } from "@/lib/contact-fields";
 import { LeadStatusBadge } from "@/components/shared";
@@ -98,7 +98,7 @@ export default function Dashboard() {
                 return (
                   <li key={f._id} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
                     <div className="min-w-0">
-                      <p className="font-medium text-slate-800">{f.name || fmtPhone(f.phone)} <LeadStatusBadge status={f.leadStatus} /></p>
+                      <p className="font-medium text-slate-800">{displayName(f)} <LeadStatusBadge status={f.leadStatus} /></p>
                       <p className="truncate text-xs text-slate-500">
                         {f.followUpAction === "message" && <span className="mr-1 font-medium text-amber-700">{f.followUpSentAt ? "⏰ WhatsApp sent ·" : "⏰ WhatsApp at this time ·"}</span>}
                         {f.followUpNote || "No note"}{!isAdmin ? "" : f.followUpBy?.name ? ` · by ${f.followUpBy.name}` : ""}
@@ -309,7 +309,7 @@ function NeedsAttention({ isAdmin }) {
         <ul className="mt-3 divide-y divide-slate-100 text-sm">
           {a.overdueTasks.items.slice(0, 5).map((t) => (
             <li key={t._id} className="flex items-center justify-between gap-3 py-2">
-              <span className="min-w-0 truncate"><b>{t.title}</b> · {t.contactId?.name || fmtPhone(t.contactId?.phone)}{t.assignedTo?.name && <span className="text-slate-500"> · {t.assignedTo.name}</span>}</span>
+              <span className="min-w-0 truncate"><b>{t.title}</b> · {displayName(t.contactId)}{t.assignedTo?.name && <span className="text-slate-500"> · {t.assignedTo.name}</span>}</span>
               <span className="shrink-0 text-xs font-medium text-red-600">{fmtDateTime(t.dueAt)}</span>
             </li>
           ))}

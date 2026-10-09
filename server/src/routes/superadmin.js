@@ -65,7 +65,7 @@ const planFields = z.object({
     monthlyMessages: z.coerce.number().int().min(0),
   }),
   features: z.array(z.string()),
-  modules: z.object({ chatbot: z.boolean() }),
+  modules: z.object({ chatbot: z.boolean(), instagram: z.boolean().optional() }),
   isActive: z.boolean(),
 });
 const createPlanSchema = planFields.partial().required({ name: true, priceMonthly: true, limits: true });

@@ -13,6 +13,8 @@ const accountSchema = new mongoose.Schema(
     password: { type: String, required: true, select: false },
     lastUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // business opened last (login lands there)
     lastLoginAt: Date,
+    // Phones with the mobile app (Expo push tokens): alerts of every business of this login
+    pushTokens: { type: [{ _id: false, token: String, platform: String, device: String, at: Date }], default: [] },
   },
   { timestamps: true }
 );

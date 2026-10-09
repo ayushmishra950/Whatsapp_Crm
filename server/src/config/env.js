@@ -35,6 +35,21 @@ export const env = {
     webhookVerifyToken: process.env.WA_WEBHOOK_VERIFY_TOKEN || 'dev-verify-token',
   },
 
+  // Instagram DMs (Instagram API with Instagram Login). One Meta App serves all businesses.
+  instagram: {
+    graphVersion: process.env.IG_GRAPH_VERSION || 'v25.0',
+    // IG_* or INSTAGRAM_* names both work
+    appId: process.env.IG_APP_ID || process.env.INSTAGRAM_APP_ID || '',
+    // Signs Instagram webhooks; the WhatsApp app secret is used when it is the same Meta App
+    appSecret: process.env.IG_APP_SECRET || process.env.INSTAGRAM_APP_SECRET || process.env.WA_APP_SECRET || '',
+    webhookVerifyToken: process.env.IG_WEBHOOK_VERIFY_TOKEN || 'dev-ig-verify-token',
+    // Where Instagram sends the business back after "Connect Instagram" (must match the App Dashboard exactly)
+    redirectUrl: process.env.IG_REDIRECT_URL || '',
+  },
+  // This API's public address (https://api.example.com): Instagram fetches files we send from here
+  // when they are kept on this server instead of Cloudinary
+  publicUrl: (process.env.PUBLIC_URL || '').replace(/\/$/, ''),
+
   campaign: {
     // Messages per second the worker sends per tenant (Cloud API allows ~80 mps, keep it safe)
     messagesPerSecond: Number(process.env.CAMPAIGN_MPS || 10),

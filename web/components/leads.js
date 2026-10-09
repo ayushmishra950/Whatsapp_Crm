@@ -6,7 +6,7 @@ import { Bell, CheckCircle2, ClipboardList, Phone, Plus, Trash2 } from "lucide-r
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtDateTime, fmtPhone, fmtRelative, toLocalInput } from "@/lib/format";
+import { fmtDateTime, fmtPhone, fmtRelative, toLocalInput, displayName } from "@/lib/format";
 import { useToast } from "./toast";
 import { LeadStatusSelect } from "./shared";
 import { Badge, Button, ConfirmModal, Field, Input, Modal, Select, Textarea, cx } from "./ui";
@@ -174,7 +174,7 @@ export function CallLogModal({ open, onClose, contact, onSaved }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={`Log call · ${contact?.name || fmtPhone(contact?.phone)}`}
+    <Modal open={open} onClose={onClose} title={`Log call · ${displayName(contact)}`}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={save} loading={saving}>Save call</Button></>}>
       <div className="space-y-4">
         <p className="text-xs text-slate-500">Calls so far: {contact?.callAttempts || 0}{contact?.lastCallAt && ` · last ${fmtRelative(contact.lastCallAt)}`}</p>
@@ -296,7 +296,7 @@ export function LeadTasks({ contact, onChange }) {
 }
 
 // ---------- Bell ----------
-const KIND_ICON = { hot: "🔥", task: "📝", overdue: "⏰", reply: "💬", status: "⌛", report: "📊", alert: "🔔" };
+const KIND_ICON = { hot: "🔥", task: "📝", overdue: "⏰", reply: "💬", status: "⌛", report: "📊", alert: "🔔", storage: "💾" };
 
 /** Bell with the person's alerts (hot lead, overdue task, reply during a drip, morning report) */
 export function NotificationBell({ className }) {
@@ -358,7 +358,9 @@ export function NotificationBell({ className }) {
               );
               return (
                 <li key={n._id}>
-                  {contactId ? (
+                  {n.kind === "storage" ? (
+                    <Link href="/app/settings#disk-files" onClick={() => { markOne(n); setOpen(false); }} className="block hover:bg-slate-50">{body}</Link>
+                  ) : contactId ? (
                     <Link href={`/app/contacts/${contactId}`} onClick={() => { markOne(n); setOpen(false); }} className="block hover:bg-slate-50">{body}</Link>
                   ) : (
                     <button type="button" className="block w-full text-left hover:bg-slate-50" onClick={() => markOne(n)}>{body}</button>

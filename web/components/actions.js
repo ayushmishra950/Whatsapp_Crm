@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, MessageCircle, Phone, PhoneCall } from "lucide-react";
 import { api } from "@/lib/api";
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, displayName } from "@/lib/format";
 import { useToast } from "./toast";
 import { CallLogModal } from "./leads";
 import { Button, Field, Input, Modal, cx } from "./ui";
@@ -41,10 +41,12 @@ export function LeadActions({ contact, onChanged, compact }) {
   const size = compact ? "!h-7 !px-2 text-xs" : "";
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <a href={`tel:+${contact.phone}`} title={`Call ${fmtPhone(contact.phone)}`}>
-        <Button size="sm" variant="secondary" className={size}><Phone className="h-3.5 w-3.5 text-green-600" /> Call</Button>
-      </a>
-      <Button size="sm" variant="secondary" className={size} onClick={chat} title="Open the WhatsApp chat"><MessageCircle className="h-3.5 w-3.5 text-brand-600" /> Chat</Button>
+      {contact.phone && (
+        <a href={`tel:+${contact.phone}`} title={`Call ${fmtPhone(contact.phone)}`}>
+          <Button size="sm" variant="secondary" className={size}><Phone className="h-3.5 w-3.5 text-green-600" /> Call</Button>
+        </a>
+      )}
+      <Button size="sm" variant="secondary" className={size} onClick={chat} title={contact.phone ? "Open the chat" : "Open the Instagram chat"}><MessageCircle className={`h-3.5 w-3.5 ${contact.phone ? "text-brand-600" : "text-pink-600"}`} /> Chat</Button>
       <Button size="sm" variant="ghost" className={size} onClick={() => setCalling(true)} title="Save what happened on the call"><PhoneCall className="h-3.5 w-3.5" /> Log call</Button>
       <CallLogModal open={calling} onClose={() => setCalling(false)} contact={contact} onSaved={(c) => onChanged?.(c)} />
     </div>
@@ -74,7 +76,7 @@ export function NextFollowUpModal({ contact, defaultTitle = "Follow up", onClose
     }
   };
   return (
-    <Modal open onClose={() => onClose(false)} title={`✅ Done! Next follow-up for ${contact.name || fmtPhone(contact.phone)}?`} size="sm"
+    <Modal open onClose={() => onClose(false)} title={`✅ Done! Next follow-up for ${displayName(contact)}?`} size="sm"
       footer={<><Button variant="ghost" onClick={() => onClose(false)}>No follow-up needed</Button><Button loading={busy} onClick={() => save(new Date(when))}><CalendarClock className="h-4 w-4" /> Set follow-up</Button></>}>
       <div className="space-y-3">
         <p className="text-xs text-slate-500">Every open lead should have a next step — otherwise it shows in “No next action”.</p>

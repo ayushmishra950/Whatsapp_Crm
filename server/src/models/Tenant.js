@@ -30,6 +30,21 @@ const tenantSchema = new mongoose.Schema(
       connectedAt: Date,
     },
 
+    // One Instagram professional account per business (Instagram API with Instagram Login)
+    instagram: {
+      // mock = sandbox until the account is connected; live = real DMs
+      mode: { type: String, enum: ['mock', 'live'], default: 'mock' },
+      igUserId: { type: String, index: { unique: true, sparse: true } }, // webhook entry.id → this business
+      username: String,
+      name: String,
+      profilePic: String,
+      accessTokenEnc: { type: String, select: false }, // long-lived token, AES-GCM encrypted
+      tokenExpiresAt: Date,
+      tokenRefreshedAt: Date,
+      tokenError: String, // last refresh / send auth error (shown in Settings, alerts the admin)
+      connectedAt: Date,
+    },
+
     settings: {
       autoAssign: { type: Boolean, default: true }, // round-robin new chats to agents
       optOutKeywords: { type: [String], default: ['STOP', 'UNSUBSCRIBE'] },

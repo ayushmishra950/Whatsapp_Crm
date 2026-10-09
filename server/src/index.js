@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
@@ -38,6 +39,11 @@ import courseRoutes from './routes/courses.js';
 import { requireCoaching } from './services/coaching.js';
 import { syncContactOwners } from './models/Conversation.js';
 import { migrateAccounts } from './services/accounts.js';
+import { startStorageWorker } from './services/storage.js';
+import { migrateChannels } from './services/channelMigration.js';
+import instagramRoutes from './routes/instagram.js';
+import legalRoutes from './routes/legal.js';
+import { startInstagramWorker } from './services/instagramConnect.js';
 import taskRoutes from './routes/tasks.js';
 import notificationRoutes from './routes/notifications.js';
 import viewRoutes from './routes/views.js';
@@ -47,15 +53,19 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: env.clientUrl, credentials: true, exposedHeaders: ['Content-Disposition'] }));
+// gzip API responses (lists of chats / leads shrink ~5-10x: much faster on mobile data)
+app.use(compression({ threshold: 1024 }));
 // Keep raw body for WhatsApp webhook signature verification
 app.use(express.json({ limit: '2mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(morgan(env.isProd ? 'combined' : 'dev'));
 app.use('/uploads', express.static(path.resolve('uploads')));
 
+app.use('/', legalRoutes); // public /privacy and /data-deletion (needed by Meta)
 app.get('/api/health', (_req, res) => res.json({ ok: true, db: mongoose.connection.readyState === 1 }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/webhook', webhookRoutes);
+app.use('/api/instagram', instagramRoutes); // connect flow (callback is public, the rest needs a login)
 app.use('/api/superadmin', superadminRoutes);
 
 // Everything below is scoped to the logged-in user's business
@@ -145,6 +155,13 @@ async function start() {
   } catch (err) {
     console.error('[db] login migration', err.message); // logins still work: each user gets one on first login
   }
+  // Instagram as a second channel: chats get a channel, phone becomes optional (local DB: automatic; production: CHANNEL_MIGRATION=run)
+  try {
+    const m = await migrateChannels();
+    if (m.ran) console.log(`[db] channels: ${m.tagged} chats marked WhatsApp${m.droppedContactIndex ? ', old phone index replaced' : ''}${m.droppedConversationIndex ? ', old chat index replaced' : ''}`);
+  } catch (err) {
+    console.error('[db] channel migration', err.message);
+  }
   if (!(await User.exists({ role: 'super_admin' }))) {
     console.warn('[setup] No super admin found. Run "npm run seed" to create one.');
   }
@@ -155,6 +172,8 @@ async function start() {
   // Leads take their chat's counsellor as owner (older data had it only on the chat)
   syncContactOwners().then((n) => n && console.log(`[db] lead owners synced from chats: ${n}`)).catch((err) => console.error('[db] owner sync', err.message));
   startAutomationWorker();
+  startStorageWorker(); // files waiting on disk → Cloudinary
+  startInstagramWorker(); // renews Instagram connections before they expire
   server.listen(env.port, () => console.log(`[server] App running on http://localhost:${env.port}`));
 
   const shutdown = async () => {

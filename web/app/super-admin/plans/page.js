@@ -8,7 +8,7 @@ import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { Badge, Button, Card, ConfirmModal, EmptyState, Field, Input, Modal, PageHeader, PageLoader, Textarea, Toggle } from "@/components/ui";
 
-const emptyPlan = { name: "", description: "", priceMonthly: 0, limits: { agents: 3, contacts: 1000, monthlyMessages: 5000 }, modules: { chatbot: true }, features: [], isActive: true };
+const emptyPlan = { name: "", description: "", priceMonthly: 0, limits: { agents: 3, contacts: 1000, monthlyMessages: 5000 }, modules: { chatbot: true, instagram: true }, features: [], isActive: true };
 
 export default function PlansPage() {
   const toast = useToast();
@@ -78,6 +78,7 @@ export default function PlansPage() {
               <li>📇 {fmtNum(p.limits.contacts)} contacts</li>
               <li>✉️ {fmtNum(p.limits.monthlyMessages)} messages / month</li>
               <li>{p.modules?.chatbot !== false ? "🤖 Chatbot included" : <span className="text-slate-400">🤖 No chatbot</span>}</li>
+              <li>{p.modules?.instagram !== false ? "📸 Instagram DMs included" : <span className="text-slate-400">📸 No Instagram</span>}</li>
               {p.features.map((f) => <li key={f} className="text-slate-500">• {f}</li>)}
             </ul>
             <div className="mt-auto flex items-center justify-between pt-4 text-xs text-slate-500">
@@ -113,6 +114,7 @@ export default function PlansPage() {
               <Textarea rows={3} value={Array.isArray(editing.features) ? editing.features.join("\n") : editing.features} onChange={(e) => set("features", e.target.value)} />
             </Field>
             <Toggle checked={editing.modules?.chatbot !== false} onChange={(v) => set("modules", { ...(editing.modules || {}), chatbot: v })} label="Chatbot module" description="Businesses on this plan can use the WhatsApp chatbot" />
+            <Toggle checked={editing.modules?.instagram !== false} onChange={(v) => set("modules", { ...(editing.modules || {}), instagram: v })} label="Instagram module" description="Businesses on this plan can connect Instagram and answer Instagram DMs in the inbox" />
             <Toggle checked={editing.isActive} onChange={(v) => set("isActive", v)} label="Active" description="Inactive plans can not be chosen for new businesses" />
           </form>
         )}

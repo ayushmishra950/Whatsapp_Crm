@@ -18,3 +18,4 @@ export { default as Course } from './Course.js';
 export { default as Task } from './Task.js';
 export { default as Notification } from './Notification.js';
 export { default as SavedView } from './SavedView.js';
+export { default as DiskFile } from './DiskFile.js';

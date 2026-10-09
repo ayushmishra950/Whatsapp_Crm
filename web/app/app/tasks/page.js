@@ -6,7 +6,7 @@ import { CheckCircle2, ClipboardList, RotateCcw, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtDateTime, fmtPhone } from "@/lib/format";
+import { fmtDateTime, fmtPhone, displayName } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { LeadStatusBadge } from "@/components/shared";
@@ -96,7 +96,7 @@ export default function TasksPage() {
                 label: "Lead",
                 render: (t) => (t.contactId ? (
                   <Link href={`/app/contacts/${t.contactId._id}`} className="block hover:underline">
-                    <p className="text-slate-800">{t.contactId.name || fmtPhone(t.contactId.phone)}</p>
+                    <p className="text-slate-800">{displayName(t.contactId)}</p>
                     <p className="text-xs text-slate-500">{fmtPhone(t.contactId.phone)}{t.contactId.course && ` · ${t.contactId.course}`}</p>
                   </Link>
                 ) : "—"),

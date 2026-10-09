@@ -6,7 +6,7 @@ import { CheckCircle2, UserPlus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useIsCoaching } from "@/lib/business";
-import { fmtPhone } from "@/lib/format";
+import { fmtPhone, displayName } from "@/lib/format";
 import { useToast } from "./toast";
 import { CoursePicker } from "./leads";
 import { Button, Field, Input, Modal, Select, cx } from "./ui";
@@ -59,7 +59,7 @@ export function QuickAddModal({ open, onClose, onAdded }) {
     setBusy(true);
     try {
       const r = await api("/contacts/quick", { method: "POST", body: { ...form, phone, source, sendWelcome: sendWelcome && !!template } });
-      const who = r.contact.name || fmtPhone(r.contact.phone);
+      const who = displayName(r.contact);
       const sent = r.welcome === "sent";
       toast.success(`${r.created ? "Saved" : "Already in CRM — updated"}: ${who}${sent ? " · welcome sent ✓" : ""}`);
       setLast({ ...r, who });

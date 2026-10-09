@@ -1,11 +1,13 @@
 import { Conversation, Contact, Message, User } from '../models/index.js';
+import { channelQuery } from '../models/Conversation.js';
 import { HttpError } from '../utils/http.js';
 import * as wa from './whatsapp.js';
+import * as ig from './instagram.js';
 import { assertCanSend, incrementUsage } from './subscription.js';
 import { emitConversationEvent } from './socket.js';
 
 export const CONVERSATION_POPULATE = [
-  { path: 'contactId', select: 'name phone tags leadStatus optedOut adSource.headline adSource.sourceId followUpAt' },
+  { path: 'contactId', select: 'name phone instagram tags leadStatus optedOut adSource.headline adSource.sourceId followUpAt' },
   { path: 'assignedTo', select: 'name email role' },
 ];
 
@@ -31,10 +33,20 @@ export function previewOf(message) {
   return (message.text || '').slice(0, 120);
 }
 
-export async function getOrCreateConversation(tenantId, contactId) {
+/**
+ * The lead's chat on one channel (made if missing). Without a channel (notes, calls, alerts): the lead's
+ * most recent chat, or a new one on its own channel (WhatsApp if it has a number, else Instagram).
+ */
+export async function getOrCreateConversation(tenantId, contactId, channel) {
+  if (!channel) {
+    const latest = await Conversation.findOne({ tenantId, contactId }).sort({ lastMessageAt: -1 });
+    if (latest) return latest;
+    const c = await Contact.findById(contactId).select('phone instagram.igsid').lean();
+    channel = !c?.phone && c?.instagram?.igsid ? 'instagram' : 'whatsapp';
+  }
   return Conversation.findOneAndUpdate(
-    { tenantId, contactId },
-    { $setOnInsert: { tenantId, contactId, lastMessageAt: new Date() } },
+    { tenantId, contactId, ...channelQuery(channel) },
+    { $setOnInsert: { tenantId, contactId, channel, lastMessageAt: new Date() } },
     { upsert: true, returnDocument: 'after' }
   );
 }
@@ -78,7 +90,7 @@ export async function resolveReplyTarget(conversation, replyToId) {
   if (!target) throw new HttpError(400, 'The message you are replying to was not found in this chat');
   if (target.deletedAt) throw new HttpError(400, 'You can not reply to a hidden message');
   if (target.direction === 'internal') throw new HttpError(400, 'Internal notes can not be quoted to the customer');
-  if (!target.waMessageId) throw new HttpError(400, 'This message was never delivered to WhatsApp, so it can not be quoted');
+  if (!target.waMessageId && !target.igMessageId) throw new HttpError(400, 'This message was never delivered to the customer, so it can not be quoted');
   return target;
 }
 
@@ -93,7 +105,15 @@ export async function resolveReplyTarget(conversation, replyToId) {
  */
 export async function sendOutbound({ tenant, contact, conversation, user, kind, text, template, media, interactive, campaignId, replyTo, isBot = false, automation }) {
   assertCanSend(tenant);
-  conversation ||= await getOrCreateConversation(tenant._id, contact._id);
+  // Templates exist only on WhatsApp: automations / campaigns always use the lead's WhatsApp chat
+  conversation ||= await getOrCreateConversation(tenant._id, contact._id, kind === 'template' ? 'whatsapp' : undefined);
+  const channel = conversation.channel || 'whatsapp';
+  if (channel === 'instagram' && kind === 'template') {
+    throw new HttpError(400, 'Templates are WhatsApp only. On Instagram you can reply within 24 hours of the customer\'s last message.');
+  }
+  if (channel === 'whatsapp' && !contact.phone) {
+    throw new HttpError(400, 'This lead has no WhatsApp number yet. Add it on the lead page, or reply on Instagram.');
+  }
 
   if (kind !== 'template' && !conversation.windowOpen) {
     throw new HttpError(
@@ -124,15 +144,22 @@ export async function sendOutbound({ tenant, contact, conversation, user, kind, 
   });
 
   try {
-    const options = { contextId: replyTo?.waMessageId };
     let result;
-    if (kind === 'text') result = await wa.sendText(tenant._id, contact.phone, text, options);
-    else if (kind === 'template') result = await wa.sendTemplate(tenant._id, contact.phone, template, options);
-    else if (kind === 'interactive') result = await wa.sendInteractive(tenant._id, contact.phone, interactive, options);
-    else result = await wa.sendMedia(tenant._id, contact.phone, media, options);
-
+    if (channel === 'instagram') {
+      const igsid = contact.instagram?.igsid;
+      if (kind === 'text') result = await ig.sendText(tenant._id, igsid, text);
+      else if (kind === 'interactive') result = await ig.sendInteractive(tenant._id, igsid, interactive);
+      else result = await ig.sendMedia(tenant._id, igsid, media);
+      message.igMessageId = result.id;
+    } else {
+      const options = { contextId: replyTo?.waMessageId };
+      if (kind === 'text') result = await wa.sendText(tenant._id, contact.phone, text, options);
+      else if (kind === 'template') result = await wa.sendTemplate(tenant._id, contact.phone, template, options);
+      else if (kind === 'interactive') result = await wa.sendInteractive(tenant._id, contact.phone, interactive, options);
+      else result = await wa.sendMedia(tenant._id, contact.phone, media, options);
+      message.waMessageId = result.id;
+    }
     message.status = 'sent';
-    message.waMessageId = result.id;
     await incrementUsage(tenant._id, 1);
   } catch (err) {
     message.status = 'failed';

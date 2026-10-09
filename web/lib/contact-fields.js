@@ -22,6 +22,7 @@ export const REFERRAL_FIELDS = [
 // Where a lead came from (same as the server). whatsapp / ad / import are set automatically.
 export const LEAD_SOURCES = [
   ["whatsapp", "WhatsApp (direct)"],
+  ["instagram", "Instagram (direct)"],
   ["ad", "Facebook / Insta ad"],
   ["import", "Sheet import"],
   ["manual", "Added by hand"],
@@ -31,7 +32,7 @@ export const LEAD_SOURCES = [
   ["call", "Phone call"],
   ["other", "Other"],
 ];
-export const MANUAL_SOURCES = LEAD_SOURCES.filter(([v]) => !["whatsapp", "ad", "import"].includes(v));
+export const MANUAL_SOURCES = LEAD_SOURCES.filter(([v]) => !["whatsapp", "instagram", "ad", "import"].includes(v));
 
 // Template variables from the lead's course (Courses page), the counsellor and Settings → Message info
 export const COURSE_FIELDS = [

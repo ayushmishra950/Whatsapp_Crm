@@ -24,6 +24,9 @@ export const fmtNum = (n) => new Intl.NumberFormat("en-IN").format(n || 0);
 
 export const fmtPhone = (p = "") => (p ? `+${p}` : "");
 
+// A lead's name, else its WhatsApp number, else its Instagram @username (Instagram leads may have no phone)
+export const displayName = (c) => (c ? String(c.name || "").trim() || (c.phone ? `+${c.phone}` : c.instagram?.username ? `@${c.instagram.username}` : "Instagram user") : "");
+
 export const initials = (name = "") =>
   name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 

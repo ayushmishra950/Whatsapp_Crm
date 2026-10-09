@@ -1,4 +1,5 @@
-import { Tenant, Contact, Conversation, Message, CampaignRecipient, Campaign, Template, AdSource } from '../models/index.js';
+import { Tenant, Contact, Conversation, Message, CampaignRecipient, Campaign, Template, AdSource, User } from '../models/index.js';
+import { pushToUsers } from './push.js';
 import { normalizePhone } from '../utils/http.js';
 import {
   autoAssign, emitMessage, emitMessageUpdate, previewOf, getOrCreateConversation, MESSAGE_POPULATE, CONVERSATION_POPULATE,
@@ -9,12 +10,14 @@ import { autoLeadStatus, getLeadStatuses } from './leadStatuses.js';
 import { triggerDrips, stopDripsOnReply } from './drips.js';
 import { detectReferral } from './referrals.js';
 import { beforeInbound, afterInbound } from './automation.js';
+import { displayName } from '../utils/contact.js';
+import { withDbRetry } from '../utils/dbRetry.js';
 
 const STATUS_RANK = { queued: 0, sending: 0, pending: 0, sent: 1, delivered: 2, read: 3 };
 const STAT_FOR_RANK = { 1: 'sent', 2: 'delivered', 3: 'read' };
 
 // Entry point for Meta's webhook body (object: "whatsapp_business_account")
-export async function handleWebhookPayload(body) {
+export async function handleWebhookPayload(body, webhookAt = new Date()) {
   for (const entry of body.entry || []) {
     for (const change of entry.changes || []) {
       const value = change.value || {};
@@ -31,7 +34,13 @@ export async function handleWebhookPayload(body) {
         continue;
       }
       const profileName = value.contacts?.[0]?.profile?.name;
-      for (const msg of value.messages || []) await processInbound(tenant, msg, profileName);
+      for (const msg of value.messages || []) {
+        try {
+          await withDbRetry(() => processInbound(tenant, msg, profileName, { webhookAt }), { label: 'WhatsApp message' });
+        } catch (err) {
+          console.error('[webhook] message not processed', err);
+        }
+      }
       for (const status of value.statuses || []) await processStatus(tenant._id, status);
     }
   }
@@ -80,11 +89,8 @@ async function processReaction(tenant, msg) {
   return target;
 }
 
-export async function processInbound(tenant, msg, profileName) {
+export async function processInbound(tenant, msg, profileName, { webhookAt } = {}) {
   if (msg.type === 'reaction') return processReaction(tenant, msg);
-  if (msg.id && (await Message.exists({ tenantId: tenant._id, waMessageId: msg.id }))) return null; // duplicate delivery
-
-  const phone = normalizePhone(msg.from);
   // "Click to WhatsApp" ad / post that started this conversation
   const referral = msg.referral?.source_id || msg.referral?.source_url
     ? {
@@ -98,22 +104,57 @@ export async function processInbound(tenant, msg, profileName) {
         ctwaClid: msg.referral.ctwa_clid,
       }
     : null;
-  const isNewContact = !(await Contact.exists({ tenantId: tenant._id, phone }));
-  let contact = await Contact.findOneAndUpdate(
-    { tenantId: tenant._id, phone },
-    { $setOnInsert: { tenantId: tenant._id, phone, name: profileName || '', source: 'whatsapp' } },
-    { upsert: true, returnDocument: 'after' }
-  );
+  return ingestInbound(tenant, {
+    channel: 'whatsapp',
+    externalId: msg.id,
+    phone: normalizePhone(msg.from),
+    profileName,
+    parsed: parseInbound(msg),
+    replyToExternalId: msg.context?.id,
+    referral,
+    timestamp: msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date(),
+    webhookAt,
+  });
+}
+
+// Message id field per channel
+const ID_FIELD = { whatsapp: 'waMessageId', instagram: 'igMessageId' };
+
+/**
+ * One customer message from any channel, already parsed:
+ * { channel, externalId, phone | igsid, profileName, instagram: { username, name, profilePic }, parsed, replyToExternalId, referral, timestamp }
+ * Saves the lead / chat / message and runs everything that follows (opt-out, automations, chatbot,
+ * drips, assignment, alerts) the same way for WhatsApp and Instagram.
+ */
+export async function ingestInbound(tenant, inbound) {
+  const { channel = 'whatsapp', externalId, parsed, referral } = inbound;
+  const idField = ID_FIELD[channel];
+  if (externalId && (await Message.exists({ tenantId: tenant._id, [idField]: externalId }))) return null; // duplicate delivery
+
+  // The lead: by WhatsApp number, or by Instagram user
+  const who = channel === 'instagram' ? { 'instagram.igsid': inbound.igsid } : { phone: inbound.phone };
+  const profileName = inbound.profileName || '';
+  const isNewContact = !(await Contact.exists({ tenantId: tenant._id, ...who }));
+  const onInsert = channel === 'instagram'
+    ? { tenantId: tenant._id, instagram: { igsid: inbound.igsid, ...(inbound.instagram || {}), profileAt: inbound.instagram ? new Date() : undefined }, name: profileName, source: 'instagram' }
+    : { tenantId: tenant._id, phone: inbound.phone, name: profileName, source: 'whatsapp' };
+  let contact = await Contact.findOneAndUpdate({ tenantId: tenant._id, ...who }, { $setOnInsert: onInsert }, { upsert: true, returnDocument: 'after' });
   // Snapshot for drips: which tags / status did this message (and the bot) add or change?
   const tagsBefore = isNewContact ? [] : [...contact.tags];
   const statusBefore = isNewContact ? 'new' : contact.leadStatus;
   if (!contact.name && profileName) contact.name = profileName;
+  // Instagram profile (username / photo) refreshed when Instagram sends a newer one
+  if (channel === 'instagram' && inbound.instagram && !isNewContact) {
+    for (const [k, v] of Object.entries(inbound.instagram)) if (v && contact.instagram?.[k] !== v) contact.set(`instagram.${k}`, v);
+    contact.set('instagram.profileAt', new Date());
+  }
   // Remember the first ad that brought this lead (first-touch attribution)
+  const adTag = channel === 'instagram' ? 'instagram-ad' : 'facebook-ad';
   if (referral && !contact.adSource?.sourceId) {
     const { imageUrl, ...adSource } = referral;
     contact.adSource = { ...adSource, at: new Date() };
     if (isNewContact) contact.source = 'ad';
-    if (!contact.tags.includes('facebook-ad')) contact.tags.push('facebook-ad');
+    if (!contact.tags.includes(adTag)) contact.tags.push(adTag);
   }
   // Every ad gets a row on the Ads page; the admin's tag for that ad goes on the lead
   let adCourseCode = '';
@@ -130,8 +171,6 @@ export async function processInbound(tenant, msg, profileName) {
     if (ad.courseCode) adCourseCode = ad.courseCode;
   }
   if (contact.isModified()) await contact.save();
-
-  const parsed = parseInbound(msg);
 
   // Opt-out / opt-in keywords
   const keyword = parsed.text.trim().toUpperCase();
@@ -151,16 +190,16 @@ export async function processInbound(tenant, msg, profileName) {
     await contact.save();
   }
 
-  let conversation = await getOrCreateConversation(tenant._id, contact._id);
+  let conversation = await getOrCreateConversation(tenant._id, contact._id, channel);
   // For the chatbot: is this the customer's first message in this chat / are they coming back to a closed chat?
   const hadPreviousInbound = !!(await Message.exists({ conversationId: conversation._id, direction: 'inbound' }));
   const wasResolved = conversation.status === 'resolved';
   const previousActivityAt = conversation.lastMessageAt; // before this message: how long was the chat quiet?
-  const receivedAt = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date();
+  const receivedAt = inbound.timestamp || new Date();
 
   // Customer swiped-to-reply on a message: link it if we know that message
-  const quoted = msg.context?.id
-    ? await Message.findOne({ conversationId: conversation._id, waMessageId: msg.context.id }).select('_id')
+  const quoted = inbound.replyToExternalId
+    ? await Message.findOne({ conversationId: conversation._id, [idField]: inbound.replyToExternalId }).select('_id')
     : null;
 
   const message = await Message.create({
@@ -172,12 +211,18 @@ export async function processInbound(tenant, msg, profileName) {
     text: parsed.text,
     media: parsed.media,
     status: 'received',
-    waMessageId: msg.id,
+    [idField]: externalId,
     replyTo: quoted?._id,
     interactive: parsed.interactiveReplyId ? { replyId: parsed.interactiveReplyId } : undefined,
     referral: referral || undefined,
+    timing: { sentAt: inbound.timestamp, webhookAt: inbound.webhookAt },
   });
   await message.populate(MESSAGE_POPULATE);
+  if (inbound.webhookAt && inbound.timestamp) {
+    const meta = Math.round((inbound.webhookAt - inbound.timestamp) / 1000);
+    const ours = Math.round((Date.now() - inbound.webhookAt) / 1000);
+    if (meta + ours >= 5) console.log(`[${channel}] slow message: ${meta}s until Meta delivered it, ${ours}s to save it here`);
+  }
 
   conversation.lastInboundAt = receivedAt;
   conversation.lastMessageAt = receivedAt;
@@ -215,7 +260,7 @@ export async function processInbound(tenant, msg, profileName) {
       type: 'note',
       status: 'sent',
       isBot: true,
-      text: `🎁 Referred by ${referrer.name || referrer.phone} (code ${referrer.referralCode}). Tag "referred" added.`,
+      text: `🎁 Referred by ${displayName(referrer)} (code ${referrer.referralCode}). Tag "referred" added.`,
     });
     await note.populate(MESSAGE_POPULATE);
     await emitMessage(conversation._id, note);
@@ -239,7 +284,7 @@ export async function processInbound(tenant, msg, profileName) {
 
   let botHandling = false;
   try {
-    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt, waMessageId: msg.id });
+    botHandling = await runChatbot({ tenant, conversation, parsed, hadPreviousInbound, wasResolved, previousActivityAt, waMessageId: channel === 'whatsapp' ? externalId : undefined });
   } catch (err) {
     console.error('[chatbot] error', err);
   }
@@ -247,7 +292,7 @@ export async function processInbound(tenant, msg, profileName) {
   // Drips: new lead, tags added and status changes (by this message, the ad, a referral or the chatbot)
   const after = await Contact.findById(contact._id).select('tags leadStatus').lean();
   if (after) {
-    if (isNewContact) triggerDrips(tenant._id, { type: 'new_lead', contactIds: [contact._id], source: contact.source === 'ad' ? 'ad' : 'whatsapp', adId: contact.adSource?.sourceId });
+    if (isNewContact) triggerDrips(tenant._id, { type: 'new_lead', contactIds: [contact._id], source: contact.source === 'ad' ? 'ad' : channel, adId: contact.adSource?.sourceId });
     const added = after.tags.filter((t) => !tagsBefore.includes(t));
     if (added.length) triggerDrips(tenant._id, { type: 'tag_added', contactIds: [contact._id], tags: added });
     if (after.leadStatus !== statusBefore) triggerDrips(tenant._id, { type: 'status_changed', contactIds: [contact._id], status: after.leadStatus });
@@ -262,6 +307,12 @@ export async function processInbound(tenant, msg, profileName) {
       await fresh.populate(CONVERSATION_POPULATE);
       emitConversationEvent(fresh, 'conversation:updated', fresh, { wasUnassigned: !before });
     }
+  }
+  // Phone alert for the customer's message (the chatbot answers it itself): the chat's counsellor, else the admins
+  if (!botHandling && message.direction === 'inbound') {
+    const conv = await Conversation.findById(conversation._id).select('assignedTo').lean();
+    const to = conv?.assignedTo ? [conv.assignedTo] : (await User.find({ tenantId: tenant._id, role: 'admin', isActive: true }).select('_id').lean()).map((u) => u._id);
+    pushToUsers(to, { tenantId: tenant._id, title: `${channel === 'instagram' ? '📸' : '💬'} ${displayName(contact)}`, body: previewOf(message) || 'New message', url: `/chat/${conversation._id}` });
   }
   // Notes, alerts and tasks from the automations (after assignment, so they reach the right counsellor)
   await afterInbound({ tenant, contact, effects: { ...effects, notes: [] }, dripsInterrupted }).catch((err) => console.error('[automation] after inbound error', err.message));

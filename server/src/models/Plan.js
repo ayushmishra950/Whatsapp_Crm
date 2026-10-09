@@ -15,6 +15,7 @@ const planSchema = new mongoose.Schema(
     // Modules a business on this plan may use
     modules: {
       chatbot: { type: Boolean, default: true },
+      instagram: { type: Boolean, default: true }, // Instagram DMs in the inbox
     },
     isActive: { type: Boolean, default: true },
   },

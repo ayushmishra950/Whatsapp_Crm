@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useIsCoaching } from "@/lib/business";
 import { useSocketEvent } from "@/lib/socket";
-import { fmtDateTime, fmtPhone, fmtRelative } from "@/lib/format";
+import { fmtDateTime, fmtPhone, fmtRelative, displayName } from "@/lib/format";
 import { useToast } from "@/components/toast";
 import { QuickAddButton } from "@/components/quick-add";
 import { PageContainer } from "@/components/shell";
@@ -54,7 +54,7 @@ export default function TodayPage() {
 
   const leadLine = (c, extra) => (
     <div className="min-w-0">
-      <Link href={`/app/contacts/${c._id}`} className="font-medium text-slate-900 hover:text-brand-700">{c.name || fmtPhone(c.phone)}</Link>
+      <Link href={`/app/contacts/${c._id}`} className="font-medium text-slate-900 hover:text-brand-700">{displayName(c)}</Link>
       <span className="ml-2 inline-flex flex-wrap items-center gap-1 align-middle">
         <LeadStatusBadge status={c.leadStatus} />
         {c.course && <Badge tone="purple">{c.course}</Badge>}
@@ -138,7 +138,7 @@ export default function TodayPage() {
         ))}
       </div>
       {next && <NextFollowUpModal contact={next.contact} defaultTitle={next.title} onClose={() => { setNext(null); load(); }} />}
-      <Modal open={!!feesFor} onClose={() => { setFeesFor(null); load(); }} title={`Fees · ${feesFor?.name || fmtPhone(feesFor?.phone)}`} size="md">
+      <Modal open={!!feesFor} onClose={() => { setFeesFor(null); load(); }} title={`Fees · ${displayName(feesFor)}`} size="md">
         {feesFor && <FeesPanel contactId={feesFor._id} />}
       </Modal>
     </PageContainer>

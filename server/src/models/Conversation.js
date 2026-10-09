@@ -4,6 +4,8 @@ const conversationSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     contactId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', required: true },
+    // A lead has one chat per channel. Chats made before Instagram have no value = WhatsApp.
+    channel: { type: String, enum: ['whatsapp', 'instagram'], default: 'whatsapp' },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     status: { type: String, enum: ['open', 'pending', 'resolved'], default: 'open' },
     lastMessageAt: { type: Date, default: Date.now },
@@ -56,14 +58,19 @@ export async function syncContactOwners() {
   return changed;
 }
 
-conversationSchema.index({ tenantId: 1, contactId: 1 }, { unique: true });
+// (The old unique tenantId_1_contactId_1 — one chat per lead — is dropped by the channel migration.)
+conversationSchema.index({ tenantId: 1, contactId: 1, channel: 1 }, { name: 'tenant_contact_channel_unique', unique: true });
 conversationSchema.index({ tenantId: 1, lastMessageAt: -1 });
 conversationSchema.index({ tenantId: 1, assignedTo: 1, lastMessageAt: -1 });
 conversationSchema.index({ tenantId: 1, 'bot.active': 1, lastMessageAt: -1 });
 
+// Free-form replies: 24 h after the customer's last message on both WhatsApp and Instagram
 conversationSchema.virtual('windowOpen').get(function () {
   return !!this.lastInboundAt && Date.now() - this.lastInboundAt.getTime() < 24 * 60 * 60 * 1000;
 });
+
+/** Query part for one channel; chats saved before channels existed have no value and are WhatsApp */
+export const channelQuery = (channel = 'whatsapp') => (channel === 'whatsapp' ? { channel: { $ne: 'instagram' } } : { channel });
 conversationSchema.set('toJSON', { virtuals: true });
 
 export default mongoose.model('Conversation', conversationSchema);

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
+import { cleanUploadName } from '../utils/uploadName.js';
 import { z } from 'zod';
 import { AdSource, Contact, Course } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
@@ -10,7 +11,7 @@ import { parseDateInput } from '../utils/dates.js';
 
 // Course catalog: one row per course (used by the chatbot, drip variables and reports)
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: cleanUploadName });
 
 const words = z.union([z.array(z.string()), z.string()]).transform((v) =>
   [...new Set((Array.isArray(v) ? v : v.split(',')).map((w) => w.trim().toLowerCase()).filter(Boolean))].slice(0, 40)

@@ -15,6 +15,7 @@ import { FeesPanel } from "@/components/fees";
 import { useLeadStatuses } from "@/lib/lead-statuses";
 import { fmtDate, fmtDateTime, fmtPhone } from "@/lib/format";
 import { useToast } from "@/components/toast";
+import { ChannelBadge } from "@/components/channel";
 import { QuickAddButton } from "@/components/quick-add";
 import { PageContainer } from "@/components/shell";
 import { CustomFieldInputs, FollowUpChip, FollowUpMessage, LeadStatusSelect, ReferralBox, TagInput } from "@/components/shared";
@@ -25,13 +26,13 @@ import {
 
 const empty = { source: "manual", name: "", phone: "", email: "", tags: [], leadStatus: "new", notes: "", followUpAt: null, followUpNote: "", followUpAction: "remind", followUpTemplateId: null, customFields: {}, course: "", language: "" };
 const NO_FILTERS = {
-  search: "", tag: "", stage: "", leadStatus: "", source: "", adId: "", course: "", nextAction: "", followUp: "", joined: "", lastInbound: "",
+  search: "", tag: "", stage: "", leadStatus: "", source: "", channel: "", adId: "", course: "", nextAction: "", followUp: "", joined: "", lastInbound: "",
   assignedTo: "", createdFrom: "", createdTo: "", noReply: "", calls: "", language: "", optedOut: "", page: 1,
 };
 const NO_REPLY = [["", "Customer replied: any"], ["1d", "No reply for 1+ day"], ["3d", "No reply for 3+ days"], ["7d", "No reply for 7+ days"], ["14d", "No reply for 14+ days"], ["30d", "No reply for 30+ days"]];
 const CALLS = [["", "Calls: any"], ["none", "Never called"], ["1", "Called at least once"], ["3", "Called 3+ times"]];
 // Filters shown in the "More filters" panel (the badge counts how many are set)
-const MORE_KEYS = ["tag", "source", "adId", "followUp", "joined", "createdFrom", "createdTo", "lastInbound", "noReply", "calls", "language", "optedOut"];
+const MORE_KEYS = ["tag", "source", "channel", "adId", "followUp", "joined", "createdFrom", "createdTo", "lastInbound", "noReply", "calls", "language", "optedOut"];
 const NEXT_ACTIONS = [["", "Any next action"], ["none", "⚠️ No next action"], ["overdue", "Next action overdue"], ["set", "Has a next action"]];
 const JOINED = [["", "Joined: any time"], ["7d", "Joined: last 7 days"], ["14d", "Joined: last 14 days"], ["30d", "Joined: last 1 month"], ["90d", "Joined: last 3 months"], ["180d", "Joined: last 6 months"], ["365d", "Joined: last 12 months"]];
 const LAST_IN = [["", "Last message: any"], ["7d", "Messaged: last 7 days"], ["14d", "Messaged: last 14 days"], ["30d", "Messaged: last 1 month"], ["90d", "Messaged: last 3 months"], ["180d", "Messaged: last 6 months"], ["365d", "Messaged: last 12 months"]];
@@ -144,6 +145,7 @@ function ContactsPage({ urlQuery }) {
     filters.nextAction && ["nextAction", optionLabel(NEXT_ACTIONS, filters.nextAction)],
     filters.tag && ["tag", `Tag: ${filters.tag}`],
     filters.source && ["source", `Source: ${optionLabel(SOURCES, filters.source)}`],
+    filters.channel && ["channel", filters.channel === "instagram" ? "Wrote on Instagram" : "Has a WhatsApp number"],
     filters.adId && ["adId", `Ad: ${ads.find((a) => a.adId === filters.adId)?.name || filters.adId}`],
     filters.followUp && ["followUp", optionLabel(FOLLOW_UPS, filters.followUp)],
     filters.joined && filters.joined !== "custom" && ["joined", optionLabel(JOINED, filters.joined)],
@@ -194,7 +196,8 @@ function ContactsPage({ urlQuery }) {
     // Empty custom values are dropped (= value deleted)
     const customFields = Object.fromEntries(Object.entries(editing.customFields || {}).map(([k, v]) => [k, String(v ?? "").trim()]).filter(([, v]) => v));
     try {
-      const body = { name, phone, email: email || "", tags: t, leadStatus, notes, followUpAt: followUpAt || null, followUpNote: followUpNote || "", followUpAction: followUpAt ? followUpAction || "remind" : "remind", followUpTemplateId: followUpAt && followUpAction === "message" ? followUpTemplateId || null : null, customFields, course: course || "" };
+      // An Instagram lead may have no number yet: an empty box is not sent
+      const body = { name, ...(String(phone || "").trim() && { phone: String(phone).trim() }), email: email || "", tags: t, leadStatus, notes, followUpAt: followUpAt || null, followUpNote: followUpNote || "", followUpAction: followUpAt ? followUpAction || "remind" : "remind", followUpTemplateId: followUpAt && followUpAction === "message" ? followUpTemplateId || null : null, customFields, course: course || "" };
       // Only a language the user changed is sent (it then stops auto-detection)
       if ((language || "") !== (editing.languageAtOpen || "")) body.language = language || "";
       if (MANUAL_SOURCES.some(([v]) => v === source) && (!_id || source !== editing.sourceAtOpen)) body.source = source;
@@ -331,9 +334,9 @@ function ContactsPage({ urlQuery }) {
         <div className="min-w-40">
           <Link href={`/app/contacts/${c._id}`} className="group block" title="Open the lead page: details, history and chat">
             <p className="font-medium text-slate-800 group-hover:text-brand-700 group-hover:underline">
-              {c.name || "Unknown"} {c.optedOut && <Badge tone="red" className="ml-1">opted out</Badge>}
+              {c.name || (c.instagram?.username ? `@${c.instagram.username}` : "Unknown")} {c.instagram?.igsid && <ChannelBadge channel="instagram" className="ml-1" />} {c.optedOut && <Badge tone="red" className="ml-1">opted out</Badge>}
             </p>
-            <p className="text-xs text-slate-500 group-hover:text-brand-700">{fmtPhone(c.phone)}{c.email ? ` · ${c.email}` : ""}</p>
+            <p className="text-xs text-slate-500 group-hover:text-brand-700">{[fmtPhone(c.phone), c.name && c.instagram?.username && `@${c.instagram.username}`, c.email].filter(Boolean).join(" · ")}</p>
           </Link>
           {c.adSource?.sourceId && <p className="mt-0.5 truncate text-[11px] text-violet-700" title={c.adSource.headline}>📣 {c.adSource.headline || `Ad ${c.adSource.sourceId}`}</p>}
         </div>
@@ -458,6 +461,11 @@ function ContactsPage({ urlQuery }) {
                 <option value="">All tags</option>
                 {tags.map((t) => <option key={t} value={t}>{t}</option>)}
               </Select>
+              <Select value={filters.channel} onChange={(e) => setFilter("channel", e.target.value)} aria-label="App">
+                <option value="">WhatsApp + Instagram</option>
+                <option value="whatsapp">Has a WhatsApp number</option>
+                <option value="instagram">Wrote on Instagram</option>
+              </Select>
               <Select value={filters.source} onChange={(e) => setFilter("source", e.target.value)} aria-label="Source">
                 {SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
@@ -567,7 +575,9 @@ function ContactsPage({ urlQuery }) {
           <form id="contact-form" onSubmit={save} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Name"><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></Field>
-              <Field label="WhatsApp number" hint="With country code, e.g. 919876543210"><Input required value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></Field>
+              <Field label="WhatsApp number" hint={editing.instagram?.igsid && !editing.phone ? `Instagram lead @${editing.instagram.username || ""}: add the number when they share it` : "With country code, e.g. 919876543210"}>
+                <Input required={!editing.instagram?.igsid} value={editing.phone || ""} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} />
+              </Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Email"><Input type="email" value={editing.email || ""} onChange={(e) => setEditing({ ...editing, email: e.target.value })} /></Field>

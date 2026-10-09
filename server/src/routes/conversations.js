@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import fs from 'node:fs/promises';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import multer from 'multer';
+import { cleanUploadName } from '../utils/uploadName.js';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Conversation, Contact, Message, Template, User } from '../models/index.js';
 import { validate, notFound, badRequest, forbidden, escapeRegex } from '../utils/http.js';
+import { IG_MEDIA } from '../services/instagram.js';
+import { channelQuery } from '../models/Conversation.js';
+import { keepForRetry, saveFile } from '../services/storage.js';
 import {
   CONVERSATION_POPULATE, MESSAGE_POPULATE, sendOutbound, addInternalNote, getOrCreateConversation, renderTemplate,
   resolveReplyTarget, emitMessageUpdate, previewOf,
@@ -17,7 +19,7 @@ import { audit } from '../services/audit.js';
 import { setBotForConversation } from '../services/chatbot.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 }, fileFilter: cleanUploadName });
 
 // Agents only see chats assigned to them + the unassigned queue
 function scope(req) {
@@ -35,8 +37,9 @@ async function findConversation(req) {
 
 router.get('/', async (req, res) => {
   const filter = scope(req);
-  const { status = 'open', assigned = 'all', search } = req.query;
+  const { status = 'open', assigned = 'all', search, channel } = req.query;
   if (status !== 'all') filter.status = status;
+  if (channel === 'whatsapp' || channel === 'instagram') Object.assign(filter, channelQuery(channel));
   if (assigned === 'me') filter.assignedTo = req.user._id;
   else if (assigned === 'unassigned') {
     filter.assignedTo = null;
@@ -50,7 +53,7 @@ router.get('/', async (req, res) => {
     const cf = { tenantId: req.tenantId };
     if (search) {
       const rx = { $regex: escapeRegex(search), $options: 'i' };
-      cf.$or = [{ name: rx }, { phone: rx }];
+      cf.$or = [{ name: rx }, { phone: rx }, { 'instagram.username': rx }];
     }
     if (leadStatus) cf.leadStatus = { $in: String(leadStatus).split(',').filter(Boolean) };
     if (source === 'ad') cf['adSource.sourceId'] = { $exists: true, $ne: null };
@@ -67,10 +70,12 @@ router.get('/', async (req, res) => {
 
 // Open (or create) the chat for a contact, e.g. from the Contacts page
 router.post('/start', async (req, res) => {
-  const { contactId } = validate(z.object({ contactId: z.string().refine(mongoose.isValidObjectId, 'Invalid id') }), req.body);
+  const { contactId, channel } = validate(z.object({ contactId: z.string().refine(mongoose.isValidObjectId, 'Invalid id'), channel: z.enum(['whatsapp', 'instagram']).optional() }), req.body);
   const contact = await Contact.findOne({ _id: contactId, tenantId: req.tenantId });
   if (!contact) throw notFound('Contact not found');
-  let conversation = await getOrCreateConversation(req.tenantId, contact._id);
+  if (channel === 'whatsapp' && !contact.phone) throw badRequest('This lead has no WhatsApp number yet. Add it on the lead page first.');
+  if (channel === 'instagram' && !contact.instagram?.igsid) throw badRequest('This lead has not messaged you on Instagram.');
+  let conversation = await getOrCreateConversation(req.tenantId, contact._id, channel);
   if (req.user.role === 'agent') {
     if (conversation.assignedTo && String(conversation.assignedTo) !== String(req.user._id)) {
       throw forbidden('This chat is assigned to another agent');
@@ -114,6 +119,68 @@ const messageSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+/**
+ * WhatsApp's own rules for media (Cloud API): only these types, and these sizes.
+ * Checked here so the team gets a clear message instead of Meta's error.
+ */
+const MB = 1024 * 1024;
+const WA_MEDIA = {
+  image: { types: ['image/jpeg', 'image/png'], max: 5 * MB },
+  video: { types: ['video/mp4', 'video/3gpp'], max: 16 * MB },
+  audio: { types: ['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg', 'audio/opus'], max: 16 * MB },
+  document: {
+    types: [
+      'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ],
+    max: 16 * MB,
+  },
+};
+const EXT_MIME = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', mp4: 'video/mp4', '3gp': 'video/3gpp', mp3: 'audio/mpeg', aac: 'audio/aac', amr: 'audio/amr', ogg: 'audio/ogg', m4a: 'audio/mp4',
+  pdf: 'application/pdf', txt: 'text/plain', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  heic: 'image/heic', heif: 'image/heif', webp: 'image/webp', gif: 'image/gif', mov: 'video/quicktime',
+};
+/** Instagram's own media rules (photo 8 MB; video / audio 25 MB; documents: PDF only) */
+function checkInstagramMedia(file) {
+  let mime = String(file.mimetype || '').toLowerCase().split(';')[0];
+  if (!mime || mime === 'application/octet-stream') mime = EXT_MIME[path.extname(file.originalname || '').slice(1).toLowerCase()] || mime;
+  const type = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document';
+  const rule = IG_MEDIA[type];
+  if (!rule.types.includes(mime)) {
+    const hint = {
+      image: 'Instagram accepts JPG, PNG or GIF photos.',
+      video: 'Instagram accepts MP4, MOV or WEBM videos.',
+      audio: 'Instagram accepts AAC, M4A, WAV or MP3 audio.',
+      document: 'Instagram accepts only PDF documents (send Word / Excel as PDF).',
+    }[type];
+    throw badRequest(`This file can not be sent on Instagram (${mime || 'unknown type'}). ${hint}`);
+  }
+  if (file.size > rule.max) throw badRequest(`File is too big for Instagram: ${type}s can be up to ${rule.max / MB} MB.`);
+  return { mime, type };
+}
+
+function checkWhatsAppMedia(file) {
+  let mime = String(file.mimetype || '').toLowerCase().split(';')[0];
+  if (!mime || mime === 'application/octet-stream') mime = EXT_MIME[path.extname(file.originalname || '').slice(1).toLowerCase()] || mime;
+  const type = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document';
+  const rule = WA_MEDIA[type];
+  if (!rule.types.includes(mime)) {
+    const hint = {
+      image: /heic|heif/.test(mime) ? 'iPhone HEIC photos are not accepted by WhatsApp: send it as JPG or PNG (the mobile app converts it by itself).' : 'WhatsApp accepts only JPG or PNG photos.',
+      video: mime === 'video/quicktime' ? 'iPhone .MOV videos are not accepted by WhatsApp: send an MP4 video.' : 'WhatsApp accepts only MP4 or 3GP videos.',
+      audio: 'WhatsApp accepts only AAC, MP3, M4A, AMR or OGG audio.',
+      document: 'WhatsApp accepts only PDF, Word, Excel, PowerPoint or TXT documents.',
+    }[type];
+    throw badRequest(`This file can not be sent on WhatsApp (${mime || 'unknown type'}). ${hint}`);
+  }
+  if (file.size > rule.max) throw badRequest(`File is too big for WhatsApp: ${type}s can be up to ${rule.max / MB} MB.`);
+  return { mime, type };
+}
+
 router.post('/:id/messages', upload.single('file'), async (req, res) => {
   const conversation = await findConversation(req);
   const contact = await Contact.findById(conversation.contactId);
@@ -125,21 +192,28 @@ router.post('/:id/messages', upload.single('file'), async (req, res) => {
     const { replyToId } = validate(z.object({ replyToId: replyToField.or(z.literal('')) }), req.body);
     if (!conversation.windowOpen) throw badRequest('The 24-hour reply window is closed. Only an approved template can be sent.');
     const replyTo = await resolveReplyTarget(conversation, replyToId || null);
-    const mime = req.file.mimetype;
-    const type = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document';
-    // Keep a local copy so the UI can show what was sent
-    const ext = path.extname(req.file.originalname) || '';
-    const relPath = path.join(String(req.tenantId), `${crypto.randomBytes(10).toString('hex')}${ext}`);
-    await fs.mkdir(path.resolve('uploads', String(req.tenantId)), { recursive: true });
-    await fs.writeFile(path.resolve('uploads', relPath), req.file.buffer);
-
+    if (conversation.channel === 'instagram') {
+      // Instagram downloads the file from our link: keep it first, then send the link
+      const { mime, type } = checkInstagramMedia(req.file);
+      const stored = await saveFile({ tenantId: req.tenantId, buffer: req.file.buffer, fileName: req.file.originalname, mimeType: mime });
+      const message = await sendOutbound({ ...base, replyTo, kind: 'media', media: { type, url: stored.url, mimeType: mime, fileName: req.file.originalname, caption: req.body.caption || '' } });
+      if (stored.waiting) await keepForRetry({ tenantId: req.tenantId, messageId: message._id, contactId: contact._id, url: stored.url, fileName: req.file.originalname, mimeType: mime, size: req.file.size, direction: 'sent', error: stored.error });
+      return res.status(201).json(message);
+    }
+    const { mime, type } = checkWhatsAppMedia(req.file);
+    // Upload to WhatsApp first: a file Meta refuses is not kept
     const { id: waMediaId } = await uploadMedia(req.tenantId, { buffer: req.file.buffer, mimeType: mime, fileName: req.file.originalname });
+    // Keep a copy so the CRM can show what was sent (Cloudinary or this server, see services/storage.js)
+    const stored = await saveFile({ tenantId: req.tenantId, buffer: req.file.buffer, fileName: req.file.originalname, mimeType: mime });
+
     const message = await sendOutbound({
       ...base,
       replyTo,
       kind: 'media',
-      media: { type, waMediaId, url: `/uploads/${relPath.split(path.sep).join('/')}`, mimeType: mime, fileName: req.file.originalname, caption: req.body.caption || '' },
+      media: { type, waMediaId, url: stored.url, mimeType: mime, fileName: req.file.originalname, caption: req.body.caption || '' },
     });
+    // Cloud upload failed: the disk copy is used for now, the storage worker uploads it later
+    if (stored.waiting) await keepForRetry({ tenantId: req.tenantId, messageId: message._id, contactId: contact._id, url: stored.url, fileName: req.file.originalname, mimeType: mime, size: req.file.size, direction: 'sent', error: stored.error });
     return res.status(201).json(message);
   }
 

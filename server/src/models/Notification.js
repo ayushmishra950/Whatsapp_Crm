@@ -10,6 +10,7 @@ const notificationSchema = new mongoose.Schema(
     body: { type: String, default: '' },
     contactId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact' },
     taskId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
+    key: { type: String, default: '' }, // same alert at most once a day (e.g. "storage:usage")
     readAt: Date,
   },
   { timestamps: true }

@@ -5,3 +5,4 @@ node_modules
 server/.mongo-data
 server/uploads
 web/.next
+backups

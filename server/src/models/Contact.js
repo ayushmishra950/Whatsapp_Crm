@@ -4,7 +4,17 @@ const contactSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     name: { type: String, trim: true, default: '' },
-    phone: { type: String, required: true, trim: true }, // digits only, with country code
+    // digits only, with country code. Optional: an Instagram lead has no number until they share one.
+    // Never store '' — leave it unset (the unique index only covers real numbers).
+    phone: { type: String, trim: true },
+    // Instagram DM identity (Instagram-scoped user id from the webhook + public profile)
+    instagram: {
+      igsid: String,
+      username: String,
+      name: String,
+      profilePic: String,
+      profileAt: Date, // when the profile was last fetched (the picture URL expires)
+    },
     email: { type: String, trim: true, lowercase: true },
     tags: { type: [String], default: [] },
     customFields: { type: Map, of: String, default: {} },
@@ -12,7 +22,7 @@ const contactSchema = new mongoose.Schema(
     leadStatus: { type: String, default: 'new', trim: true },
     statusUpdatedAt: Date,
     statusUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    source: { type: String, default: 'manual' }, // manual | import | whatsapp | ad
+    source: { type: String, default: 'manual' }, // manual | import | whatsapp | instagram | ad
     // First Facebook/Instagram "Click to WhatsApp" ad that brought this lead (from the webhook "referral")
     adSource: {
       sourceType: String, // ad | post
@@ -95,7 +105,10 @@ const contactSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-contactSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
+// One lead per number / per Instagram user in a business. Partial: leads without that identity are not indexed.
+// (The old full unique index tenantId_1_phone_1 is dropped by the channel migration, services/channelMigration.js.)
+contactSchema.index({ tenantId: 1, phone: 1 }, { name: 'tenant_phone_unique', unique: true, partialFilterExpression: { phone: { $type: 'string' } } });
+contactSchema.index({ tenantId: 1, 'instagram.igsid': 1 }, { name: 'tenant_igsid_unique', unique: true, partialFilterExpression: { 'instagram.igsid': { $type: 'string' } } });
 contactSchema.index({ tenantId: 1, tags: 1 });
 contactSchema.index({ tenantId: 1, createdAt: -1 });
 contactSchema.index({ tenantId: 1, leadStatus: 1 });
