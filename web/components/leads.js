@@ -296,7 +296,7 @@ export function LeadTasks({ contact, onChange }) {
 }
 
 // ---------- Bell ----------
-const KIND_ICON = { hot: "🔥", task: "📝", overdue: "⏰", reply: "💬", status: "⌛", report: "📊", alert: "🔔", storage: "💾" };
+const KIND_ICON = { hot: "🔥", task: "📝", overdue: "⏰", reply: "💬", status: "⌛", report: "📊", alert: "🔔", storage: "💾", comment: "💬" };
 
 /** Bell with the person's alerts (hot lead, overdue task, reply during a drip, morning report) */
 export function NotificationBell({ className }) {
@@ -358,7 +358,9 @@ export function NotificationBell({ className }) {
               );
               return (
                 <li key={n._id}>
-                  {n.kind === "storage" ? (
+                  {n.kind === "comment" ? (
+                    <Link href="/app/social/comments" onClick={() => { markOne(n); setOpen(false); }} className="block hover:bg-slate-50">{body}</Link>
+                  ) : n.kind === "storage" ? (
                     <Link href="/app/settings#disk-files" onClick={() => { markOne(n); setOpen(false); }} className="block hover:bg-slate-50">{body}</Link>
                   ) : contactId ? (
                     <Link href={`/app/contacts/${contactId}`} onClick={() => { markOne(n); setOpen(false); }} className="block hover:bg-slate-50">{body}</Link>

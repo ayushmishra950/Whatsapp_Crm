@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 import { handleWebhookPayload } from '../services/webhookProcessor.js';
 import { handleInstagramPayload } from '../services/instagramInbound.js';
+import { handleFacebookPayload } from '../services/social.js';
 
 const router = Router();
 
@@ -44,6 +45,20 @@ router.post('/instagram', (req, res) => {
   if (!validSignature(req, env.instagram.appSecret)) return res.sendStatus(401);
   res.sendStatus(200);
   handleInstagramPayload(req.body, new Date()).catch((err) => console.error('[webhook] instagram processing error', err));
+});
+
+// ---------- Facebook Page comments (App Dashboard → Webhooks → Page → field "feed"; callback <PUBLIC_URL>/api/webhook/facebook) ----------
+router.get('/facebook', (req, res) => {
+  if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === env.facebook.webhookVerifyToken) {
+    return res.status(200).send(req.query['hub.challenge']);
+  }
+  res.sendStatus(403);
+});
+
+router.post('/facebook', (req, res) => {
+  if (!validSignature(req, env.facebook.appSecret)) return res.sendStatus(401);
+  res.sendStatus(200);
+  handleFacebookPayload(req.body).catch((err) => console.error('[webhook] facebook processing error', err));
 });
 
 export default router;

@@ -17,6 +17,7 @@ export type InstagramInfo = {
   inPlan: boolean;
   ready: boolean;
   canConnect: boolean;
+  canPost?: boolean; // posting / comment permissions granted (connected after posting was added)
 };
 
 /**

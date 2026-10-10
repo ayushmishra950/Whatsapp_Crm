@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AdSource, Contact, Conversation, Message, Campaign, Task, Template, User } from '../models/index.js';
+import { AdSource, Contact, Conversation, Message, Campaign, Task, Template, User, SocialComment } from '../models/index.js';
 import { authorize } from '../middleware/auth.js';
 import { validate } from '../utils/http.js';
 import { messagesUsedThisMonth } from '../services/subscription.js';
@@ -225,13 +225,14 @@ router.get('/counts', async (req, res) => {
   const endOfToday = new Date(startOfDayIn(safeTimeZone(req.query.tz || DEFAULT_TZ)).getTime() + 864e5);
   const mine = isAgent ? { $or: [{ assignedTo: req.user._id }, { assignedTo: null }] } : {};
   const today = dayKey(now, safeTimeZone(req.query.tz || DEFAULT_TZ));
-  const [unreadChats, tasksDue, newLeads, feesDue] = await Promise.all([
+  const [unreadChats, tasksDue, newLeads, feesDue, unreadComments] = await Promise.all([
     Conversation.countDocuments({ tenantId, unreadCount: { $gt: 0 }, status: { $ne: 'resolved' }, ...(isAgent && { assignedTo: { $in: [req.user._id, null] } }) }),
     Task.countDocuments({ tenantId, status: 'open', dueAt: { $lt: endOfToday }, ...(isAgent && { assignedTo: req.user._id }) }),
     Contact.countDocuments({ tenantId, leadStatus: { $in: ['new', 'call_pending'] }, callAttempts: { $in: [0, null] }, optedOut: false, ...mine }),
     Contact.countDocuments({ tenantId, 'fees.balance': { $gt: 0 }, 'fees.nextDue': { $ne: '', $lte: today }, ...mine }),
+    SocialComment.countDocuments({ tenantId, readAt: null, fromBusiness: false, deletedAt: null }), // Facebook / Instagram comments
   ]);
-  res.json({ unreadChats, tasksDue, newLeads, feesDue });
+  res.json({ unreadChats, tasksDue, newLeads, feesDue, unreadComments });
 });
 
 /**

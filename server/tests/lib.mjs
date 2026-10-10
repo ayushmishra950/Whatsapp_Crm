@@ -45,7 +45,7 @@ export const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 /** Remove test businesses and logins */
 export async function cleanup(tids = []) {
   for (const tid of tids.filter(Boolean)) {
-    for (const m of ['Contact', 'Conversation', 'Message', 'Course', 'Task', 'Notification', 'Drip', 'DripEnrollment', 'Template', 'AdSource', 'User', 'AuditLog', 'Chatbot', 'SavedView', 'Campaign', 'Segment', 'DiskFile']) if (M[m]) await M[m].deleteMany({ tenantId: tid });
+    for (const m of ['Contact', 'Conversation', 'Message', 'Course', 'Task', 'Notification', 'Drip', 'DripEnrollment', 'Template', 'AdSource', 'User', 'AuditLog', 'Chatbot', 'SavedView', 'Campaign', 'Segment', 'DiskFile', 'SocialPost', 'SocialComment']) if (M[m]) await M[m].deleteMany({ tenantId: tid });
     await M.Tenant.deleteOne({ _id: tid });
     rmSync(new URL(`../uploads/${tid}`, import.meta.url), { recursive: true, force: true }); // files a test business saved
   }

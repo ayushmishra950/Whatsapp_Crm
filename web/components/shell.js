@@ -36,7 +36,9 @@ export function Shell({ roles, nav, children, fullHeight, headerExtra, sidebarAc
 
   const { user, tenant, impersonating } = session;
   const items = nav.filter((n) => !n.roles || n.roles.includes(user.role));
-  const isActive = (href) => (href === "/app" || href === "/super-admin" ? pathname === href : pathname.startsWith(href));
+  // The most specific item wins (/app/social/comments must not also light up /app/social)
+  const best = items.filter((n) => pathname === n.href || pathname.startsWith(`${n.href}/`)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const isActive = (href) => (href === "/app" || href === "/super-admin" ? pathname === href : href === best || (pathname.startsWith(href) && !best));
 
   const sidebar = (
     <div className="flex h-full flex-col">

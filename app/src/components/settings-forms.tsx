@@ -23,6 +23,7 @@ export type SettingsData = {
   whatsapp: { mode: string; phoneNumberId?: string; wabaId?: string; displayPhoneNumber?: string; connectedAt?: string };
   webhook: { path: string; verifyToken?: string };
   instagram?: import('./instagram-settings').InstagramInfo;
+  facebook?: import('./social').FacebookInfo;
   settings: any;
 };
 /** PATCH /settings with { settings: patch } (or a profile body); resolves true when saved */

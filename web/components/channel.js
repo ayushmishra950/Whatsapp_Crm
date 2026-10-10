@@ -7,6 +7,7 @@ export const channelOf = (conversation) => (conversation?.channel === "instagram
 const LOOK = {
   whatsapp: { label: "WhatsApp", short: "WA", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
   instagram: { label: "Instagram", short: "IG", cls: "bg-pink-50 text-pink-700 ring-pink-200" },
+  facebook: { label: "Facebook", short: "FB", cls: "bg-blue-50 text-blue-700 ring-blue-200" },
 };
 
 /** Small pill that says which app the chat is on */

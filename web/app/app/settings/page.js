@@ -7,6 +7,7 @@ import { KeywordRulesEditor, LeadFlowSettings, MessageInfoSettings, WaRatesSetti
 import { LogoUpload } from "@/components/logo-upload";
 import { DiskFiles } from "@/components/disk-files";
 import { InstagramSettings } from "@/components/instagram-settings";
+import { FacebookSettings } from "@/components/facebook-settings";
 import { api, API_URL } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtDate, fmtNum, fmtPhone } from "@/lib/format";
@@ -600,6 +601,14 @@ export default function SettingsPage() {
             <InstagramSettings ig={s.instagram} isAdmin={isAdmin} onChanged={load} />
           </Section>
         </div>
+
+        {s.facebook && (
+          <div id="facebook" className="scroll-mt-20">
+            <Section title="Facebook Page & posts" description="Connect the business's Facebook Page to post on it (and on Instagram) from the CRM, and to answer comments on your posts.">
+              <FacebookSettings fb={s.facebook} igCanPost={s.instagram?.canPost !== false} isAdmin={isAdmin} onChanged={load} />
+            </Section>
+          </div>
+        )}
 
         {isAdmin && (
           <div id="disk-files" className="scroll-mt-20">

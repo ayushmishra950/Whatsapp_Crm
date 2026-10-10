@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { BusinessSwitcher } from '@/components/business-switcher';
 import { InstagramSettings } from '@/components/instagram-settings';
+import { FacebookSettings } from '@/components/social';
 import {
   BusinessProfileSheet,
   ChangePasswordSheet,
@@ -207,6 +208,12 @@ export default function SettingsScreen() {
       <Group title="Instagram">
         <InstagramSettings ig={s.instagram} isAdmin={isAdmin} onChanged={reloadAll} />
       </Group>
+
+      {s.facebook ? (
+        <Group title="Facebook Page & posts">
+          <FacebookSettings fb={s.facebook} igCanPost={s.instagram?.canPost !== false} isAdmin={isAdmin} onChanged={reloadAll} />
+        </Group>
+      ) : null}
 
       {isAdmin && (
         <Group title="Files">

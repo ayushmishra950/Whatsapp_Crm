@@ -19,3 +19,5 @@ export { default as Task } from './Task.js';
 export { default as Notification } from './Notification.js';
 export { default as SavedView } from './SavedView.js';
 export { default as DiskFile } from './DiskFile.js';
+export { default as SocialPost } from './SocialPost.js';
+export { default as SocialComment } from './SocialComment.js';

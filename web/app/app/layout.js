@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { LayoutDashboard, MessagesSquare, Contact, Megaphone, FileText, Users, Settings, Bot, Workflow, Gift, Target, GraduationCap, ClipboardList, Zap, IndianRupee } from "lucide-react";
+import { LayoutDashboard, MessagesSquare, Contact, Megaphone, FileText, Users, Settings, Bot, Workflow, Gift, Target, GraduationCap, ClipboardList, Zap, IndianRupee, MessageSquareText, Share2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { NotificationBell } from "@/components/leads";
 import { Shell } from "@/components/shell";
@@ -38,6 +38,7 @@ function useActionCounts(enabled) {
   useSocketEvent("notification:new", load);
   useSocketEvent("message:new", load);
   useSocketEvent("conversation:updated", load);
+  useSocketEvent("social:comment", load);
   return counts;
 }
 
@@ -46,6 +47,7 @@ export default function TenantLayout({ children }) {
   const pathname = usePathname();
   const canBroadcast = session?.user.role === "admin" || session?.tenant?.settings?.agentsCanBroadcast;
   const chatbotInPlan = session?.tenant?.plan?.modules?.chatbot !== false;
+  const socialInPlan = session?.tenant?.plan?.modules?.social !== false;
   const coaching = session?.tenant?.businessType === "coaching";
   const counts = useActionCounts(!!session?.tenant);
   const todayBadge = (counts.newLeads || 0) + (counts.tasksDue || 0) + (counts.feesDue || 0);
@@ -56,9 +58,11 @@ export default function TenantLayout({ children }) {
     { href: "/app/inbox", label: "Inbox", icon: MessagesSquare, badge: counts.unreadChats },
     { href: "/app/contacts", label: "Contacts / Leads", icon: Contact, badge: counts.newLeads, badgeTone: "amber" },
     { href: "/app/tasks", label: "Tasks", icon: ClipboardList, badge: counts.tasksDue, badgeTone: "red" },
+    ...(socialInPlan ? [{ href: "/app/social/comments", label: "Comments", icon: MessageSquareText, badge: counts.unreadComments }] : []),
     ...(coaching ? [{ href: "/app/fees", label: "Fees", icon: IndianRupee, badge: counts.feesDue, badgeTone: "amber" }] : []),
     ...(canBroadcast ? [{ href: "/app/campaigns", label: "Bulk campaigns", icon: Megaphone }] : []),
     { href: "/app/drips", label: "Drips & automations", icon: Workflow, roles: ["admin"] },
+    ...(socialInPlan ? [{ href: "/app/social", label: "Facebook / Insta posts", icon: Share2, roles: ["admin"] }] : []),
     { href: "/app/ads", label: "Ads", icon: Target },
     { href: "/app/referrals", label: "Refer & earn", icon: Gift, roles: ["admin"] },
     ...(coaching ? [{ href: "/app/courses", label: "Courses", icon: GraduationCap }] : []),

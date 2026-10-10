@@ -42,6 +42,13 @@ export async function pickMedia(): Promise<PickedFile | null> {
   return r.canceled || !r.assets?.[0] ? null : fromImageAsset(r.assets[0]);
 }
 
+/** Photos (up to `limit`) or one video for a Facebook / Instagram post; photos become JPEG (Instagram needs JPG) */
+export async function pickPostMedia(limit = 10): Promise<PickedFile[]> {
+  const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: limit, quality: 0.8, ...COMPATIBLE });
+  if (r.canceled || !r.assets?.length) return [];
+  return Promise.all(r.assets.slice(0, limit).map(fromImageAsset));
+}
+
 /** New photo with the camera (asks for permission) */
 export async function takePhoto(): Promise<PickedFile | null> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();

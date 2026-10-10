@@ -48,7 +48,7 @@ try {
 
   Object.assign(env.instagram, { appId: '1234567890', appSecret: 'test-secret', redirectUrl: 'https://api.example.test/api/instagram/callback' });
   const url = new URL(C.connectUrl({ tenantId: a.id, userId: a.admin._id }));
-  ok(url.origin === 'https://www.instagram.com' && url.searchParams.get('client_id') === '1234567890' && url.searchParams.get('scope') === 'instagram_business_basic,instagram_business_manage_messages' && url.searchParams.get('redirect_uri') === env.instagram.redirectUrl, 'Login link: Instagram, our app, both permissions, our redirect');
+  ok(url.origin === 'https://www.instagram.com' && url.searchParams.get('client_id') === '1234567890' && url.searchParams.get('scope') === 'instagram_business_basic,instagram_business_manage_messages,instagram_business_content_publish,instagram_business_manage_comments' && url.searchParams.get('redirect_uri') === env.instagram.redirectUrl, 'Login link: Instagram, our app, DM + posting + comment permissions, our redirect');
   ok(!url.searchParams.has('force_reauth'), 'Normal connect: Instagram shows the account already logged in (just "Allow")');
   const sw = new URL(C.connectUrl({ tenantId: a.id, userId: a.admin._id, switchAccount: true }));
   ok(sw.searchParams.get('force_reauth') === 'true', '"Use a different Instagram account": Instagram always asks to log in');

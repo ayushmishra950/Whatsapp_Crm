@@ -42,6 +42,9 @@ import { migrateAccounts } from './services/accounts.js';
 import { startStorageWorker } from './services/storage.js';
 import { migrateChannels } from './services/channelMigration.js';
 import instagramRoutes from './routes/instagram.js';
+import facebookRoutes from './routes/facebook.js';
+import socialRoutes from './routes/social.js';
+import { startSocialWorker } from './services/social.js';
 import legalRoutes from './routes/legal.js';
 import { startInstagramWorker } from './services/instagramConnect.js';
 import taskRoutes from './routes/tasks.js';
@@ -65,7 +68,8 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, db: mongoose.connecti
 
 app.use('/api/auth', authRoutes);
 app.use('/api/webhook', webhookRoutes);
-app.use('/api/instagram', instagramRoutes); // connect flow (callback is public, the rest needs a login)
+app.use('/api/instagram', instagramRoutes);
+app.use('/api/facebook', facebookRoutes); // Facebook Page connect (callback is public) // connect flow (callback is public, the rest needs a login)
 app.use('/api/superadmin', superadminRoutes);
 
 // Everything below is scoped to the logged-in user's business
@@ -88,6 +92,7 @@ tenantRouter.use('/tasks', taskRoutes);
 tenantRouter.use('/notifications', notificationRoutes);
 tenantRouter.use('/views', viewRoutes);
 tenantRouter.use('/fees', feeRoutes);
+tenantRouter.use('/social', socialRoutes); // posts to Facebook / Instagram + comments
 tenantRouter.use('/', miscRoutes);
 app.use('/api', tenantRouter);
 
@@ -174,6 +179,7 @@ async function start() {
   startAutomationWorker();
   startStorageWorker(); // files waiting on disk → Cloudinary
   startInstagramWorker(); // renews Instagram connections before they expire
+  startSocialWorker(); // publishes due / scheduled posts
   server.listen(env.port, () => console.log(`[server] App running on http://localhost:${env.port}`));
 
   const shutdown = async () => {

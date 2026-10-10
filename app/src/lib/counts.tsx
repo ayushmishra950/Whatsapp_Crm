@@ -4,7 +4,7 @@ import { api } from './api';
 import { useAuth } from './auth';
 import { useSocketEvent } from './socket';
 
-export type Counts = { newLeads?: number; tasksDue?: number; feesDue?: number; unreadChats?: number; notifications?: number };
+export type Counts = { newLeads?: number; tasksDue?: number; feesDue?: number; unreadChats?: number; unreadComments?: number; notifications?: number };
 const Ctx = createContext<{ counts: Counts; reload: () => void }>({ counts: {}, reload: () => {} });
 
 /** Badges for the tabs (unread chats, tasks due, new leads, fees due) — live + every minute */
@@ -32,6 +32,7 @@ export function CountsProvider({ children }: { children: ReactNode }) {
   useSocketEvent('notification:new', reload, epoch);
   useSocketEvent('message:new', reload, epoch);
   useSocketEvent('conversation:updated', reload, epoch);
+  useSocketEvent('social:comment', reload, epoch);
   return <Ctx.Provider value={{ counts, reload }}>{children}</Ctx.Provider>;
 }
 

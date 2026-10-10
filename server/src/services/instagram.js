@@ -155,3 +155,95 @@ export async function downloadAttachment(url) {
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 30000, maxContentLength: 30 * 1024 * 1024 });
   return { buffer: Buffer.from(res.data), mimeType: String(res.headers['content-type'] || '').split(';')[0] };
 }
+
+// ---------- Posting (content publishing) ----------
+// Instagram needs public links; photos must be JPEG (Cloudinary photos are turned into JPEG through the link)
+export const IG_CAPTION_LIMIT = 2200;
+export const IG_CAROUSEL_MAX = 10;
+export const toJpegUrl = (url = '') =>
+  /res\.cloudinary\.com\/.+\/image\/upload\//.test(url) && !/\.jpe?g($|\?)/i.test(url) ? url.replace('/image/upload/', '/image/upload/f_jpg/').replace(/\.(png|gif|webp|heic|bmp)($|\?)/i, '.jpg$2') : url;
+const publicLink = (url) => (/^https?:\/\//.test(url || '') ? url : env.publicUrl && url ? `${env.publicUrl}${url}` : url);
+
+/**
+ * Step 1: create the media container(s). media = [{ url, type: 'image'|'video' }].
+ * 1 photo → image container; 1 video → Reel; 2–10 items → carousel. Returns { containerId }.
+ */
+export async function createPostContainer(tenantId, { text = '', media = [] }) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return { containerId: `MOCKCONTAINER${crypto.randomBytes(6).toString('hex')}` };
+  if (!media.length) throw new HttpError(400, 'Instagram posts need a photo or a video');
+  const me = creds.igUserId || 'me';
+  const item = (m, extra = {}) => (m.type === 'video' ? { media_type: extra.is_carousel_item ? 'VIDEO' : 'REELS', video_url: publicLink(m.url) } : { image_url: toJpegUrl(publicLink(m.url)) });
+  if (media.length === 1) {
+    const r = await graph(creds, 'post', `${me}/media`, { data: { ...item(media[0]), caption: text } });
+    return { containerId: r.id };
+  }
+  const children = [];
+  for (const m of media.slice(0, IG_CAROUSEL_MAX)) children.push((await graph(creds, 'post', `${me}/media`, { data: { ...item(m, { is_carousel_item: true }), is_carousel_item: true } })).id);
+  const r = await graph(creds, 'post', `${me}/media`, { data: { media_type: 'CAROUSEL', children: children.join(','), caption: text } });
+  return { containerId: r.id };
+}
+
+/** Step 2: FINISHED / IN_PROGRESS / ERROR / EXPIRED for a container */
+export async function containerStatus(tenantId, containerId) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return { status: 'FINISHED' };
+  const r = await graph(creds, 'get', containerId, { params: { fields: 'status_code,status' } });
+  return { status: r.status_code, detail: r.status };
+}
+
+/** Step 3: publish a FINISHED container. Returns { id, permalink } */
+export async function publishContainer(tenantId, containerId) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return { id: `MOCKMEDIA${crypto.randomBytes(6).toString('hex')}`, permalink: '' };
+  const me = creds.igUserId || 'me';
+  const { id } = await graph(creds, 'post', `${me}/media_publish`, { data: { creation_id: containerId } });
+  let permalink = '';
+  try {
+    permalink = (await graph(creds, 'get', id, { params: { fields: 'permalink' } })).permalink || '';
+  } catch {
+    // posted even if the link can not be read
+  }
+  return { id, permalink };
+}
+
+// ---------- Comments ----------
+export async function listMediaComments(tenantId, mediaId) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return [];
+  const r = await graph(creds, 'get', `${mediaId}/comments`, { params: { fields: 'id,text,username,timestamp,from,hidden,replies{id,text,username,timestamp,from,hidden}', limit: 100 } });
+  const out = [];
+  const add = (c, parent) => out.push({ externalId: c.id, parentExternalId: parent, from: { id: c.from?.id, username: c.username || c.from?.username }, text: c.text || '', at: new Date(c.timestamp), hidden: !!c.hidden });
+  for (const c of r.data || []) {
+    add(c);
+    for (const rep of c.replies?.data || []) add(rep, c.id);
+  }
+  return out;
+}
+
+export async function replyToMediaComment(tenantId, commentId, text) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return { id: `MOCKREPLY${crypto.randomBytes(6).toString('hex')}` };
+  return graph(creds, 'post', `${commentId}/replies`, { data: { message: text } });
+}
+
+export async function hideMediaComment(tenantId, commentId, hidden) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return true;
+  await graph(creds, 'post', commentId, { data: { hide: hidden } });
+  return true;
+}
+
+export async function deleteMediaComment(tenantId, commentId) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return true;
+  await graph(creds, 'delete', commentId);
+  return true;
+}
+
+/** One private DM to the person who wrote the comment (within 7 days of the comment) */
+export async function privateReplyToComment(tenantId, commentId, text) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return { message_id: `mid.MOCK.${crypto.randomBytes(6).toString('hex')}` };
+  return graph(creds, 'post', `${creds.igUserId || 'me'}/messages`, { data: { recipient: { comment_id: commentId }, message: { text } } });
+}

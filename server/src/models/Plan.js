@@ -16,6 +16,7 @@ const planSchema = new mongoose.Schema(
     modules: {
       chatbot: { type: Boolean, default: true },
       instagram: { type: Boolean, default: true }, // Instagram DMs in the inbox
+      social: { type: Boolean, default: true }, // posting to Facebook / Instagram + comments
     },
     isActive: { type: Boolean, default: true },
   },

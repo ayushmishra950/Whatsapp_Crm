@@ -30,6 +30,20 @@ const tenantSchema = new mongoose.Schema(
       connectedAt: Date,
     },
 
+    // One Facebook Page per business (Facebook Login for Business): posts + comments
+    facebook: {
+      mode: { type: String, enum: ['mock', 'live'], default: 'mock' },
+      pageId: { type: String, index: { unique: true, sparse: true } }, // webhook entry.id → this business
+      pageName: String,
+      pagePicture: String,
+      pageTokenEnc: { type: String, select: false }, // long-lived Page token, AES-GCM encrypted
+      // Pages the admin can choose from right after logging in (encrypted user token + list, 30 minutes)
+      pendingPagesEnc: { type: String, select: false },
+      pendingAt: Date,
+      tokenError: String,
+      connectedAt: Date,
+    },
+
     // One Instagram professional account per business (Instagram API with Instagram Login)
     instagram: {
       // mock = sandbox until the account is connected; live = real DMs
@@ -42,6 +56,7 @@ const tenantSchema = new mongoose.Schema(
       tokenExpiresAt: Date,
       tokenRefreshedAt: Date,
       tokenError: String, // last refresh / send auth error (shown in Settings, alerts the admin)
+      scopes: [String], // permissions the business allowed when connecting (posting / comments need the newer ones)
       connectedAt: Date,
     },
 

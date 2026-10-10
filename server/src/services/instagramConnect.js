@@ -11,8 +11,10 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 import { HttpError } from '../utils/http.js';
 import { notify } from './alerts.js';
 
-export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_manage_messages'];
-export const IG_WEBHOOK_FIELDS = ['messages', 'messaging_postbacks', 'messaging_seen', 'message_reactions', 'messaging_referral'];
+// DMs + posting + comments. A business connected before posting existed must connect again to add the last two.
+export const IG_SCOPES = ['instagram_business_basic', 'instagram_business_manage_messages', 'instagram_business_content_publish', 'instagram_business_manage_comments'];
+export const IG_WEBHOOK_FIELDS = ['messages', 'messaging_postbacks', 'messaging_seen', 'message_reactions', 'messaging_referral', 'comments'];
+const grantedScopes = (p) => (Array.isArray(p) ? p : String(p || IG_SCOPES.join(',')).split(',')).map((x) => String(x).trim()).filter(Boolean);
 const graph = (path) => `https://graph.instagram.com/${env.instagram.graphVersion}/${path}`;
 const metaError = (err) => err.response?.data?.error_message || err.response?.data?.error?.message || err.message;
 
@@ -80,6 +82,8 @@ export async function completeConnect({ tenantId, code }) {
         'instagram.tokenExpiresAt': new Date(Date.now() + (Number(long.expires_in) || 60 * 86400) * 1000),
         'instagram.tokenRefreshedAt': new Date(),
         'instagram.connectedAt': new Date(),
+        // What the business allowed (Instagram may send it as a list or a comma-separated text)
+        'instagram.scopes': grantedScopes(short.permissions),
       },
       $unset: { 'instagram.tokenError': 1 },
     }
@@ -90,7 +94,7 @@ export async function completeConnect({ tenantId, code }) {
 export async function disconnectInstagram(tenantId) {
   await Tenant.updateOne(
     { _id: tenantId },
-    { $set: { 'instagram.mode': 'mock' }, $unset: { 'instagram.igUserId': 1, 'instagram.accessTokenEnc': 1, 'instagram.tokenExpiresAt': 1, 'instagram.tokenRefreshedAt': 1, 'instagram.tokenError': 1, 'instagram.connectedAt': 1 } }
+    { $set: { 'instagram.mode': 'mock' }, $unset: { 'instagram.igUserId': 1, 'instagram.accessTokenEnc': 1, 'instagram.tokenExpiresAt': 1, 'instagram.tokenRefreshedAt': 1, 'instagram.tokenError': 1, 'instagram.connectedAt': 1, 'instagram.scopes': 1 } }
   );
 }
 

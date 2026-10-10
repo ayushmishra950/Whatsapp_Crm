@@ -19,6 +19,7 @@ export default function MoreScreen() {
   const tenant = session?.tenant;
   const canBroadcast = isAdmin || !!tenant?.settings?.agentsCanBroadcast;
   const chatbotInPlan = tenant?.plan?.modules?.chatbot !== false;
+  const socialInPlan = tenant?.plan?.modules?.social !== false;
 
   const groups: { title: string; items: Item[] }[] = [
     {
@@ -32,6 +33,8 @@ export default function MoreScreen() {
     {
       title: 'Marketing',
       items: [
+        { icon: 'chatbubbles-outline', title: 'Comments', subtitle: 'Facebook / Instagram post comments', href: '/social/comments', badge: counts.unreadComments, show: socialInPlan },
+        { icon: 'share-social-outline', title: 'Facebook / Insta posts', subtitle: 'Post on your Page and Instagram', href: '/social', show: isAdmin && socialInPlan },
         { icon: 'megaphone-outline', title: 'Bulk campaigns', subtitle: 'Send a template to many leads', href: '/campaigns', show: canBroadcast },
         { icon: 'git-branch-outline', title: 'Drips & automations', subtitle: 'Automatic follow-up series', href: '/drips', show: isAdmin },
         { icon: 'locate-outline', title: 'Ads', subtitle: 'Leads from Facebook / Instagram ads', href: '/ads' },

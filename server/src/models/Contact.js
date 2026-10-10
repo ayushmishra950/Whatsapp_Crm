@@ -15,6 +15,8 @@ const contactSchema = new mongoose.Schema(
       profilePic: String,
       profileAt: Date, // when the profile was last fetched (the picture URL expires)
     },
+    // Someone who commented on the business's Facebook Page (made into a lead from the Comments inbox)
+    facebook: { userId: String, name: String },
     email: { type: String, trim: true, lowercase: true },
     tags: { type: [String], default: [] },
     customFields: { type: Map, of: String, default: {} },

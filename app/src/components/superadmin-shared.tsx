@@ -28,7 +28,7 @@ export type Plan = {
   priceMonthly: number;
   currency?: string;
   limits: { agents: number; contacts: number; monthlyMessages: number };
-  modules?: { chatbot?: boolean; instagram?: boolean };
+  modules?: { chatbot?: boolean; instagram?: boolean; social?: boolean };
   features: string[];
   isActive: boolean;
   tenantCount?: number;

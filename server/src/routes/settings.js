@@ -17,6 +17,7 @@ import { BUILTIN_CONTACT_FIELDS, FIELD_TYPES, fieldKeyFromLabel, getContactField
 import { isSubscriptionActive, messagesUsedThisMonth } from '../services/subscription.js';
 import { env } from '../config/env.js';
 import { channelsReady } from '../services/channelMigration.js';
+import { chooseFromPending, disconnectFacebook, facebookReady, pendingPages } from '../services/facebookConnect.js';
 
 const router = Router();
 
@@ -55,6 +56,20 @@ router.get('/', async (req, res) => {
       ready: channelsReady(), // database update for Instagram done
       canConnect: !!(env.instagram.appId && env.instagram.redirectUrl), // Meta App keys filled in .env
       webhook: req.user.role === 'admin' ? { path: '/api/webhook/instagram', verifyToken: env.instagram.webhookVerifyToken } : undefined,
+      // Posting / comments need the newer permissions; businesses connected earlier must connect again
+      canPost: t.instagram?.mode !== 'live' || ['instagram_business_content_publish', 'instagram_business_manage_comments'].every((x) => (t.instagram?.scopes || []).includes(x)),
+    },
+    facebook: {
+      mode: t.facebook?.mode || 'mock',
+      pageId: t.facebook?.pageId,
+      pageName: t.facebook?.pageName,
+      pagePicture: t.facebook?.pagePicture,
+      connectedAt: t.facebook?.connectedAt,
+      tokenError: t.facebook?.tokenError,
+      inPlan: t.plan?.modules?.social !== false,
+      canConnect: facebookReady(),
+      choosing: !!t.facebook?.pendingAt && Date.now() - new Date(t.facebook.pendingAt).getTime() < 30 * 60000,
+      webhook: req.user.role === 'admin' ? { path: '/api/webhook/facebook', verifyToken: env.facebook.webhookVerifyToken } : undefined,
     },
     settings: t.settings,
   });
@@ -451,6 +466,22 @@ router.delete('/disk-files', authorize('admin'), async (req, res) => {
   const deleted = await deleteDiskFiles(req.tenantId, ids);
   await audit(req, 'storage.delete', { meta: { deleted } });
   res.json({ deleted, usage: await diskUsage(req.tenantId) });
+});
+
+// Facebook Page: the Pages to choose from after login, choose one, disconnect (admin)
+router.get('/facebook/pages', authorize('admin'), async (req, res) => {
+  res.json(await pendingPages(req.tenantId));
+});
+router.post('/facebook/page', authorize('admin'), async (req, res) => {
+  const { pageId } = validate(z.object({ pageId: z.string().min(1) }), req.body);
+  const page = await chooseFromPending(req.tenantId, pageId);
+  await audit(req, 'facebook.connect', { meta: { pageId: page.id, pageName: page.name } });
+  res.json({ ok: true, pageName: page.name });
+});
+router.delete('/facebook', authorize('admin'), async (req, res) => {
+  await disconnectFacebook(req.tenantId);
+  await audit(req, 'facebook.disconnect', {});
+  res.json({ ok: true });
 });
 
 // Disconnect Instagram (admin): DMs stop, chats and leads stay

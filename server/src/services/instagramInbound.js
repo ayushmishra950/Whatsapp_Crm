@@ -35,6 +35,15 @@ export async function handleInstagramPayload(body, webhookAt = new Date()) {
       console.warn(`[instagram] ${tenant.name}: Instagram is off (plan) or the channel migration has not run`);
       continue;
     }
+    // Comments on the business's posts (field "comments")
+    for (const c of (entry.changes || []).filter((x) => x.field === 'comments' && x.value)) {
+      try {
+        const { handleInstagramCommentChange, socialAllowed } = await import('./social.js');
+        if (await socialAllowed(tenant)) await withDbRetry(() => handleInstagramCommentChange(tenant, c.value), { label: 'instagram comment' });
+      } catch (err) {
+        console.error('[instagram] comment not saved', err.message);
+      }
+    }
     // DMs normally come as entry.messaging[]; some deliveries (and the App Dashboard "Test" button) use
     // entry.changes[{ field: 'messages', value: <event> }]: both are handled the same way
     const events = [...(entry.messaging || []), ...(entry.changes || []).filter((c) => ['messages', 'messaging_postbacks', 'message_reactions', 'messaging_seen', 'messaging_referral'].includes(c.field) && c.value).map((c) => c.value)];

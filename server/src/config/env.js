@@ -46,6 +46,15 @@ export const env = {
     // Where Instagram sends the business back after "Connect Instagram" (must match the App Dashboard exactly)
     redirectUrl: process.env.IG_REDIRECT_URL || '',
   },
+  // Facebook Page posts + comments (Facebook Login for Business, same Meta App as WhatsApp)
+  facebook: {
+    graphVersion: process.env.FB_GRAPH_VERSION || 'v25.0',
+    appId: process.env.FB_APP_ID || '', // the Meta App's own id (top of the App Dashboard), not the Instagram app id
+    appSecret: process.env.FB_APP_SECRET || process.env.WA_APP_SECRET || '',
+    loginConfigId: process.env.FB_LOGIN_CONFIG_ID || '', // Facebook Login for Business → Configurations
+    redirectUrl: process.env.FB_REDIRECT_URL || '',
+    webhookVerifyToken: process.env.FB_WEBHOOK_VERIFY_TOKEN || process.env.IG_WEBHOOK_VERIFY_TOKEN || 'dev-fb-verify-token',
+  },
   // This API's public address (https://api.example.com): Instagram fetches files we send from here
   // when they are kept on this server instead of Cloudinary
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/$/, ''),

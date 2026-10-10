@@ -10,7 +10,7 @@ import { fmtRelative } from '@/lib/format';
 import { useSocketEvent } from '@/lib/socket';
 import { C, S } from '@/theme';
 
-const ICON: Record<string, string> = { hot: '🔥', task: '⏰', overdue: '⚠️', alert: '🚨', reply: '💬', info: 'ℹ️', report: '📊', storage: '💾' };
+const ICON: Record<string, string> = { hot: '🔥', task: '⏰', overdue: '⚠️', alert: '🚨', reply: '💬', info: 'ℹ️', report: '📊', storage: '💾', comment: '💬' };
 
 /** The bell: alerts for this person (hot leads, tasks, overdue, replies during drips…) */
 export default function NotificationsScreen() {
@@ -34,6 +34,7 @@ export default function NotificationsScreen() {
     if (!n.readAt) api('/notifications/read', { method: 'POST', body: { ids: [n._id] } }).then(reloadCounts).catch(() => {});
     const cid = n.contactId?._id || n.contactId;
     if (n.kind === 'storage') router.push('/disk-files');
+    else if (n.kind === 'comment') router.push('/social/comments');
     else if (!cid && n.taskId) router.push('/tasks'); // task alert without a lead
     else if (cid) router.push(`/lead/${cid}`);
     else load();

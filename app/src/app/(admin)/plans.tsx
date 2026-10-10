@@ -21,9 +21,10 @@ type Draft = {
   features: string;
   chatbot: boolean;
   instagram: boolean;
+  social: boolean;
   isActive: boolean;
 };
-const emptyDraft: Draft = { name: '', description: '', priceMonthly: '0', agents: '3', contacts: '1000', monthlyMessages: '5000', features: '', chatbot: true, instagram: true, isActive: true };
+const emptyDraft: Draft = { name: '', description: '', priceMonthly: '0', agents: '3', contacts: '1000', monthlyMessages: '5000', features: '', chatbot: true, instagram: true, social: true, isActive: true };
 const toDraft = (p: Plan): Draft => ({
   _id: p._id,
   name: p.name,
@@ -35,6 +36,7 @@ const toDraft = (p: Plan): Draft => ({
   features: (p.features || []).join('\n'),
   chatbot: p.modules?.chatbot !== false,
   instagram: p.modules?.instagram !== false,
+  social: p.modules?.social !== false,
   isActive: p.isActive,
 });
 const num = (v: string) => Math.max(0, parseInt(v, 10) || 0);
@@ -71,7 +73,7 @@ export default function PlansScreen() {
       priceMonthly: Math.max(0, Number(editing.priceMonthly) || 0),
       limits: { agents: num(editing.agents), contacts: num(editing.contacts), monthlyMessages: num(editing.monthlyMessages) },
       features: editing.features.split('\n').map((f) => f.trim()).filter(Boolean),
-      modules: { chatbot: editing.chatbot, instagram: editing.instagram },
+      modules: { chatbot: editing.chatbot, instagram: editing.instagram, social: editing.social },
       isActive: editing.isActive,
     };
     try {
@@ -135,6 +137,7 @@ export default function PlansScreen() {
                 <T>✉️ {fmtNum(p.limits?.monthlyMessages)} messages / month</T>
                 <T style={p.modules?.chatbot === false ? { color: C.faint } : undefined}>{p.modules?.chatbot !== false ? '🤖 Chatbot included' : '🤖 No chatbot'}</T>
                 <T style={p.modules?.instagram === false ? { color: C.faint } : undefined}>{p.modules?.instagram !== false ? '📸 Instagram DMs included' : '📸 No Instagram'}</T>
+                <T style={p.modules?.social === false ? { color: C.faint } : undefined}>{p.modules?.social !== false ? '📣 Facebook / Instagram posts & comments' : '📣 No posts & comments'}</T>
                 {(p.features || []).map((f) => (
                   <T key={f} v="small">• {f}</T>
                 ))}
@@ -183,6 +186,7 @@ export default function PlansScreen() {
             </Field>
             <Toggle value={editing.chatbot} onChange={(v) => set('chatbot', v)} label="Chatbot module" description="Businesses on this plan can use the WhatsApp chatbot" />
             <Toggle value={editing.instagram} onChange={(v) => set('instagram', v)} label="Instagram module" description="Businesses on this plan can connect Instagram and answer Instagram DMs" />
+            <Toggle value={editing.social} onChange={(v) => set('social', v)} label="Posts & comments module" description="Businesses on this plan can post on their Facebook Page / Instagram and reply to comments" />
             <Toggle value={editing.isActive} onChange={(v) => set('isActive', v)} label="Active" description="Inactive plans can not be chosen for new businesses" />
           </>
         ) : null}

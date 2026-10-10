@@ -30,6 +30,8 @@ export default function AppLayout() {
         <Stack.Screen name="drips/index" options={{ title: 'Drips & automations' }} />
         <Stack.Screen name="drips/[id]" options={{ title: 'Drip' }} />
         <Stack.Screen name="disk-files" options={{ title: 'Files on server disk' }} />
+        <Stack.Screen name="social/index" options={{ title: 'Facebook / Insta posts' }} />
+        <Stack.Screen name="social/comments" options={{ title: 'Comments' }} />
       </Stack>
       <SubscriptionBanner />
       <ImpersonationBar />
