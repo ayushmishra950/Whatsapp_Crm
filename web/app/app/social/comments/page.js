@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCheck, ExternalLink, RefreshCw, EyeOff, Eye, Mail, MessageSquareText, Reply, Search, Trash2, UserPlus, UserRound, X } from "lucide-react";
@@ -16,14 +16,17 @@ import { Avatar, Badge, Button, Card, ConfirmModal, EmptyState, Input, Modal, Pa
 
 const PRIVATE_DAYS = 7;
 
-function CommentRow({ c, replies, isAdmin, now, onChanged }) {
+function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
   const toast = useToast();
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState("");
   const [dm, setDm] = useState(null); // private message text
   const [deleting, setDeleting] = useState(false);
-  const unread = !c.readAt && !c.fromBusiness;
+  // "New" = not seen before this visit (it is marked read as soon as it is on screen, but stays highlighted here)
+  const isNew = (x) => !x.fromBusiness && (!x.readAt || fresh.has(x._id));
+  const unread = isNew(c);
+  const newReplies = replies.filter(isNew).length;
   const post = c.socialPostId;
   const canPrivate = !c.fromBusiness && !c.privateReplyAt && now - new Date(c.at).getTime() < PRIVATE_DAYS * 86400000;
 
@@ -47,7 +50,7 @@ function CommentRow({ c, replies, isAdmin, now, onChanged }) {
     });
 
   return (
-    <Card className={cx("p-3", unread && "border-brand-300 bg-brand-50/30")}>
+    <Card className={cx("p-3", (unread || newReplies > 0) && "border-brand-400 bg-brand-50/40 ring-1 ring-brand-200")}>
       <div className="flex gap-3">
         <Avatar name={commenterName(c)} className="h-9 w-9 shrink-0" />
         <div className="min-w-0 flex-1 space-y-1">
@@ -56,6 +59,7 @@ function CommentRow({ c, replies, isAdmin, now, onChanged }) {
             {nameHidden(c) && <span className="text-xs text-slate-400" title="Facebook / Instagram hide the name until the Meta app gets Advanced Access (App Review)">(name hidden by {c.platform === "instagram" ? "Instagram" : "Facebook"})</span>}
             <ChannelBadge channel={c.platform} />
             {unread && <Badge tone="red">New</Badge>}
+            {newReplies > 0 && <Badge tone="red">{newReplies} new {newReplies > 1 ? "replies" : "reply"} below</Badge>}
             {c.hidden && <Badge tone="gray">Hidden</Badge>}
             {c.privateReplyAt && <Badge tone="blue">Private message sent</Badge>}
             <span className="text-xs text-slate-500">{fmtRelative(c.at)}</span>
@@ -76,8 +80,9 @@ function CommentRow({ c, replies, isAdmin, now, onChanged }) {
           {replies.length > 0 && (
             <div className="mt-2 space-y-1.5 border-l-2 border-slate-200 pl-3">
               {replies.map((r) => (
-                <div key={r._id} className="text-sm">
+                <div key={r._id} className={cx("rounded text-sm", isNew(r) && "-mx-1.5 bg-red-50 px-1.5 py-0.5")}>
                   <span className={cx("font-medium", r.fromBusiness ? "text-brand-700" : "text-slate-900")}>{commenterName(r)}</span>{" "}
+                  {isNew(r) && <Badge tone="red" className="mr-1">New</Badge>}
                   <span className="text-slate-700">{r.text}</span>{" "}
                   <span className="text-xs text-slate-400">{fmtRelative(r.at)}</span>
                 </div>
@@ -97,7 +102,6 @@ function CommentRow({ c, replies, isAdmin, now, onChanged }) {
               ) : (
                 <Button size="sm" variant="ghost" loading={busy === "lead"} onClick={() => run("lead", () => api(`/social/comments/${c._id}/lead`, { method: "POST" }), "Saved as a lead")}><UserPlus className="h-3.5 w-3.5" /> Make lead</Button>
               )}
-              {unread && <Button size="sm" variant="ghost" loading={busy === "read"} onClick={() => run("read", () => api("/social/comments/read", { method: "POST", body: { ids: [c._id] } }))}><CheckCheck className="h-3.5 w-3.5" /> Mark read</Button>}
               {isAdmin && <Button size="sm" variant="ghost" className="text-red-600" onClick={() => setDeleting(true)}><Trash2 className="h-3.5 w-3.5" /> Delete</Button>}
             </div>
           )}
@@ -148,10 +152,25 @@ function CommentsInbox() {
   const [marking, setMarking] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => Date.now()); // for the 7-day private-message window
+  const [fresh, setFresh] = useState(() => new Set()); // unread when they reached the screen: highlighted for this visit
+  const marking$ = useRef(false);
 
   const load = () =>
     api("/social/comments", { query: { ...filters, postId, page } })
-      .then((r) => { setData(r); setNow(Date.now()); })
+      .then((r) => {
+        setData(r);
+        setNow(Date.now());
+        const unseen = r.items.filter((c) => !c.readAt && !c.fromBusiness).map((c) => c._id);
+        if (!unseen.length) return;
+        setFresh((f) => new Set([...f, ...unseen]));
+        // Seen = read (sidebar count goes down). In "Unread only" they stay unread until the user acts.
+        if (filters.unread || document.hidden || marking$.current) return;
+        marking$.current = true;
+        api("/social/comments/read", { method: "POST", body: { ids: unseen } })
+          .then(() => window.dispatchEvent(new Event("crm-counts-refresh")))
+          .catch(() => {})
+          .finally(() => (marking$.current = false));
+      })
       .catch(toast.error);
   useEffect(() => { load(); }, [filters, postId, page]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -178,6 +197,10 @@ function CommentsInbox() {
     if (c.parentExternalId && byExternal.has(c.parentExternalId)) (replies[c.parentExternalId] ||= []).push(c);
     else top.unshift(c);
   }
+  // A thread with a new reply comes to the top
+  const lastActivity = (c) => Math.max(new Date(c.at).getTime(), ...(replies[c.externalId] || []).map((r) => new Date(r.at).getTime()));
+  top.sort((a, b) => lastActivity(b) - lastActivity(a));
+  const newCount = data.items.filter((c) => !c.fromBusiness && (!c.readAt || fresh.has(c._id))).length;
   const setFilter = (patch) => { setPage(1); setFilters({ ...filters, ...patch }); };
   // Read the comments again from Facebook / Instagram (picks up comments whose webhook never came)
   const refresh = async () => {
@@ -197,6 +220,7 @@ function CommentsInbox() {
     setMarking(true);
     try {
       await api("/social/comments/read", { method: "POST", body: { all: true } });
+      window.dispatchEvent(new Event("crm-counts-refresh"));
       load();
     } catch (err) {
       toast.error(err);
@@ -234,6 +258,11 @@ function CommentsInbox() {
           <Input id="cm-search" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search comment or name" />
         </div>
       </div>
+      {newCount > 0 && (
+        <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+          <b>{newCount} new comment{newCount > 1 ? "s" : ""}</b> since you opened this page — highlighted below with a red <b>New</b> tag.
+        </p>
+      )}
       {postId && (
         <p className="mb-3 flex items-center gap-2 text-sm text-slate-600">
           Showing one post&apos;s comments. <Link href="/app/social/comments" className="text-brand-700 hover:underline">Show all</Link>
@@ -243,7 +272,7 @@ function CommentsInbox() {
         <EmptyState icon={MessageSquareText} title={filters.unread ? "No unread comments" : "No comments yet"} description="Comments on posts made from the CRM (and other posts on your Page / Instagram) appear here as they come." />
       ) : (
         <div className="space-y-2">
-          {top.map((c) => <CommentRow key={c._id} c={c} replies={replies[c.externalId] || []} isAdmin={isAdmin} now={now} onChanged={load} />)}
+          {top.map((c) => <CommentRow key={c._id} c={c} replies={replies[c.externalId] || []} isAdmin={isAdmin} now={now} fresh={fresh} onChanged={load} />)}
           <Pagination page={page} limit={50} total={data.total} onChange={setPage} />
         </div>
       )}

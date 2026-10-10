@@ -39,6 +39,12 @@ function useActionCounts(enabled) {
   useSocketEvent("message:new", load);
   useSocketEvent("conversation:updated", load);
   useSocketEvent("social:comment", load);
+  useSocketEvent("social:read", load);
+  // Pages that change the numbers themselves (e.g. comments seen) ask for a refresh right away
+  useEffect(() => {
+    window.addEventListener("crm-counts-refresh", load);
+    return () => window.removeEventListener("crm-counts-refresh", load);
+  }, [load]);
   return counts;
 }
 

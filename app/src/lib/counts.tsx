@@ -33,6 +33,7 @@ export function CountsProvider({ children }: { children: ReactNode }) {
   useSocketEvent('message:new', reload, epoch);
   useSocketEvent('conversation:updated', reload, epoch);
   useSocketEvent('social:comment', reload, epoch);
+  useSocketEvent('social:read', reload, epoch);
   return <Ctx.Provider value={{ counts, reload }}>{children}</Ctx.Provider>;
 }
 

@@ -1,5 +1,5 @@
 import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, FlatList, Linking, Pressable, RefreshControl, View } from 'react-native';
 import { ChannelBadge } from '@/components/channel';
 import { commenterName, nameHidden, type SocialComment } from '@/components/social';
@@ -30,6 +30,8 @@ export default function CommentsScreen() {
   const [now, setNow] = useState(() => Date.now());
   const [reply, setReply] = useState<{ c: SocialComment; text: string; private?: boolean } | null>(null);
   const [busy, setBusy] = useState('');
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set()); // unread when they reached the screen: highlighted for this visit
+  const marking = useRef(false);
 
   const load = useCallback(
     () =>
@@ -37,10 +39,20 @@ export default function CommentsScreen() {
         .then((r) => {
           setData(r);
           setNow(Date.now());
+          const unseen = r.items.filter((c) => !c.readAt && !c.fromBusiness).map((c) => c._id);
+          if (!unseen.length) return;
+          setFresh((f) => new Set([...f, ...unseen]));
+          // Seen = read (badges go down). In "Unread" they stay unread until the user acts.
+          if (filter === 'unread' || AppState.currentState !== 'active' || marking.current) return;
+          marking.current = true;
+          api('/social/comments/read', { method: 'POST', body: { ids: unseen } })
+            .then(() => reloadCounts())
+            .catch(() => {})
+            .finally(() => (marking.current = false));
         })
         .catch(toast.error)
         .finally(() => setRefreshing(false)),
-    [toast, filter, postId]
+    [toast, filter, postId, reloadCounts]
   );
   useEffect(() => {
     load();
@@ -105,6 +117,11 @@ export default function CommentsScreen() {
     if (c.parentExternalId && byExternal.has(c.parentExternalId)) (replies[c.parentExternalId] ||= []).push(c);
     else top.unshift(c);
   }
+  // "New" = not seen before this visit; a thread with a new reply comes to the top
+  const isNew = (x: SocialComment) => !x.fromBusiness && (!x.readAt || fresh.has(x._id));
+  const lastActivity = (c: SocialComment) => Math.max(new Date(c.at).getTime(), ...(replies[c.externalId] || []).map((r) => new Date(r.at).getTime()));
+  top.sort((a, b) => lastActivity(b) - lastActivity(a));
+  const newCount = data.items.filter(isNew).length;
 
   // "⋯" menu of a customer's comment
   const openMenu = (c: SocialComment) => {
@@ -130,12 +147,13 @@ export default function CommentsScreen() {
   };
 
   const renderItem = ({ item: c }: { item: SocialComment }) => {
-    const unread = !c.readAt && !c.fromBusiness;
+    const unread = isNew(c);
     const post = c.socialPostId;
     const permalink = post?.targets?.find((t) => t.platform === c.platform)?.permalink;
     const thread = replies[c.externalId] || [];
+    const newReplies = thread.filter(isNew).length;
     return (
-      <Card style={[{ gap: 6 }, unread && { borderColor: C.brand500, backgroundColor: C.brand50 }]}>
+      <Card style={[{ gap: 6 }, (unread || newReplies > 0) && { borderColor: C.brand500, borderWidth: 1.5, backgroundColor: C.brand50 }]}>
         <Row gap={S.sm} style={{ alignItems: 'flex-start' }}>
           <Avatar name={commenterName(c)} size={36} />
           <View style={{ flex: 1, gap: 3 }}>
@@ -144,6 +162,7 @@ export default function CommentsScreen() {
               {nameHidden(c) ? <T v="tiny">(name hidden by {c.platform === 'instagram' ? 'Instagram' : 'Facebook'})</T> : null}
               <ChannelBadge channel={c.platform} />
               {unread ? <Badge tone="red">New</Badge> : null}
+              {newReplies ? <Badge tone="red">{`${newReplies} new ${newReplies > 1 ? 'replies' : 'reply'} below`}</Badge> : null}
               {c.hidden ? <Badge>Hidden</Badge> : null}
               {c.privateReplyAt ? <Badge tone="blue">Private message sent</Badge> : null}
               <T v="tiny">{fmtRelative(c.at)}</T>
@@ -161,10 +180,13 @@ export default function CommentsScreen() {
         {thread.length ? (
           <View style={{ marginLeft: 44, borderLeftWidth: 2, borderLeftColor: C.border, paddingLeft: S.sm, gap: 4 }}>
             {thread.map((r) => (
-              <T key={r._id} v="small">
-                <T v="small" style={{ fontWeight: '700', color: r.fromBusiness ? C.brand700 : C.text }}>{commenterName(r)} </T>
-                <T v="small" style={{ color: C.text2 }}>{r.text}</T>
-              </T>
+              <View key={r._id} style={isNew(r) ? { backgroundColor: '#fef2f2', borderRadius: 4, padding: 4 } : undefined}>
+                <T v="small">
+                  <T v="small" style={{ fontWeight: '700', color: r.fromBusiness ? C.brand700 : C.text }}>{commenterName(r)} </T>
+                  {isNew(r) ? <T v="small" style={{ color: C.red, fontWeight: '700' }}>NEW </T> : null}
+                  <T v="small" style={{ color: C.text2 }}>{r.text}</T>
+                </T>
+              </View>
             ))}
           </View>
         ) : null}
@@ -196,6 +218,13 @@ export default function CommentsScreen() {
       />
       <View style={{ paddingHorizontal: S.lg, paddingTop: S.md, gap: S.sm }}>
         <ChipBar<Filter> options={[['all', 'All'], ['unread', 'Unread'], ['facebook', 'Facebook'], ['instagram', 'Instagram']]} value={filter} onChange={setFilter} counts={{ unread: data.unread }} />
+        {newCount ? (
+          <View style={{ backgroundColor: '#fef2f2', borderRadius: R.sm, padding: S.sm }}>
+            <T v="small" style={{ color: '#991b1b' }}>
+              <T v="small" style={{ color: '#991b1b', fontWeight: '700' }}>{`${newCount} new comment${newCount > 1 ? 's' : ''}`}</T> since you opened this screen — marked with a red New tag.
+            </T>
+          </View>
+        ) : null}
         {postId ? (
           <Pressable onPress={() => router.setParams({ post: '' })}>
             <T v="small">Showing one post’s comments · <T v="small" style={{ color: C.brand700, fontWeight: '600' }}>Show all</T></T>

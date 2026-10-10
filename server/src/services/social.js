@@ -300,6 +300,7 @@ export async function markRead(tenant, ids) {
   for (const u of unread) if (u.socialPostId) perPost[u.socialPostId] = (perPost[u.socialPostId] || 0) + 1;
   for (const [postId, n] of Object.entries(perPost)) await SocialPost.updateOne({ _id: postId }, { $inc: { unreadComments: -n } });
   await SocialPost.updateMany({ tenantId: tenant._id, unreadComments: { $lt: 0 } }, { $set: { unreadComments: 0 } });
+  emitToTenant(tenant._id, 'social:read', { count: unread.length }); // sidebar counts in other open tabs / phones
   return unread.length;
 }
 
