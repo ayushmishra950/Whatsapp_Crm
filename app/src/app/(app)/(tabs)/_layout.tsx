@@ -33,7 +33,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="inbox" options={{ title: 'Inbox', tabBarIcon: icon('chatbubbles'), tabBarBadge: badge(counts.unreadChats), tabBarBadgeStyle: { backgroundColor: C.brand600 } }} />
       <Tabs.Screen name="leads" options={{ title: 'Leads', tabBarIcon: icon('people'), tabBarBadge: badge(counts.newLeads), tabBarBadgeStyle: { backgroundColor: '#f59e0b' } }} />
       <Tabs.Screen name="tasks" options={{ title: 'Tasks', tabBarIcon: icon('checkbox'), tabBarBadge: badge(counts.tasksDue) }} />
-      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: icon('grid') }} />
+      <Tabs.Screen name="more" options={{ title: 'More', tabBarIcon: icon('grid'), tabBarBadge: badge(counts.unreadComments) }} />
     </Tabs>
   );
 }

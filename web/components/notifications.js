@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, BellOff } from "lucide-react";
 import { useSocketEvent } from "@/lib/socket";
 import { fmtPhone, displayName } from "@/lib/format";
 import { cx } from "./ui";
+import { useToast } from "./toast";
 
 const PREF_KEY = "crm_notifications"; // "on" | "off" (per browser)
 
@@ -54,6 +56,33 @@ export function NewMessageNotifier() {
     window.addEventListener("crm-notify-pref", onChange);
     return () => window.removeEventListener("crm-notify-pref", onChange);
   }, []);
+
+  // New Facebook / Instagram comment from a customer: sound + pop-up (+ desktop alert when the tab is hidden)
+  const toast = useToast();
+  const seenComments = useRef(new Set());
+  useSocketEvent("social:comment", (c) => {
+    if (!c || c.fromBusiness || c.readAt || c.deletedAt || !enabledRef.current) return;
+    if (Date.now() - new Date(c.createdAt).getTime() > 2 * 60 * 1000 || seenComments.current.has(c._id)) return; // only just-arrived ones, once
+    seenComments.current.add(c._id);
+    if (window.location.pathname.startsWith("/app/social/comments") && !document.hidden) return; // already looking at them
+    const where = c.platform === "facebook" ? "Facebook" : "Instagram";
+    const who = c.from?.name || (c.from?.username ? `@${c.from.username}` : "Someone");
+    ding();
+    toast.info(
+      <>
+        💬 New {where} comment from <b>{who}</b>: {String(c.text || "").slice(0, 80)}{" "}
+        <Link href="/app/social/comments" className="font-medium text-brand-700 hover:underline">Open</Link>
+      </>
+    );
+    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+      const n = new Notification(`💬 ${where} comment · ${who}`, { body: c.text || "", tag: `comment-${c._id}` });
+      n.onclick = () => {
+        window.focus();
+        router.push("/app/social/comments");
+        n.close();
+      };
+    }
+  });
 
   useSocketEvent("message:new", ({ message, conversation }) => {
     if (message.direction !== "inbound" || !enabledRef.current) return;

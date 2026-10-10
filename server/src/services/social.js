@@ -121,6 +121,9 @@ export function startSocialWorker() {
   const run = () => publishDue().catch((err) => console.error('[social] worker', err.message));
   timer = setInterval(run, 30000);
   setTimeout(run, 15000);
+  const sync = () => autoSyncComments().catch((err) => console.error('[social] comment sync', err.message));
+  setInterval(sync, 5 * 60 * 1000);
+  setTimeout(sync, 60000);
 }
 
 // ---------- comments ----------
@@ -140,7 +143,10 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
   }
   const post = c.postExternalId ? await SocialPost.findOne({ tenantId: tenant._id, 'targets.externalId': String(c.postExternalId) }).select('_id text') : null;
   const fromBusiness = !!c.from?.id && String(c.from.id) === String(ownAccountId(tenant, platform) || '');
-  const existed = await SocialComment.exists(key);
+  const before = await SocialComment.findOne(key).select('text hidden deletedAt').lean();
+  const existed = !!before;
+  // Re-read by the sync with nothing new: no write, no live update
+  if (before && !before.deletedAt && before.text === (c.text || '') && (c.hidden === undefined || !!before.hidden === !!c.hidden)) return SocialComment.findOne(key);
   const doc = await SocialComment.findOneAndUpdate(
     key,
     {
@@ -173,19 +179,51 @@ async function alertNewComment(tenant, platform, comment) {
   await notify(tenant._id, { to: 'admins', kind: 'comment', title: `💬 New ${platform === 'facebook' ? 'Facebook' : 'Instagram'} comment from ${who}`, body: comment.text.slice(0, 140), key, url: '/social/comments' });
 }
 
-/** Read the comments of a CRM post from Facebook / Instagram (for comments that came before webhooks were on) */
-export async function syncPostComments(tenant, post) {
+/**
+ * Read the comments of a CRM post from Facebook / Instagram: picks up comments whose webhook never came
+ * (webhook not set up yet, Meta did not send it, server was down). notifyTeam: alert for new customer comments.
+ * Returns the number of new comments; a platform that fails is listed in `errors` (the others still sync).
+ */
+export async function syncPostComments(tenant, post, { notifyTeam = false, errors = [] } = {}) {
   let added = 0;
   for (const t of post.targets) {
     if (t.status !== 'posted' || !t.externalId) continue;
-    const list = t.platform === 'facebook' ? await fb.listComments(tenant._id, t.externalId) : await ig.listMediaComments(tenant._id, t.externalId);
+    // Pretend (sandbox) posts made before the Page / account was connected do not exist on Facebook / Instagram
+    if (/MOCK/.test(t.externalId) && platformState(tenant, t.platform).live) continue;
+    let list;
+    try {
+      list = t.platform === 'facebook' ? await fb.listComments(tenant._id, t.externalId) : await ig.listMediaComments(tenant._id, t.externalId);
+    } catch (err) {
+      errors.push(`${t.platform === 'facebook' ? 'Facebook' : 'Instagram'}: ${err.message}`);
+      continue;
+    }
     for (const c of list) {
       const existed = await SocialComment.exists({ tenantId: tenant._id, platform: t.platform, externalId: c.externalId });
-      await ingestComment(tenant, t.platform, { ...c, postExternalId: t.externalId }, { notifyTeam: false });
+      await ingestComment(tenant, t.platform, { ...c, postExternalId: t.externalId }, { notifyTeam });
       if (!existed) added += 1;
     }
   }
   return added;
+}
+
+/** Sync the comments of the business's recent posts (Refresh button, and every few minutes in the worker) */
+export async function syncRecentComments(tenant, { days = 7, notifyTeam = false } = {}) {
+  const posts = await SocialPost.find({ tenantId: tenant._id, status: { $in: ['posted', 'partial'] }, scheduledAt: { $gte: new Date(Date.now() - days * 86400000) } })
+    .sort({ scheduledAt: -1 })
+    .limit(30);
+  const errors = [];
+  let added = 0;
+  for (const post of posts) added += await syncPostComments(tenant, post, { notifyTeam, errors });
+  return { added, posts: posts.length, errors: [...new Set(errors)] };
+}
+
+// Safety net for missed webhooks: every 5 minutes, the last 3 days' posts of connected businesses
+async function autoSyncComments() {
+  const tenants = await Tenant.find({ $or: [{ 'facebook.mode': 'live', 'facebook.pageId': { $exists: true } }, { 'instagram.mode': 'live', 'instagram.igUserId': { $exists: true } }] }).populate('plan', 'modules');
+  for (const tenant of tenants) {
+    if (!(await socialAllowed(tenant))) continue;
+    await syncRecentComments(tenant, { days: 3, notifyTeam: true }).catch((err) => console.error('[social] comment sync', String(tenant._id), err.message));
+  }
 }
 
 async function loadComment(tenant, id) {

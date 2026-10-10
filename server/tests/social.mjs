@@ -31,6 +31,9 @@ axios.defaults.adapter = async (config) => {
   if (/\/media$/.test(u)) return reply({ id: `CONT${calls.length}` });
   if (/\/CONT\d+$/.test(u)) return reply({ status_code: igStatus.shift() || 'FINISHED' });
   if (u.endsWith('/media_publish')) return reply({ id: `IGMEDIA${stamp}` });
+  // Comments read back by the sync (one from a customer, one from the Page / account itself)
+  if (/_222\/comments$/.test(u)) return reply({ data: [{ id: `FBC1${stamp}`, from: { id: `CUST${stamp}`, name: 'Sync Customer' }, message: 'Missed by the webhook', created_time: new Date().toISOString() }, { id: `FBC2${stamp}`, from: { id: `PAGE${stamp}`, name: 'Infonic Page' }, message: 'Page own comment', created_time: new Date().toISOString() }] });
+  if (/IGMEDIA\d+\/comments$/.test(u)) return reply({ data: [{ id: `IGC1${stamp}`, text: 'IG missed one', username: 'ig.cust', from: { id: `IGCUST${stamp}` }, timestamp: new Date().toISOString(), replies: { data: [] } }] });
   if (/_111$|_222$|IGMEDIA/.test(u)) return reply({ permalink_url: 'https://facebook.com/p/1', permalink: 'https://instagram.com/p/1' });
   throw new Error(`unexpected Meta call ${u}`);
 };
@@ -114,6 +117,8 @@ try {
   ok(r.items?.length === 3 && r.unread === 3, 'Comments inbox: unread comments from both platforms');
   r = await call(b.tok, 'GET', '/social/comments?platform=instagram');
   ok(r.items.length === 1 && r.items[0].platform === 'instagram', 'Filter by platform');
+  r = await call(b.tok, 'POST', '/social/comments/sync');
+  ok(r.added === 0 && Array.isArray(r.errors) && !r.errors.length, 'Refresh button (sandbox): nothing to read, no error');
 
   r = await call(b.tok, 'POST', `/social/comments/${fbComment._id}/reply`, { text: 'Fees ₹15,000, details DM kar di hai' });
   ok(r.status === 201 && r.fromBusiness && r.parentExternalId === fbComment.externalId, 'Public reply saved as the business, under the comment');
@@ -186,6 +191,18 @@ try {
   await social.publishDue(new Date(Date.now() + 60000));
   lp = await M.SocialPost.findById(livePost._id).lean();
   ok(lp.status === 'posted' && lp.targets.every((t) => t.status === 'posted') && calls.some((c) => c.url.endsWith('/media_publish')), 'Then published on Instagram (container → publish)');
+
+  // Refresh / auto-sync: comments whose webhook never came
+  const alertsBefore = await M.Notification.countDocuments({ tenantId: T, kind: 'comment' });
+  let sync = await social.syncRecentComments(await M.Tenant.findById(T), { notifyTeam: true });
+  const synced = await M.SocialComment.find({ tenantId: T, externalId: { $in: [`FBC1${stamp}`, `FBC2${stamp}`, `IGC1${stamp}`] } }).lean();
+  ok(sync.added === 3 && !sync.errors.length && synced.length === 3, 'Sync finds the comments the webhook missed (Facebook + Instagram)', JSON.stringify(sync));
+  ok(synced.find((c) => c.externalId === `FBC2${stamp}`).fromBusiness && !synced.find((c) => c.externalId === `FBC1${stamp}`).fromBusiness, "Page's own comment marked as yours, the customer's as unread");
+  ok((await M.Notification.countDocuments({ tenantId: T, kind: 'comment' })) > alertsBefore, 'Auto-sync alerts the team about missed customer comments');
+  const stamps = synced.map((c) => String(c.updatedAt)).join();
+  sync = await social.syncRecentComments(await M.Tenant.findById(T), { notifyTeam: true });
+  const again = await M.SocialComment.find({ tenantId: T, externalId: { $in: [`FBC1${stamp}`, `FBC2${stamp}`, `IGC1${stamp}`] } }).lean();
+  ok(sync.added === 0 && again.map((c) => String(c.updatedAt)).join() === stamps, 'Syncing again: nothing new, nothing rewritten');
 
   // Instagram connected before posting existed → asked to connect again
   await M.Tenant.updateOne({ _id: T }, { $set: { 'instagram.scopes': ['instagram_business_basic', 'instagram_business_manage_messages'] } });

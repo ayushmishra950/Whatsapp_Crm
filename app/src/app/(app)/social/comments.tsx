@@ -1,6 +1,6 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Linking, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, RefreshControl, View } from 'react-native';
 import { ChannelBadge } from '@/components/channel';
 import { commenterName, type SocialComment } from '@/components/social';
 import { useToast } from '@/components/toast';
@@ -60,6 +60,21 @@ export default function CommentsScreen() {
       return false;
     } finally {
       setBusy('');
+    }
+  };
+  // Read the comments again from Facebook / Instagram (picks up comments whose webhook never came)
+  const syncNow = async (quiet = false) => {
+    setBusy('sync');
+    try {
+      const r = await api<{ added: number; errors: string[] }>('/social/comments/sync', { method: 'POST' });
+      if (r.errors?.length) toast.error(r.errors[0]);
+      else if (!quiet || r.added) toast.success(r.added ? `${r.added} new comment${r.added > 1 ? 's' : ''} found` : 'Up to date — no new comments');
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setBusy('');
+      load();
+      reloadCounts();
     }
   };
   const sendReply = async () => {
@@ -153,12 +168,16 @@ export default function CommentsScreen() {
       <Stack.Screen
         options={{
           title: 'Comments',
-          headerRight: () =>
-            data.unread ? (
-              <Pressable hitSlop={8} onPress={() => run('all', () => api('/social/comments/read', { method: 'POST', body: { all: true } }))}>
-                <T v="small" style={{ color: C.brand700, fontWeight: '600' }}>Mark all read</T>
-              </Pressable>
-            ) : null,
+          headerRight: () => (
+            <Row gap={S.md}>
+              {data.unread ? (
+                <Pressable hitSlop={8} onPress={() => run('all', () => api('/social/comments/read', { method: 'POST', body: { all: true } }))}>
+                  <T v="small" style={{ color: C.brand700, fontWeight: '600' }}>Mark all read</T>
+                </Pressable>
+              ) : null}
+              {busy === 'sync' ? <ActivityIndicator color={C.brand600} /> : <IconButton name="refresh" label="Refresh comments" color={C.brand700} onPress={() => syncNow()} />}
+            </Row>
+          ),
         }}
       />
       <View style={{ paddingHorizontal: S.lg, paddingTop: S.md, gap: S.sm }}>
@@ -174,7 +193,7 @@ export default function CommentsScreen() {
         keyExtractor={(c) => c._id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: S.lg, gap: S.sm }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.brand600} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); syncNow(true); }} tintColor={C.brand600} />}
         ListEmptyComponent={<EmptyState icon="chatbubbles-outline" title={filter === 'unread' ? 'No unread comments' : 'No comments yet'} text="Comments on your Facebook Page and Instagram posts appear here as they come." />}
       />
 

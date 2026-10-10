@@ -158,6 +158,11 @@ router.get('/comments', async (req, res) => {
   res.json({ items, total, unread: unreadCount, page });
 });
 
+/** Refresh: read the comments of the last 7 days' posts from Facebook / Instagram (comments whose webhook never came) */
+router.post('/comments/sync', async (req, res) => {
+  res.json(await social.syncRecentComments(req.tenant, { days: 7 }));
+});
+
 router.post('/comments/read', async (req, res) => {
   const { ids, all } = validate(z.object({ ids: z.array(z.string().refine(mongoose.isValidObjectId)).optional(), all: z.boolean().optional() }), req.body || {});
   res.json({ marked: await social.markRead(req.tenant, all ? 'all' : ids || []) });

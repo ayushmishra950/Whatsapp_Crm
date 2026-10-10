@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCheck, ExternalLink, EyeOff, Eye, Mail, MessageSquareText, Reply, Search, Trash2, UserPlus, UserRound, X } from "lucide-react";
+import { CheckCheck, ExternalLink, RefreshCw, EyeOff, Eye, Mail, MessageSquareText, Reply, Search, Trash2, UserPlus, UserRound, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { fmtRelative } from "@/lib/format";
@@ -145,6 +145,7 @@ function CommentsInbox() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [marking, setMarking] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => Date.now()); // for the 7-day private-message window
 
   const load = () =>
@@ -168,6 +169,20 @@ function CommentsInbox() {
     else top.unshift(c);
   }
   const setFilter = (patch) => { setPage(1); setFilters({ ...filters, ...patch }); };
+  // Read the comments again from Facebook / Instagram (picks up comments whose webhook never came)
+  const refresh = async () => {
+    setSyncing(true);
+    try {
+      const r = await api("/social/comments/sync", { method: "POST" });
+      if (r.errors?.length) toast.error(r.errors[0]);
+      else toast.success(r.added ? `${r.added} new comment${r.added > 1 ? "s" : ""} found` : "Up to date — no new comments");
+      load();
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setSyncing(false);
+    }
+  };
   const markAll = async () => {
     setMarking(true);
     try {
@@ -185,7 +200,14 @@ function CommentsInbox() {
       <PageHeader
         title="Comments"
         description="Comments on your Facebook Page and Instagram posts. Reply here and it shows on Facebook / Instagram as your business."
-        actions={data.unread > 0 && <Button variant="secondary" onClick={markAll} loading={marking}><CheckCheck className="h-4 w-4" /> Mark all read ({data.unread})</Button>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={refresh} loading={syncing} title="Read the comments of the last 7 days' posts again from Facebook / Instagram">
+              {!syncing && <RefreshCw className="h-4 w-4" />} Refresh
+            </Button>
+            {data.unread > 0 && <Button variant="secondary" onClick={markAll} loading={marking}><CheckCheck className="h-4 w-4" /> Mark all read ({data.unread})</Button>}
+          </div>
+        }
       />
       <div className="mb-4 grid gap-2 sm:grid-cols-[auto_auto_1fr]">
         <Select id="cm-unread" value={filters.unread} onChange={(e) => setFilter({ unread: e.target.value })}>
