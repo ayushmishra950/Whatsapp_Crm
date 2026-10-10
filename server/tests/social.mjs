@@ -16,6 +16,7 @@ const FBC = await import(S + 'services/facebookConnect.js');
 
 // Fake Meta API for the "live" checks run in this process
 const calls = [];
+const flaky = { reply: 0 };
 let igStatus = ['IN_PROGRESS', 'FINISHED'];
 axios.defaults.adapter = async (config) => {
   let data = config.data;
@@ -31,6 +32,15 @@ axios.defaults.adapter = async (config) => {
   if (/\/media$/.test(u)) return reply({ id: `CONT${calls.length}` });
   if (/\/CONT\d+$/.test(u)) return reply({ status_code: igStatus.shift() || 'FINISHED' });
   if (u.endsWith('/media_publish')) return reply({ id: `IGMEDIA${stamp}` });
+  // Comment actions on the live Page: a temporary Meta error first (code 2), a hide that errors but did happen
+  const metaErr = (status, error) => Object.assign(new Error('meta'), { response: { status, data: { error } } });
+  if (u.endsWith(`FBC1${stamp}/comments`) && config.method === 'post') {
+    flaky.reply += 1;
+    if (flaky.reply === 1) throw metaErr(500, { code: 2, is_transient: true, message: 'An unexpected error has occurred. Please retry your request later.' });
+    return reply({ id: `LIVEREPLY${stamp}` });
+  }
+  if (u.endsWith(`FBC1${stamp}`) && config.method === 'post') throw metaErr(400, { code: 100, message: 'Hide answered with an error' });
+  if (u.endsWith(`FBC1${stamp}`) && config.method === 'get') return reply({ is_hidden: true, id: `FBC1${stamp}` });
   // Comments read back by the sync (one from a customer, one from the Page / account itself)
   if (/_222\/comments$/.test(u)) return reply({ data: [{ id: `FBC1${stamp}`, from: { id: `CUST${stamp}`, name: 'Sync Customer' }, message: 'Missed by the webhook', created_time: new Date().toISOString() }, { id: `FBC2${stamp}`, from: { id: `PAGE${stamp}`, name: 'Infonic Page' }, message: 'Page own comment', created_time: new Date().toISOString() }] });
   if (/IGMEDIA\d+\/comments$/.test(u)) return reply({ data: [{ id: `IGC1${stamp}`, text: 'IG missed one', username: 'ig.cust', from: { id: `IGCUST${stamp}` }, timestamp: new Date().toISOString(), replies: { data: [] } }] });
@@ -211,6 +221,19 @@ try {
   await social.ingestComment(t2, 'facebook', { externalId: `NONAME${stamp}`, postExternalId: `PAGE${stamp}_222`, from: { id: `CUSTX${stamp}`, name: 'Named Later' }, text: 'Who am I' }, { notifyTeam: false });
   const named = await M.SocialComment.find({ tenantId: T, externalId: `NONAME${stamp}` }).lean();
   ok(named.length === 1 && named[0].from?.name === 'Named Later' && !named[0].fromBusiness, 'Commenter name filled in when Facebook sends it later');
+
+  const t3 = await M.Tenant.findById(T);
+  const live1 = await M.SocialComment.findOne({ tenantId: T, externalId: `FBC1${stamp}` });
+  const rp = await social.replyToComment(t3, b.admin, String(live1._id), 'Details DM kar di');
+  ok(flaky.reply === 2 && rp.externalId === `LIVEREPLY${stamp}` && rp.fromBusiness, "Meta's temporary error: the reply is tried again and goes through");
+  const hd = await social.setHidden(t3, String(live1._id), true);
+  ok(hd.hidden === true, 'Hide answered with an error but the comment is hidden on Facebook: shown as hidden, no error');
+  await M.Tenant.updateOne({ _id: T }, { $set: { 'instagram.scopes': ['instagram_business_basic', 'instagram_business_manage_messages'] } });
+  const igC = await M.SocialComment.findOne({ tenantId: T, externalId: `IGC1${stamp}` });
+  let igErr;
+  await social.setHidden(await M.Tenant.findById(T), String(igC._id), true).catch((e) => (igErr = e));
+  ok(igErr?.status === 400 && /Connect again/.test(igErr.message), 'Instagram connected before comments: clear "connect again" message');
+  await M.Tenant.updateOne({ _id: T }, { $set: { 'instagram.scopes': ['instagram_business_basic', 'instagram_business_manage_messages', 'instagram_business_content_publish', 'instagram_business_manage_comments'] } });
 
   // Instagram connected before posting existed → asked to connect again
   await M.Tenant.updateOne({ _id: T }, { $set: { 'instagram.scopes': ['instagram_business_basic', 'instagram_business_manage_messages'] } });

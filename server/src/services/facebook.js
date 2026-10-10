@@ -8,6 +8,7 @@ import { env } from '../config/env.js';
 import { Tenant } from '../models/index.js';
 import { decrypt } from '../utils/crypto.js';
 import { HttpError } from '../utils/http.js';
+import { withMetaRetry } from '../utils/metaRetry.js';
 
 const graphUrl = (path, host = 'graph.facebook.com') => `https://${host}/${env.facebook.graphVersion}/${path}`;
 export const FB_PHOTO_MAX = 10 * 1024 * 1024;
@@ -28,7 +29,7 @@ function toHttpError(err) {
 
 async function graph(creds, method, path, { data, params, host } = {}) {
   try {
-    const res = await axios({ method, url: graphUrl(path, host), data, params: { ...params, access_token: creds.token }, timeout: 60000 });
+    const res = await withMetaRetry(() => axios({ method, url: graphUrl(path, host), data, params: { ...params, access_token: creds.token }, timeout: 60000 }), { method, label: 'facebook', path });
     return res.data;
   } catch (err) {
     throw toHttpError(err);
@@ -111,6 +112,13 @@ export async function hideComment(tenantId, commentId, hidden) {
   if (creds.mode === 'mock') return true;
   await graph(creds, 'post', commentId, { data: { is_hidden: hidden } });
   return true;
+}
+
+/** Is the comment hidden on Facebook right now? (to check a hide whose answer was an error) */
+export async function isCommentHidden(tenantId, commentId) {
+  const creds = await loadFacebookCredentials(tenantId);
+  if (creds.mode === 'mock') return null;
+  return !!(await graph(creds, 'get', commentId, { params: { fields: 'is_hidden' } })).is_hidden;
 }
 
 export async function deleteComment(tenantId, commentId) {

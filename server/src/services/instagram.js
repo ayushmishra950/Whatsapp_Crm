@@ -7,6 +7,7 @@
  */
 import crypto from 'node:crypto';
 import axios from 'axios';
+import { withMetaRetry } from '../utils/metaRetry.js';
 import { env } from '../config/env.js';
 import { Tenant } from '../models/index.js';
 import { decrypt } from '../utils/crypto.js';
@@ -42,7 +43,7 @@ function toHttpError(err) {
 
 async function graph(creds, method, path, { data, params } = {}) {
   try {
-    const res = await axios({ method, url: graphUrl(path), data, params, headers: { Authorization: `Bearer ${creds.accessToken}` }, timeout: 20000 });
+    const res = await withMetaRetry(() => axios({ method, url: graphUrl(path), data, params, headers: { Authorization: `Bearer ${creds.accessToken}` }, timeout: 20000 }), { method, label: 'instagram', path });
     return res.data;
   } catch (err) {
     throw toHttpError(err);
@@ -225,6 +226,13 @@ export async function replyToMediaComment(tenantId, commentId, text) {
   const creds = await loadInstagramCredentials(tenantId);
   if (creds.mode === 'mock') return { id: `MOCKREPLY${crypto.randomBytes(6).toString('hex')}` };
   return graph(creds, 'post', `${commentId}/replies`, { data: { message: text } });
+}
+
+/** Is the comment hidden on Instagram right now? (to check a hide whose answer was an error) */
+export async function isMediaCommentHidden(tenantId, commentId) {
+  const creds = await loadInstagramCredentials(tenantId);
+  if (creds.mode === 'mock') return null;
+  return !!(await graph(creds, 'get', commentId, { params: { fields: 'hidden' } })).hidden;
 }
 
 export async function hideMediaComment(tenantId, commentId, hidden) {

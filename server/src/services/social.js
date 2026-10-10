@@ -127,6 +127,17 @@ export function startSocialWorker() {
 }
 
 // ---------- comments ----------
+// The webhook copy of a comment and our own save of it can arrive at the same moment: the second
+// upsert then hits the unique index (E11000). Trying once more simply updates the saved one.
+async function upsertComment(key, update) {
+  try {
+    return await SocialComment.findOneAndUpdate(key, update, { upsert: true, returnDocument: 'after' });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    return SocialComment.findOneAndUpdate(key, update, { upsert: true, returnDocument: 'after' });
+  }
+}
+
 const ownAccountId = (tenant, platform) => (platform === 'facebook' ? tenant.facebook?.pageId : tenant.instagram?.igUserId);
 
 /**
@@ -152,7 +163,7 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
   const gotWho = !!(c.from?.id || c.from?.name || c.from?.username) && !(before?.from?.name || before?.from?.username);
   // Re-read by the sync with nothing new: no write, no live update
   if (before && !before.deletedAt && !gotWho && before.text === (c.text || '') && (c.hidden === undefined || !!before.hidden === !!c.hidden)) return SocialComment.findOne(key);
-  const doc = await SocialComment.findOneAndUpdate(
+  const doc = await upsertComment(
     key,
     {
       $set: {
@@ -168,8 +179,7 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
         fromBusiness,
         ...(fromBusiness && { readAt: new Date() }),
       },
-    },
-    { upsert: true, returnDocument: 'after' }
+    }
   );
   // Tell the screens first, then the counters on the post
   emitToTenant(tenant._id, 'social:comment', doc.toJSON());
@@ -239,6 +249,10 @@ async function loadComment(tenant, id) {
   const c = await SocialComment.findOne({ _id: id, tenantId: tenant._id });
   if (!c) throw new HttpError(404, 'Comment not found');
   if (c.deletedAt) throw new HttpError(400, 'This comment was deleted');
+  // Instagram connected before comments were added: Instagram refuses every action, say why up front
+  if (c.platform === 'instagram' && !platformState(tenant, 'instagram').igScopesOk) {
+    throw new HttpError(400, 'Instagram was connected before comment replies were added. Settings → Instagram → Disconnect, then Connect again and allow all permissions.');
+  }
   return c;
 }
 
@@ -246,13 +260,13 @@ async function loadComment(tenant, id) {
 export async function replyToComment(tenant, user, id, text) {
   const c = await loadComment(tenant, id);
   const r = c.platform === 'facebook' ? await fb.replyToComment(tenant._id, c.externalId, text) : await ig.replyToMediaComment(tenant._id, c.externalId, text);
-  const reply = await SocialComment.findOneAndUpdate(
+  const reply = await upsertComment(
     { tenantId: tenant._id, platform: c.platform, externalId: String(r.id) },
     {
-      $set: { text },
-      $setOnInsert: { postExternalId: c.postExternalId, socialPostId: c.socialPostId, parentExternalId: c.parentExternalId || c.externalId, from: { id: ownAccountId(tenant, c.platform) }, at: new Date(), fromBusiness: true, sentBy: user._id, readAt: new Date() },
-    },
-    { upsert: true, returnDocument: 'after' }
+      // fromBusiness / sentBy also when the webhook copy of this reply was saved a moment earlier
+      $set: { text, fromBusiness: true, sentBy: user._id },
+      $setOnInsert: { postExternalId: c.postExternalId, socialPostId: c.socialPostId, parentExternalId: c.parentExternalId || c.externalId, from: { id: ownAccountId(tenant, c.platform) }, at: new Date(), readAt: new Date() },
+    }
   );
   emitToTenant(tenant._id, 'social:comment', reply.toJSON());
   // The answer goes back as soon as Facebook / Instagram took the reply; the read mark follows on its own
@@ -278,8 +292,14 @@ export async function privateReply(tenant, id, text) {
 export async function setHidden(tenant, id, hidden) {
   const c = await loadComment(tenant, id);
   if (c.fromBusiness) throw new HttpError(400, 'Your own comments can not be hidden');
-  if (c.platform === 'facebook') await fb.hideComment(tenant._id, c.externalId, hidden);
-  else await ig.hideMediaComment(tenant._id, c.externalId, hidden);
+  try {
+    if (c.platform === 'facebook') await fb.hideComment(tenant._id, c.externalId, hidden);
+    else await ig.hideMediaComment(tenant._id, c.externalId, hidden);
+  } catch (err) {
+    // Meta sometimes answers with an error although the comment did change (or already was that way): check it
+    const now = await (c.platform === 'facebook' ? fb.isCommentHidden(tenant._id, c.externalId) : ig.isMediaCommentHidden(tenant._id, c.externalId)).catch(() => null);
+    if (now !== hidden) throw err;
+  }
   c.hidden = hidden;
   await c.save();
   emitToTenant(tenant._id, 'social:comment', c.toJSON());
