@@ -52,9 +52,10 @@ export const TargetBadge = ({ status }: { status: string }) => <Badge tone={TARG
 const POST: Record<string, [string, string]> = { scheduled: ['Scheduled', 'blue'], publishing: ['Posting…', 'yellow'], posted: ['Posted', 'green'], partial: ['Partly posted', 'yellow'], failed: ['Failed', 'red'], deleted: ['Deleted', 'gray'] };
 export const PostStatusBadge = ({ status }: { status: string }) => <Badge tone={POST[status]?.[1] || 'gray'}>{POST[status]?.[0] || status}</Badge>;
 
-/** "Priya" / "@priya.learns" / "You" */
+/** "Priya" / "@priya.learns" / "You"; Facebook hides some commenters' names until the app has Advanced Access */
 export const commenterName = (c: SocialComment) =>
-  c.fromBusiness ? (c.sentBy?.name ? `You (${c.sentBy.name})` : 'You') : c.from?.name || (c.from?.username ? `@${c.from.username}` : 'Someone');
+  c.fromBusiness ? (c.sentBy?.name ? `You (${c.sentBy.name})` : 'You') : c.from?.name || (c.from?.username ? `@${c.from.username}` : `${c.platform === 'instagram' ? 'Instagram' : 'Facebook'} user`);
+export const nameHidden = (c: SocialComment) => !c.fromBusiness && !c.from?.name && !c.from?.username;
 
 export type FacebookInfo = {
   mode: string;

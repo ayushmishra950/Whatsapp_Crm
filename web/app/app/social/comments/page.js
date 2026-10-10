@@ -11,7 +11,7 @@ import { useSocketEvent } from "@/lib/socket";
 import { useToast } from "@/components/toast";
 import { PageContainer } from "@/components/shell";
 import { ChannelBadge } from "@/components/channel";
-import { commenterName, mediaUrl } from "@/components/social";
+import { commenterName, mediaUrl, nameHidden } from "@/components/social";
 import { Avatar, Badge, Button, Card, ConfirmModal, EmptyState, Input, Modal, PageHeader, PageLoader, Pagination, Select, Textarea, cx } from "@/components/ui";
 
 const PRIVATE_DAYS = 7;
@@ -53,6 +53,7 @@ function CommentRow({ c, replies, isAdmin, now, onChanged }) {
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-medium text-slate-900">{commenterName(c)}</span>
+            {nameHidden(c) && <span className="text-xs text-slate-400" title="Facebook / Instagram hide the name until the Meta app gets Advanced Access (App Review)">(name hidden by {c.platform === "instagram" ? "Instagram" : "Facebook"})</span>}
             <ChannelBadge channel={c.platform} />
             {unread && <Badge tone="red">New</Badge>}
             {c.hidden && <Badge tone="gray">Hidden</Badge>}
@@ -158,6 +159,15 @@ function CommentsInbox() {
     return () => clearTimeout(t);
   }, [search]);
   useSocketEvent("social:comment", load);
+  useSocketEvent("notification:new", load);
+  // Safety net when a live update is missed: check again every 20 s while the page is on screen, and on coming back to the tab
+  useEffect(() => {
+    const t = setInterval(() => { if (!document.hidden) load(); }, 20000);
+    const onShow = () => { if (!document.hidden) load(); };
+    document.addEventListener("visibilitychange", onShow);
+    window.addEventListener("focus", onShow);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onShow); window.removeEventListener("focus", onShow); };
+  }, [filters, postId, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!data) return <PageLoader />;
   // Thread the page: replies under the comment they answer

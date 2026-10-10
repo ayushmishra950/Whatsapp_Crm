@@ -16,5 +16,7 @@ const POST_TONE = { scheduled: "blue", publishing: "yellow", posted: "green", pa
 const POST_TEXT = { scheduled: "Scheduled", publishing: "Posting…", posted: "Posted", partial: "Partly posted", failed: "Failed", deleted: "Deleted" };
 export const PostStatusBadge = ({ status }) => <Badge tone={POST_TONE[status] || "gray"}>{POST_TEXT[status] || status}</Badge>;
 
-/** "Priya" / "@priya.learns" / "Your Page" */
-export const commenterName = (c) => (c.fromBusiness ? (c.sentBy?.name ? `You (${c.sentBy.name})` : "You") : c.from?.name || (c.from?.username ? `@${c.from.username}` : "Someone"));
+/** "Priya" / "@priya.learns" / "You"; Facebook hides some commenters' names until the app has Advanced Access */
+export const commenterName = (c) =>
+  c.fromBusiness ? (c.sentBy?.name ? `You (${c.sentBy.name})` : "You") : c.from?.name || (c.from?.username ? `@${c.from.username}` : `${c.platform === "instagram" ? "Instagram" : "Facebook"} user`);
+export const nameHidden = (c) => !c.fromBusiness && !c.from?.name && !c.from?.username;

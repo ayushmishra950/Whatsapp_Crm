@@ -204,6 +204,13 @@ try {
   const again = await M.SocialComment.find({ tenantId: T, externalId: { $in: [`FBC1${stamp}`, `FBC2${stamp}`, `IGC1${stamp}`] } }).lean();
   ok(sync.added === 0 && again.map((c) => String(c.updatedAt)).join() === stamps, 'Syncing again: nothing new, nothing rewritten');
 
+  // Name hidden in the first answer (sync), sent later (webhook): filled in, still one comment
+  const t2 = await M.Tenant.findById(T);
+  await social.ingestComment(t2, 'facebook', { externalId: `NONAME${stamp}`, postExternalId: `PAGE${stamp}_222`, from: {}, text: 'Who am I' }, { notifyTeam: false });
+  await social.ingestComment(t2, 'facebook', { externalId: `NONAME${stamp}`, postExternalId: `PAGE${stamp}_222`, from: { id: `CUSTX${stamp}`, name: 'Named Later' }, text: 'Who am I' }, { notifyTeam: false });
+  const named = await M.SocialComment.find({ tenantId: T, externalId: `NONAME${stamp}` }).lean();
+  ok(named.length === 1 && named[0].from?.name === 'Named Later' && !named[0].fromBusiness, 'Commenter name filled in when Facebook sends it later');
+
   // Instagram connected before posting existed → asked to connect again
   await M.Tenant.updateOne({ _id: T }, { $set: { 'instagram.scopes': ['instagram_business_basic', 'instagram_business_manage_messages'] } });
   r = await postForm(b.tok, { text: 'x', platforms: 'instagram' }, [{ buf: jpg, type: 'image/jpeg', name: 'a.jpg' }]);

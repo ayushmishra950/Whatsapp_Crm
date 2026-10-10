@@ -1,8 +1,8 @@
-import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Linking, Pressable, RefreshControl, View } from 'react-native';
 import { ChannelBadge } from '@/components/channel';
-import { commenterName, type SocialComment } from '@/components/social';
+import { commenterName, nameHidden, type SocialComment } from '@/components/social';
 import { useToast } from '@/components/toast';
 import { showActionMenu } from '@/components/action-menu';
 import { Avatar, Badge, Button, Card, ChipBar, EmptyState, IconButton, Input, Loader, Row, Sheet, T, confirm } from '@/components/ui';
@@ -46,6 +46,19 @@ export default function CommentsScreen() {
     load();
   }, [load, epoch]);
   useSocketEvent('social:comment', load, epoch);
+  useSocketEvent('notification:new', load, epoch);
+  // Safety net when a live update is missed: reload on opening the screen, on coming back to the app, and every 20 s
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      const t = setInterval(() => AppState.currentState === 'active' && load(), 20000);
+      const sub = AppState.addEventListener('change', (st) => st === 'active' && load());
+      return () => {
+        clearInterval(t);
+        sub.remove();
+      };
+    }, [load])
+  );
 
   const run = async (key: string, fn: () => Promise<unknown>, msg?: string) => {
     setBusy(key);
@@ -128,6 +141,7 @@ export default function CommentsScreen() {
           <View style={{ flex: 1, gap: 3 }}>
             <Row wrap gap={6}>
               <T style={{ fontWeight: '700', color: C.text }}>{commenterName(c)}</T>
+              {nameHidden(c) ? <T v="tiny">(name hidden by {c.platform === 'instagram' ? 'Instagram' : 'Facebook'})</T> : null}
               <ChannelBadge channel={c.platform} />
               {unread ? <Badge tone="red">New</Badge> : null}
               {c.hidden ? <Badge>Hidden</Badge> : null}

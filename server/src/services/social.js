@@ -143,19 +143,24 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
   }
   const post = c.postExternalId ? await SocialPost.findOne({ tenantId: tenant._id, 'targets.externalId': String(c.postExternalId) }).select('_id text') : null;
   const fromBusiness = !!c.from?.id && String(c.from.id) === String(ownAccountId(tenant, platform) || '');
-  const before = await SocialComment.findOne(key).select('text hidden deletedAt').lean();
+  const before = await SocialComment.findOne(key).select('text hidden deletedAt from').lean();
   const existed = !!before;
+  // Facebook hides who commented in some answers (sync) but sends it in others (webhook): fill it in when it comes
+  const gotWho = !!(c.from?.id || c.from?.name || c.from?.username) && !(before?.from?.name || before?.from?.username);
   // Re-read by the sync with nothing new: no write, no live update
-  if (before && !before.deletedAt && before.text === (c.text || '') && (c.hidden === undefined || !!before.hidden === !!c.hidden)) return SocialComment.findOne(key);
+  if (before && !before.deletedAt && !gotWho && before.text === (c.text || '') && (c.hidden === undefined || !!before.hidden === !!c.hidden)) return SocialComment.findOne(key);
   const doc = await SocialComment.findOneAndUpdate(
     key,
     {
-      $set: { text: c.text || '', ...(c.hidden !== undefined && { hidden: !!c.hidden }) },
+      $set: {
+        text: c.text || '',
+        ...(c.hidden !== undefined && { hidden: !!c.hidden }),
+        ...((!existed || gotWho) && { from: { id: c.from?.id, name: c.from?.name, username: c.from?.username } }),
+      },
       $setOnInsert: {
         postExternalId: c.postExternalId ? String(c.postExternalId) : undefined,
         socialPostId: post?._id,
         parentExternalId: c.parentExternalId && c.parentExternalId !== c.postExternalId ? String(c.parentExternalId) : undefined,
-        from: { id: c.from?.id, name: c.from?.name, username: c.from?.username },
         at: c.at || new Date(),
         fromBusiness,
         ...(fromBusiness && { readAt: new Date() }),
@@ -175,7 +180,7 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
 async function alertNewComment(tenant, platform, comment) {
   const key = `comment:${comment.postExternalId || comment.externalId}`;
   if (await Notification.exists({ tenantId: tenant._id, key, createdAt: { $gte: new Date(Date.now() - 10 * 60000) } })) return;
-  const who = comment.from?.name || (comment.from?.username ? `@${comment.from.username}` : 'Someone');
+  const who = comment.from?.name || (comment.from?.username ? `@${comment.from.username}` : `a ${platform === 'facebook' ? 'Facebook' : 'Instagram'} user`);
   await notify(tenant._id, { to: 'admins', kind: 'comment', title: `💬 New ${platform === 'facebook' ? 'Facebook' : 'Instagram'} comment from ${who}`, body: comment.text.slice(0, 140), key, url: '/social/comments' });
 }
 

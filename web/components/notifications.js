@@ -66,7 +66,7 @@ export function NewMessageNotifier() {
     seenComments.current.add(c._id);
     if (window.location.pathname.startsWith("/app/social/comments") && !document.hidden) return; // already looking at them
     const where = c.platform === "facebook" ? "Facebook" : "Instagram";
-    const who = c.from?.name || (c.from?.username ? `@${c.from.username}` : "Someone");
+    const who = c.from?.name || (c.from?.username ? `@${c.from.username}` : `a ${where} user`);
     ding();
     toast.info(
       <>
