@@ -77,9 +77,9 @@ async function main() {
         body: 'Hi {{1}}, thanks for connecting with us! Use code {{2}} to get 20% off on your next order.',
         footer: 'Reply STOP to unsubscribe',
         status: 'approved',
-      },
+      }, 
     },
-    { upsert: true }
+    { upsert: true } 
   );
 
   console.log('\nSeed complete ✅');
