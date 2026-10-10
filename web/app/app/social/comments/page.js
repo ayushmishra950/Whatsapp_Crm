@@ -23,6 +23,8 @@ function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
   const [busy, setBusy] = useState("");
   const [dm, setDm] = useState(null); // private message text
   const [deleting, setDeleting] = useState(false);
+  const seq = useRef(0);
+  const [sending, setSending] = useState([]); // replies shown at once, before Facebook / Instagram confirm: { key, text, failed }
   // "New" = not seen before this visit (it is marked read as soon as it is on screen, but stays highlighted here)
   const isNew = (x) => !x.fromBusiness && (!x.readAt || fresh.has(x._id));
   const unread = isNew(c);
@@ -44,10 +46,23 @@ function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
       setBusy("");
     }
   };
-  const sendReply = () =>
-    run("reply", () => api(`/social/comments/${c._id}/reply`, { method: "POST", body: { text } }), "Reply posted").then((ok) => {
-      if (ok) { setText(""); setReplying(false); }
-    });
+  // Instant: the reply shows right away as "Sending…", the box is free for the next one; Facebook / Instagram confirm in the background
+  const sendReply = async (body = text, retryKey) => {
+    const msg = body.trim();
+    if (!msg) return;
+    const key = retryKey || `r${(seq.current += 1)}`;
+    setSending((list) => (retryKey ? list.map((p) => (p.key === key ? { ...p, failed: false } : p)) : [...list, { key, text: msg, failed: false }]));
+    setText("");
+    setReplying(false);
+    try {
+      await api(`/social/comments/${c._id}/reply`, { method: "POST", body: { text: msg } });
+      await onChanged(); // the real reply is in the list now
+      setSending((list) => list.filter((p) => p.key !== key));
+    } catch (err) {
+      setSending((list) => list.map((p) => (p.key === key ? { ...p, failed: true } : p)));
+      toast.error(err);
+    }
+  };
 
   return (
     <Card className={cx("p-3", (unread || newReplies > 0) && "border-brand-400 bg-brand-50/40 ring-1 ring-brand-200")}>
@@ -77,7 +92,7 @@ function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
             </p>
           )}
 
-          {replies.length > 0 && (
+          {(replies.length > 0 || sending.length > 0) && (
             <div className="mt-2 space-y-1.5 border-l-2 border-slate-200 pl-3">
               {replies.map((r) => (
                 <div key={r._id} className={cx("rounded text-sm", isNew(r) && "-mx-1.5 bg-red-50 px-1.5 py-0.5")}>
@@ -85,6 +100,20 @@ function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
                   {isNew(r) && <Badge tone="red" className="mr-1">New</Badge>}
                   <span className="text-slate-700">{r.text}</span>{" "}
                   <span className="text-xs text-slate-400">{fmtRelative(r.at)}</span>
+                </div>
+              ))}
+              {sending.map((p) => (
+                <div key={p.key} className={cx("text-sm", !p.failed && "opacity-70")}>
+                  <span className="font-medium text-brand-700">You</span> <span className="text-slate-700">{p.text}</span>{" "}
+                  {p.failed ? (
+                    <span className="text-xs text-red-600">
+                      Not sent ·{" "}
+                      <button type="button" className="underline" onClick={() => sendReply(p.text, p.key)}>Try again</button> ·{" "}
+                      <button type="button" className="underline" onClick={() => setSending((l) => l.filter((x) => x.key !== p.key))}>Remove</button>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Sending…</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -108,7 +137,7 @@ function CommentRow({ c, replies, isAdmin, now, fresh, onChanged }) {
           {replying && (
             <div className="flex items-end gap-2 pt-1">
               <Textarea id={`reply-${c._id}`} rows={2} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={`Public reply to ${commenterName(c)}…`} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && text.trim()) { e.preventDefault(); sendReply(); } }} />
-              <Button onClick={sendReply} loading={busy === "reply"} disabled={!text.trim() || busy === "reply"}>Reply</Button>
+              <Button onClick={() => sendReply()} disabled={!text.trim()}>Reply</Button>
               <Button variant="ghost" size="icon" aria-label="Close reply" onClick={() => setReplying(false)}><X className="h-4 w-4" /></Button>
             </div>
           )}

@@ -32,6 +32,9 @@ export default function CommentsScreen() {
   const [busy, setBusy] = useState('');
   const [fresh, setFresh] = useState<Set<string>>(() => new Set()); // unread when they reached the screen: highlighted for this visit
   const marking = useRef(false);
+  // Replies shown at once, before Facebook / Instagram confirm (per comment id)
+  const [pending, setPending] = useState<Record<string, { key: string; text: string; failed: boolean }[]>>({});
+  const seq = useRef(0);
 
   const load = useCallback(
     () =>
@@ -104,8 +107,29 @@ export default function CommentsScreen() {
   };
   const sendReply = async () => {
     if (!reply?.text.trim()) return;
-    const path = `/social/comments/${reply.c._id}/${reply.private ? 'private-reply' : 'reply'}`;
-    if (await run('reply', () => api(path, { method: 'POST', body: { text: reply.text } }), reply.private ? 'Private message sent' : 'Reply posted')) setReply(null);
+    if (reply.private) {
+      // One private message per comment: wait for Meta's answer before closing
+      if (await run('reply', () => api(`/social/comments/${reply.c._id}/private-reply`, { method: 'POST', body: { text: reply.text } }), 'Private message sent')) setReply(null);
+      return;
+    }
+    postReply(reply.c._id, reply.text.trim());
+    setReply(null);
+  };
+  // Instant public reply: shows as "Sending…" under the comment; Facebook / Instagram confirm in the background
+  const postReply = async (commentId: string, text: string, retryKey?: string) => {
+    const key = retryKey || `r${(seq.current += 1)}`;
+    const update = (fn: (l: { key: string; text: string; failed: boolean }[]) => { key: string; text: string; failed: boolean }[]) =>
+      setPending((p) => ({ ...p, [commentId]: fn(p[commentId] || []) }));
+    update((l) => (retryKey ? l.map((x) => (x.key === key ? { ...x, failed: false } : x)) : [...l, { key, text, failed: false }]));
+    try {
+      await api(`/social/comments/${commentId}/reply`, { method: 'POST', body: { text } });
+      await load();
+      update((l) => l.filter((x) => x.key !== key));
+      reloadCounts();
+    } catch (err) {
+      update((l) => l.map((x) => (x.key === key ? { ...x, failed: true } : x)));
+      toast.error(err);
+    }
   };
 
   if (!data) return <Loader />;
@@ -177,7 +201,7 @@ export default function CommentsScreen() {
           </View>
           {!c.fromBusiness ? <IconButton name="ellipsis-horizontal" label="More actions" onPress={() => openMenu(c)} /> : null}
         </Row>
-        {thread.length ? (
+        {thread.length || pending[c._id]?.length ? (
           <View style={{ marginLeft: 44, borderLeftWidth: 2, borderLeftColor: C.border, paddingLeft: S.sm, gap: 4 }}>
             {thread.map((r) => (
               <View key={r._id} style={isNew(r) ? { backgroundColor: '#fef2f2', borderRadius: 4, padding: 4 } : undefined}>
@@ -186,6 +210,22 @@ export default function CommentsScreen() {
                   {isNew(r) ? <T v="small" style={{ color: C.red, fontWeight: '700' }}>NEW </T> : null}
                   <T v="small" style={{ color: C.text2 }}>{r.text}</T>
                 </T>
+              </View>
+            ))}
+            {(pending[c._id] || []).map((p) => (
+              <View key={p.key} style={{ opacity: p.failed ? 1 : 0.7 }}>
+                <T v="small">
+                  <T v="small" style={{ fontWeight: '700', color: C.brand700 }}>You </T>
+                  <T v="small" style={{ color: C.text2 }}>{p.text} </T>
+                  {p.failed ? null : <T v="tiny">Sending…</T>}
+                </T>
+                {p.failed ? (
+                  <Row gap={S.md}>
+                    <T v="tiny" style={{ color: C.red }}>Not sent</T>
+                    <Pressable onPress={() => postReply(c._id, p.text, p.key)} hitSlop={6}><T v="tiny" style={{ color: C.brand700, fontWeight: '700' }}>Try again</T></Pressable>
+                    <Pressable onPress={() => setPending((all) => ({ ...all, [c._id]: (all[c._id] || []).filter((x) => x.key !== p.key) }))} hitSlop={6}><T v="tiny" style={{ color: C.muted }}>Remove</T></Pressable>
+                  </Row>
+                ) : null}
               </View>
             ))}
           </View>
@@ -244,7 +284,7 @@ export default function CommentsScreen() {
         open={!!reply}
         onClose={() => setReply(null)}
         title={reply ? (reply.private ? `Private message to ${commenterName(reply.c)}` : `Reply to ${commenterName(reply.c)}`) : ''}
-        footer={<Button title={reply?.private ? 'Send private message' : 'Post reply'} icon="send" loading={busy === 'reply'} disabled={!reply?.text.trim()} onPress={sendReply} full />}>
+        footer={<Button title={reply?.private ? 'Send private message' : 'Post reply'} icon="send" loading={reply?.private && busy === 'reply'} disabled={!reply?.text.trim()} onPress={sendReply} full />}>
         {reply ? (
           <View style={{ gap: S.sm }}>
             <View style={{ backgroundColor: C.soft, borderRadius: R.sm, padding: S.sm }}>

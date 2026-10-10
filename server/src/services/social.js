@@ -141,9 +141,12 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
     if (removed) emitToTenant(tenant._id, 'social:comment', removed.toJSON());
     return removed;
   }
-  const post = c.postExternalId ? await SocialPost.findOne({ tenantId: tenant._id, 'targets.externalId': String(c.postExternalId) }).select('_id text') : null;
+  // Both lookups at once (each is a round trip to the database)
+  const [post, before] = await Promise.all([
+    c.postExternalId ? SocialPost.findOne({ tenantId: tenant._id, 'targets.externalId': String(c.postExternalId) }).select('_id text') : null,
+    SocialComment.findOne(key).select('text hidden deletedAt from').lean(),
+  ]);
   const fromBusiness = !!c.from?.id && String(c.from.id) === String(ownAccountId(tenant, platform) || '');
-  const before = await SocialComment.findOne(key).select('text hidden deletedAt from').lean();
   const existed = !!before;
   // Facebook hides who commented in some answers (sync) but sends it in others (webhook): fill it in when it comes
   const gotWho = !!(c.from?.id || c.from?.name || c.from?.username) && !(before?.from?.name || before?.from?.username);
@@ -168,10 +171,11 @@ export async function ingestComment(tenant, platform, c, { verb = 'add', notifyT
     },
     { upsert: true, returnDocument: 'after' }
   );
+  // Tell the screens first, then the counters on the post
+  emitToTenant(tenant._id, 'social:comment', doc.toJSON());
   if (!existed && post) {
     await SocialPost.updateOne({ _id: post._id }, { $inc: { commentCount: 1, ...(!fromBusiness && { unreadComments: 1 }) } });
   }
-  emitToTenant(tenant._id, 'social:comment', doc.toJSON());
   if (!existed && !fromBusiness && notifyTeam) await alertNewComment(tenant, platform, doc);
   return doc;
 }
@@ -250,8 +254,9 @@ export async function replyToComment(tenant, user, id, text) {
     },
     { upsert: true, returnDocument: 'after' }
   );
-  await markRead(tenant, [c._id]);
   emitToTenant(tenant._id, 'social:comment', reply.toJSON());
+  // The answer goes back as soon as Facebook / Instagram took the reply; the read mark follows on its own
+  markRead(tenant, [c._id]).catch((err) => console.error('[social] mark read', err.message));
   return reply;
 }
 

@@ -122,6 +122,7 @@ try {
 
   r = await call(b.tok, 'POST', `/social/comments/${fbComment._id}/reply`, { text: 'Fees ₹15,000, details DM kar di hai' });
   ok(r.status === 201 && r.fromBusiness && r.parentExternalId === fbComment.externalId, 'Public reply saved as the business, under the comment');
+  await wait(300); // marked read right after the answer
   ok((await M.SocialComment.findById(fbComment._id)).readAt, 'Replied comment is marked read');
 
   r = await call(atok, 'POST', `/social/comments/${igComment._id}/private-reply`, { text: 'Hi Priya, batch details: ...' });
